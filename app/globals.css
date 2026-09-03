@@ -1,0 +1,451 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+/*
+ * Latin Modern is the Unicode OpenType continuation of Computer Modern.
+ * The files are served with the app, so prose never depends on an installed
+ * system font. Latin Modern Math completes the Greek and mathematical glyphs
+ * that can also appear in SVG labels or other non-KaTeX text.
+ */
+@font-face {
+  font-family: 'Atelier Latin Modern';
+  src: url('/fonts/lmroman10-regular.otf') format('opentype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Atelier Latin Modern';
+  src: url('/fonts/lmroman10-italic.otf') format('opentype');
+  font-style: italic;
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Atelier Latin Modern';
+  src: url('/fonts/lmroman10-bold.otf') format('opentype');
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Atelier Latin Modern';
+  src: url('/fonts/lmroman10-bolditalic.otf') format('opentype');
+  font-style: italic;
+  font-weight: 700;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Atelier Latin Modern Math';
+  src: url('/fonts/latinmodern-math.otf') format('opentype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+@font-face {
+  font-family: 'Atelier Latin Modern Mono';
+  src: url('/fonts/lmmono10-regular.otf') format('opentype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+
+/* Three Unicode subscripts absent from Latin Modern are supplied by another
+ * TeX-distributed OpenType math face, reduced to those glyphs only. */
+@font-face {
+  font-family: 'Atelier LaTeX Subscripts';
+  src: url('/fonts/libertinus-latex-subscripts.otf') format('opentype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  unicode-range: U+2080-2081, U+2099;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--paper);
+  --color-secondary: var(--muted);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--line);
+  --color-input: var(--line);
+  --color-ring: var(--accent);
+  --font-sans: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
+  --font-mono: 'Atelier Latin Modern Mono', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
+  --font-heading: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
+  --radius-sm: 0.15rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.35rem;
+  --radius-xl: 0.5rem;
+}
+
+:root {
+  --paper: #f7f3e8;
+  --background: #ece7d9;
+  --foreground: #17233b;
+  --card: #fbf8ef;
+  --primary: #17233b;
+  --muted: #e4decf;
+  --muted-foreground: #536071;
+  --line: #c7bfad;
+  --accent: #a63f30;
+  --teal: #2d6f6a;
+  --grid: rgba(23, 35, 59, 0.075);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; border-color: var(--line); }
+
+html {
+  scroll-behavior: smooth;
+  background: var(--background);
+  font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
+}
+
+body, button, input, output, select, textarea {
+  margin: 0;
+  font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
+}
+
+.katex {
+  font-family: 'KaTeX_Main', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
+}
+
+body {
+  min-width: 320px;
+  background: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px), var(--background);
+  background-size: 28px 28px;
+  color: var(--foreground);
+}
+
+button, a { -webkit-tap-highlight-color: transparent; }
+
+.app-shell { min-height: 100vh; padding: 24px; }
+
+.site-header {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(180px, 1fr);
+  align-items: center;
+  min-height: 74px;
+  max-width: 1440px;
+  margin: 0 auto;
+  border: 1px solid var(--foreground);
+  background: rgba(247, 243, 232, 0.96);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 0 20px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid var(--foreground);
+  border-radius: 50%;
+  color: var(--accent);
+}
+
+.brand-mark svg { width: 22px; }
+.brand strong, .brand small { display: block; }
+.brand strong { font-size: 16px; letter-spacing: 0.025em; }
+.brand small { margin-top: 3px; color: var(--muted-foreground); font-size: 11px; letter-spacing: 0.08em; }
+
+.site-header nav { display: flex; align-self: stretch; }
+
+.lab-tab {
+  position: relative;
+  height: auto;
+  min-width: 166px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0 20px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.lab-tab:last-child { border-right: 1px solid var(--line); }
+.lab-tab span { color: var(--accent); font-size: 10px; }
+
+.lab-tab::after {
+  position: absolute;
+  right: 20px;
+  bottom: -1px;
+  left: 20px;
+  height: 3px;
+  background: var(--accent);
+  content: '';
+  opacity: 0;
+}
+
+.lab-tab.is-active { background: rgba(228, 222, 207, 0.45); color: var(--foreground); }
+.lab-tab.is-active::after { opacity: 1; }
+
+.course-mark {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 20px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.course-mark svg { width: 16px; color: var(--teal); }
+
+.skip-link {
+  position: fixed;
+  z-index: 20;
+  top: 8px;
+  left: 8px;
+  transform: translateY(-140%);
+  border: 1px solid var(--foreground);
+  background: var(--paper);
+  color: var(--foreground);
+  padding: 9px 12px;
+  text-decoration: none;
+}
+
+.skip-link:focus { transform: translateY(0); }
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.8fr);
+  max-width: 1440px;
+  min-height: calc(100vh - 146px);
+  margin: 0 auto;
+  border-right: 1px solid var(--foreground);
+  border-bottom: 1px solid var(--foreground);
+  border-left: 1px solid var(--foreground);
+  background: var(--paper);
+}
+
+.control-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: clamp(28px, 4vw, 58px);
+  border-right: 1px solid var(--foreground);
+}
+
+.eyebrow { margin: 0 0 9px; color: var(--accent); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; }
+h1, h2, p { margin-top: 0; }
+h1 { max-width: 440px; margin-bottom: 14px; font-size: clamp(34px, 4vw, 58px); font-weight: 400; line-height: 0.98; letter-spacing: -0.035em; }
+.lede { max-width: 420px; margin-bottom: 0; color: var(--muted-foreground); font-size: 15px; line-height: 1.6; }
+
+.equation-card { overflow-x: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 18px 0; }
+.equation-card > span:first-child { display: block; margin-bottom: 10px; color: var(--muted-foreground); font-size: 11px; }
+.equation-card .katex-display { margin: 0; text-align: left; }
+.equation-card .katex-display > .katex { text-align: left; }
+
+.mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--line);
+  background: rgba(228, 222, 207, 0.28);
+}
+
+.mode-switch button {
+  height: 40px;
+  border-radius: 0;
+  color: var(--muted-foreground);
+}
+
+.mode-switch button + button { border-left: 1px solid var(--line); }
+.mode-switch button.is-selected { background: var(--foreground); color: var(--paper); }
+
+.control-stack { display: grid; gap: 24px; }
+.control-block { padding: 4px 0; }
+.control-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; font-size: 13px; }
+.control-heading output { display: grid; min-width: 34px; height: 30px; place-items: center; border: 1px solid var(--foreground); background: var(--foreground); color: var(--paper); font-size: 15px; }
+.control-block [data-slot='slider-track'] { height: 2px; background: var(--line); }
+.control-block [data-slot='slider-range'] { background: var(--accent); }
+.control-block [data-slot='slider-thumb'] { width: 16px; height: 16px; border: 2px solid var(--paper); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.range-labels { display: flex; justify-content: space-between; margin-top: 9px; color: var(--muted-foreground); font-size: 10px; }
+
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.preset-grid-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.preset-grid button,
+.display-switch button {
+  min-width: 0;
+  height: 38px;
+  border-color: var(--line);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.preset-grid button.is-selected,
+.display-switch button.is-selected {
+  border-color: var(--accent);
+  background: rgba(200, 77, 56, 0.08);
+  color: var(--foreground);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.display-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.compact-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.compact-controls .control-heading { margin-bottom: 13px; }
+.compact-controls .control-heading output { min-width: 42px; height: 26px; font-size: 12px; }
+.time-control { border-top: 1px solid var(--line); padding-top: 18px; }
+
+.transport-controls { display: flex; gap: 8px; }
+.transport-controls > button:first-child { flex: 1; height: 38px; border-radius: 2px; background: var(--foreground); color: var(--paper); }
+.transport-controls > button:last-child { width: 38px; height: 38px; border-color: var(--line); border-radius: 2px; background: transparent; }
+
+.measurements { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: auto 0 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.measurements div { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 16px; }
+.measurements dt { margin-bottom: 8px; color: var(--muted-foreground); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.measurements dd { overflow-wrap: anywhere; margin: 0; font-size: 15px; }
+.measurements dd .katex { font-size: 1em; }
+
+.figure-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: clamp(24px, 3.5vw, 52px);
+  background: radial-gradient(circle at 84% 12%, rgba(45, 111, 106, 0.08), transparent 28%), var(--card);
+}
+
+.figure-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.figure-heading h2 { margin-bottom: 0; font-size: clamp(23px, 2.2vw, 28px); font-weight: 400; }
+.figure-heading h2 .katex { font-size: 1em; }
+.figure-tag { border: 1px solid var(--line); padding: 8px 12px; color: var(--muted-foreground); font-size: 12px; }
+.plot-shell { display: grid; min-height: 360px; flex: 1; place-items: center; margin: 12px 0 4px; }
+.plot-shell svg { width: 100%; max-height: 470px; overflow: visible; }
+.plot-grid line { stroke: var(--grid); stroke-width: 1; }
+.axis { stroke: var(--foreground); stroke-width: 1.2; }
+.wall { stroke: var(--foreground); stroke-width: 4; }
+.symmetry { stroke: var(--teal); stroke-dasharray: 5 6; stroke-width: 1; }
+.wave { fill: none; stroke: var(--accent); stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
+.plot-labels { fill: var(--muted-foreground); font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts'; font-size: 13px; }
+
+.plot-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 18px; padding-top: 6px; color: var(--muted-foreground); font-size: 15px; line-height: 1.2; }
+.plot-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend-swatch { display: inline-block; width: 32px; height: 4px; background: var(--accent); }
+.legend-swatch.teal { background: var(--teal); }
+.legend-swatch.ink { background: var(--foreground); }
+.legend-swatch.dashed { height: 1px; background: repeating-linear-gradient(90deg, var(--teal) 0 4px, transparent 4px 7px); }
+
+.scientific-plot { width: 100%; overflow: visible; }
+.scientific-plot .series-line { fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+.scientific-plot .series-fill { stroke: none; }
+.scientific-plot .series-line.series-accent { stroke: var(--accent); }
+.scientific-plot .series-line.series-teal { stroke: var(--teal); }
+.scientific-plot .series-line.series-ink { stroke: var(--foreground); }
+.scientific-plot .series-line.series-muted { stroke: var(--muted-foreground); }
+.scientific-plot .is-dashed { stroke-dasharray: 5 6; }
+.scientific-plot .guide { vector-effect: non-scaling-stroke; }
+.scientific-plot .guide-accent { stroke: var(--accent); }
+.scientific-plot .guide-teal { stroke: var(--teal); }
+.scientific-plot .guide-ink { stroke: var(--foreground); }
+.scientific-plot .guide-muted { stroke: var(--muted-foreground); }
+.scientific-plot .axis-layer line { stroke: var(--foreground); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.scientific-plot .axis-layer text,
+.scientific-plot .guide-labels text {
+  fill: var(--muted-foreground);
+  font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
+  font-size: 13px;
+}
+.scientific-plot .axis-layer .axis-label { fill: var(--foreground); font-size: 15px; }
+.scientific-plot .guide-labels text { fill: var(--teal); font-size: 13px; }
+
+.scale-note { margin: 9px 0 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.4; }
+
+.insight-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; border-top: 1px solid var(--line); padding-top: 20px; }
+.insight-index { color: var(--accent); font-size: 12px; }
+.insight-row p { margin: 0; font-size: 14px; }
+.insight-formula { color: var(--teal); font-size: 12px; white-space: nowrap; }
+
+.theory-notes { margin-top: 22px; border-top: 1px solid var(--line); }
+.theory-notes summary { cursor: pointer; padding: 16px 0 2px; color: var(--teal); font-size: 12px; letter-spacing: 0.08em; list-style-position: inside; text-transform: uppercase; }
+.theory-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; margin-top: 16px; border: 1px solid var(--line); background: var(--line); }
+.theory-grid > div { min-width: 0; overflow-x: auto; background: var(--paper); padding: 16px; }
+.theory-grid > div > span { display: block; margin-bottom: 10px; color: var(--muted-foreground); font-size: 10px; text-transform: uppercase; }
+.theory-grid .katex-display { margin: 0; text-align: left; }
+.theory-grid .katex-display > .katex { text-align: left; font-size: 1em; }
+.theory-notes > p { max-width: 780px; margin: 14px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.55; }
+
+.empty-figure { justify-content: center; }
+.empty-figure > div { max-width: 620px; }
+.empty-figure h2 { margin-bottom: 18px; font-size: clamp(36px, 5vw, 70px); font-weight: 400; line-height: 1.03; }
+.empty-figure p:last-child { color: var(--muted-foreground); }
+
+footer { display: flex; justify-content: space-between; max-width: 1440px; margin: 0 auto; padding: 12px 2px 0; color: var(--muted-foreground); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+@media (min-width: 781px) and (max-width: 1279px) {
+  .equation-card .katex-display > .katex { font-size: 1.02em; }
+  .measurements div { padding: 12px 8px; }
+  .measurements dd { font-size: 13px; }
+}
+
+@media (max-width: 1050px) {
+  .site-header { grid-template-columns: 1fr auto; }
+  .site-header nav { order: 3; grid-column: 1 / -1; border-top: 1px solid var(--line); }
+  .lab-tab { min-height: 48px; flex: 1; }
+  .course-mark { min-height: 72px; }
+  .workspace { min-height: auto; }
+  .control-panel { padding: 34px; }
+}
+
+@media (max-width: 780px) {
+  .app-shell { padding: 10px; }
+  .site-header { grid-template-columns: 1fr; }
+  .course-mark { display: none; }
+  .site-header nav { grid-column: 1; }
+  .lab-tab { min-width: 0; padding: 0 10px; font-size: 11px; }
+  .lab-tab:first-child { border-left: 0; }
+  .lab-tab:last-child { border-right: 0; }
+  .workspace { grid-template-columns: 1fr; }
+  .control-panel { border-right: 0; border-bottom: 1px solid var(--foreground); }
+  .measurements { margin-top: 0; }
+  .plot-shell { min-height: 280px; }
+  .figure-heading { display: block; }
+  .plot-legend { justify-content: flex-start; margin-top: 12px; }
+  .theory-grid { grid-template-columns: 1fr; }
+  footer { gap: 12px; font-size: 8px; }
+}
+
+@media (max-width: 460px) {
+  .brand { padding: 12px; }
+  .brand small { font-size: 9px; }
+  .lab-tab { line-height: 1.15; }
+  .control-panel, .figure-panel { padding: 24px 20px; }
+  .compact-controls { grid-template-columns: 1fr; }
+  .preset-grid { grid-template-columns: 1fr; }
+  .preset-grid-four { grid-template-columns: 1fr 1fr; }
+  .measurements { grid-template-columns: 1fr; }
+  .insight-row { grid-template-columns: auto 1fr; }
+  .insight-formula { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
