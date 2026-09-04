@@ -13,8 +13,8 @@ import {
   clamp,
   sliderValue,
   wellCoefficients,
-  wellDensity,
   wellEigenfunction,
+  type Coefficient,
   type WellPreset,
 } from '@/lib/quantum';
 
@@ -30,6 +30,34 @@ const PRESETS: Array<{
   { value: 'high-pair', label: 'Modes 9 + 10', short: '9 + 10', width: 4 },
   { value: 'parabola', label: 'Parabole', short: 'Parabole', width: 4 },
 ];
+
+function evolveWellCoefficients(
+  coefficients: Coefficient[],
+  time: number,
+) {
+  return coefficients.map((coefficient) => {
+    const angle = coefficient.n ** 2 * time;
+    const cosine = Math.cos(angle);
+    const sine = Math.sin(angle);
+    return {
+      re: coefficient.re * cosine + coefficient.im * sine,
+      im: coefficient.im * cosine - coefficient.re * sine,
+    };
+  });
+}
+
+function probabilityFromBasis(
+  basis: number[],
+  evolved: Array<{ re: number; im: number }>,
+) {
+  let re = 0;
+  let im = 0;
+  basis.forEach((phi, index) => {
+    re += evolved[index].re * phi;
+    im += evolved[index].im * phi;
+  });
+  return re * re + im * im;
+}
 
 function presetFormula(preset: WellPreset) {
   if (preset === 'low-pair') {
@@ -52,8 +80,10 @@ function presetInsight(preset: WellPreset) {
 }
 
 export function InfiniteWellLab({
+  active,
   command,
 }: {
+  active: boolean;
   command: ExperimentCommand | null;
 }) {
   const [mode, setMode] = useState<WellMode>('stationary');
@@ -84,35 +114,88 @@ export function InfiniteWellLab({
   }, [command]);
 
   useEffect(() => {
-    if (!playing) return;
-    const interval = window.setInterval(() => {
-      setTime((current) => (current + 0.035) % TAU_MAX);
-    }, 35);
-    return () => window.clearInterval(interval);
-  }, [playing]);
+    if (!active || !playing) return;
+    let animationFrame = 0;
+    let previousTime: number | null = null;
+    let accumulatedMilliseconds = 0;
+    const frameDuration = 1000 / 60;
+    const animate = (timestamp: number) => {
+      if (previousTime !== null) {
+        accumulatedMilliseconds += Math.min(timestamp - previousTime, 100);
+        const elapsedFrames = Math.floor(accumulatedMilliseconds / frameDuration);
+        if (elapsedFrames > 0) {
+          accumulatedMilliseconds -= elapsedFrames * frameDuration;
+          const elapsed = (elapsedFrames * frameDuration) / 1000;
+          setTime((current) => (current + elapsed) % TAU_MAX);
+        }
+      }
+      previousTime = timestamp;
+      animationFrame = window.requestAnimationFrame(animate);
+    };
+    animationFrame = window.requestAnimationFrame(animate);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [active, playing]);
 
   const coefficients = useMemo(() => wellCoefficients(preset), [preset]);
+  const plotGrid = useMemo(
+    () =>
+      Array.from({ length: 241 }, (_, index) => {
+        const u = index / 240;
+        return { u, x: width * u };
+      }),
+    [width],
+  );
+  const evolutionBasis = useMemo(
+    () =>
+      plotGrid.map((point) =>
+        coefficients.map((coefficient) =>
+          wellEigenfunction(coefficient.n, point.u, width),
+        ),
+      ),
+    [coefficients, plotGrid, width],
+  );
+  const evolvedCoefficients = useMemo(
+    () => evolveWellCoefficients(coefficients, time),
+    [coefficients, time],
+  );
   const values = useMemo(() => {
-    return Array.from({ length: 361 }, (_, index) => {
-      const u = index / 360;
-      const y =
+    return plotGrid.map((point, index) => ({
+      x: point.x,
+      y:
         mode === 'stationary'
-          ? wellEigenfunction(n, u, width)
-          : (psiScale * wellDensity(coefficients, u, time, width)) / width;
-      return { x: width * u, y };
-    });
-  }, [coefficients, mode, n, psiScale, time, width]);
+          ? wellEigenfunction(n, point.u, width)
+          : psiScale *
+            probabilityFromBasis(evolutionBasis[index], evolvedCoefficients),
+    }));
+  }, [evolutionBasis, evolvedCoefficients, mode, n, plotGrid, psiScale, width]);
 
+  const unscaledMaximumDensity = useMemo(() => {
+    if (mode !== 'evolution') return 1;
+    let maximum = 0;
+    const sampleCount = 240;
+    for (let sample = 0; sample < sampleCount; sample += 1) {
+      const sampleTime = (sample * TAU_MAX) / sampleCount;
+      const evolved = evolveWellCoefficients(coefficients, sampleTime);
+      evolutionBasis.forEach((basis) => {
+        maximum = Math.max(maximum, probabilityFromBasis(basis, evolved));
+      });
+    }
+    return maximum;
+  }, [coefficients, evolutionBasis, mode]);
   const maximumDensity =
     mode === 'evolution'
-      ? Math.max(2.2, ...values.map((point) => point.y))
+      ? Math.max(2.2, psiScale * unscaledMaximumDensity)
       : 1;
-  const expectedReducedEnergy = coefficients.reduce(
-    (total, coefficient) =>
-      total +
-      (coefficient.re * coefficient.re + coefficient.im * coefficient.im) *
-        coefficient.n ** 2,
-    0,
+  const expectedReducedEnergy = useMemo(
+    () =>
+      coefficients.reduce(
+        (total, coefficient) =>
+          total +
+          (coefficient.re * coefficient.re + coefficient.im * coefficient.im) *
+            coefficient.n ** 2,
+        0,
+      ),
+    [coefficients],
   );
 
   const selectPreset = (nextPreset: WellPreset) => {
@@ -312,11 +395,11 @@ export function InfiniteWellLab({
                 : `Densité de probabilité dans le puits infini au temps réduit ${time.toFixed(2)}, facteur graphique ${psiScale.toFixed(1)}`
             }
             xDomain={[-0.12 * width, 1.12 * width]}
-            yDomain={mode === 'stationary' ? [-2.3, 2.3] : [0, maximumDensity * 1.12]}
+            yDomain={mode === 'stationary' ? [-2.3, 2.3] : [0, maximumDensity * 1.08]}
             xTicks={[0, width / 4, width / 2, (3 * width) / 4, width]}
             yTicks={mode === 'stationary' ? [-2, -1, 0, 1, 2] : undefined}
-            xLabel="x"
-            yLabel={mode === 'stationary' ? 'φₙ(x)' : 's · |ψ(x,τ)|²'}
+            xLabel={String.raw`$x$`}
+            yLabel={mode === 'stationary' ? String.raw`$\phi_n(x)$` : String.raw`$s\,|\psi(x,\tau)|^2$`}
             series={[
               {
                 values,
@@ -331,9 +414,9 @@ export function InfiniteWellLab({
               { from: width, to: 1.12 * width, tone: 'ink', fadeToward: 'left', opacity: 0.2 },
             ]}
             verticalLines={[
-              { value: 0, label: 'V → ∞', tone: 'ink', dashed: false, width: 3.5 },
+              { value: 0, label: String.raw`$V\to\infty$`, tone: 'ink', dashed: false, width: 3.5 },
               { value: width / 2, tone: 'teal', dashed: true },
-              { value: width, label: 'V → ∞', tone: 'ink', dashed: false, width: 3.5 },
+              { value: width, label: String.raw`$V\to\infty$`, tone: 'ink', dashed: false, width: 3.5 },
             ]}
             horizontalLines={mode === 'stationary' ? [{ value: 0, tone: 'ink', dashed: false }] : []}
           />

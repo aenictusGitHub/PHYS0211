@@ -218,10 +218,10 @@ export function QuantumLab() {
 
       <div id="laboratory" tabIndex={-1}>
         <div hidden={lab !== 'well'}>
-          <InfiniteWellLab command={command} />
+          <InfiniteWellLab active={lab === 'well'} command={command} />
         </div>
         <div hidden={lab !== 'oscillator'}>
-          <HarmonicLab command={command} />
+          <HarmonicLab active={lab === 'oscillator'} command={command} />
         </div>
       </div>
 

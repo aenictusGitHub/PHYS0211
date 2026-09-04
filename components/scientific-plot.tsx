@@ -1,6 +1,8 @@
 'use client';
 
-import { useId } from 'react';
+import { memo, useId } from 'react';
+
+import { Math as Formula } from '@/components/math';
 
 export type PlotPoint = { x: number; y: number };
 
@@ -46,6 +48,51 @@ type ScientificPlotProps = {
 const WIDTH = 780;
 const HEIGHT = 420;
 const MARGIN = { left: 72, right: 34, top: 30, bottom: 62 };
+
+type MathAnchor = 'start' | 'middle' | 'end';
+
+const SvgMathLabel = memo(function SvgMathLabel({
+  math,
+  x,
+  y,
+  width,
+  height,
+  rotate = 0,
+  anchor = 'middle',
+  variant = 'axis',
+}: {
+  math: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotate?: number;
+  anchor?: MathAnchor;
+  variant?: 'axis' | 'guide';
+}) {
+  const left =
+    anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2;
+
+  return (
+    <g
+      aria-hidden="true"
+      focusable="false"
+      pointerEvents="none"
+      transform={rotate ? `rotate(${rotate} ${x} ${y})` : undefined}
+    >
+      <foreignObject
+        x={left}
+        y={y - height / 2}
+        width={width}
+        height={height}
+      >
+        <div className={`plot-math-label is-${variant} is-${anchor}`}>
+          <Formula>{math}</Formula>
+        </div>
+      </foreignObject>
+    </g>
+  );
+});
 
 function formatTick(value: number) {
   if (Math.abs(value) < 1e-9) return '0';
@@ -293,47 +340,54 @@ export function ScientificPlot({
           </g>
         ))}
 
-        <text
-          className="axis-label"
+        <SvgMathLabel
+          math={xLabel}
           x={MARGIN.left + innerWidth / 2}
-          y={HEIGHT - 10}
-          textAnchor="middle"
-        >
-          {xLabel}
-        </text>
-        <text
-          className="axis-label"
-          x="18"
+          y={HEIGHT - 16}
+          width={240}
+          height={32}
+        />
+        <SvgMathLabel
+          math={yLabel}
+          x={24}
           y={MARGIN.top + innerHeight / 2}
-          textAnchor="middle"
-          transform={`rotate(-90 18 ${MARGIN.top + innerHeight / 2})`}
-        >
-          {yLabel}
-        </text>
+          width={280}
+          height={44}
+          rotate={-90}
+        />
       </g>
 
       <g className="guide-labels" aria-hidden="true">
-        {verticalLines.map((line, index) =>
-          line.label ? (
-            <text
+        {verticalLines.map((line, index) => {
+          if (!line.label) return null;
+          const guideX = mapX(line.value);
+          const onRight = guideX > MARGIN.left + innerWidth / 2;
+
+          return (
+            <SvgMathLabel
               key={`vertical-label-${index}`}
-              x={mapX(line.value) + 7}
-              y={MARGIN.top + 17}
-            >
-              {line.label}
-            </text>
-          ) : null,
-        )}
+              math={line.label}
+              x={guideX + (onRight ? -8 : 8)}
+              y={MARGIN.top + 18}
+              width={108}
+              height={32}
+              anchor={onRight ? 'end' : 'start'}
+              variant="guide"
+            />
+          );
+        })}
         {horizontalLines.map((line, index) =>
           line.label ? (
-            <text
+            <SvgMathLabel
               key={`horizontal-label-${index}`}
+              math={line.label}
               x={MARGIN.left + innerWidth - 7}
-              y={mapY(line.value) - 7}
-              textAnchor="end"
-            >
-              {line.label}
-            </text>
+              y={mapY(line.value) - 15}
+              width={132}
+              height={32}
+              anchor="end"
+              variant="guide"
+            />
           ) : null,
         )}
       </g>

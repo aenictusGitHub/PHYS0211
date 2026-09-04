@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import katex from 'katex';
 
 type MathProps = {
@@ -20,13 +21,21 @@ function unwrapMathDelimiters(source: string) {
   return value;
 }
 
-export function Math({ children, display = false, className = '' }: MathProps) {
-  const html = katex.renderToString(unwrapMathDelimiters(children), {
-    displayMode: display,
-    throwOnError: false,
-    strict: 'ignore',
-    trust: false,
-  });
+export const Math = memo(function Math({
+  children,
+  display = false,
+  className = '',
+}: MathProps) {
+  const html = useMemo(
+    () =>
+      katex.renderToString(unwrapMathDelimiters(children), {
+        displayMode: display,
+        throwOnError: false,
+        strict: 'ignore',
+        trust: false,
+      }),
+    [children, display],
+  );
 
   return (
     <span
@@ -34,4 +43,4 @@ export function Math({ children, display = false, className = '' }: MathProps) {
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
-}
+});

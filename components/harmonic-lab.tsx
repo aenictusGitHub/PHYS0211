@@ -12,11 +12,11 @@ import {
   TAU_MAX,
   clamp,
   expectationEnergy,
-  harmonicDensity,
   harmonicEigenfunction,
   numericalExpectationX,
   oscillatorCoefficients,
   sliderValue,
+  type Coefficient,
   type OscillatorPreset,
 } from '@/lib/quantum';
 
@@ -33,6 +33,44 @@ const PRESETS: Array<{
   { value: 'opposite', label: 'Deux états cohérents opposés', short: 'Chat opposé' },
   { value: 'quadrature', label: 'Deux états cohérents en quadrature', short: 'Quadrature' },
 ];
+
+const POTENTIAL_STATIONARY = Array.from({ length: 401 }, (_, index) => {
+  const x = -4 + (8 * index) / 400;
+  return { x, y: (x * x) / 2 };
+});
+
+const POTENTIAL_EVOLUTION = Array.from({ length: 401 }, (_, index) => {
+  const x = -5 + (10 * index) / 400;
+  return { x, y: (x * x) / 2 };
+});
+
+function evolveOscillatorCoefficients(
+  coefficients: Coefficient[],
+  time: number,
+) {
+  return coefficients.map((coefficient) => {
+    const angle = (coefficient.n + 0.5) * time;
+    const cosine = Math.cos(angle);
+    const sine = Math.sin(angle);
+    return {
+      re: coefficient.re * cosine + coefficient.im * sine,
+      im: coefficient.im * cosine - coefficient.re * sine,
+    };
+  });
+}
+
+function probabilityFromBasis(
+  basis: number[],
+  evolved: Array<{ re: number; im: number }>,
+) {
+  let re = 0;
+  let im = 0;
+  basis.forEach((phi, index) => {
+    re += evolved[index].re * phi;
+    im += evolved[index].im * phi;
+  });
+  return re * re + im * im;
+}
 
 function presetFormula(preset: OscillatorPreset) {
   if (preset === 'mixture') {
@@ -57,8 +95,10 @@ function presetInsight(preset: OscillatorPreset) {
 }
 
 export function HarmonicLab({
+  active,
   command,
 }: {
+  active: boolean;
   command: ExperimentCommand | null;
 }) {
   const [mode, setMode] = useState<OscillatorMode>('stationary');
@@ -96,12 +136,27 @@ export function HarmonicLab({
   }, [command]);
 
   useEffect(() => {
-    if (!playing) return;
-    const interval = window.setInterval(() => {
-      setTime((current) => (current + 0.035) % TAU_MAX);
-    }, 35);
-    return () => window.clearInterval(interval);
-  }, [playing]);
+    if (!active || !playing) return;
+    let animationFrame = 0;
+    let previousTime: number | null = null;
+    let accumulatedMilliseconds = 0;
+    const frameDuration = 1000 / 60;
+    const animate = (timestamp: number) => {
+      if (previousTime !== null) {
+        accumulatedMilliseconds += Math.min(timestamp - previousTime, 100);
+        const elapsedFrames = Math.floor(accumulatedMilliseconds / frameDuration);
+        if (elapsedFrames > 0) {
+          accumulatedMilliseconds -= elapsedFrames * frameDuration;
+          const elapsed = (elapsedFrames * frameDuration) / 1000;
+          setTime((current) => (current + elapsed) % TAU_MAX);
+        }
+      }
+      previousTime = timestamp;
+      animationFrame = window.requestAnimationFrame(animate);
+    };
+    animationFrame = window.requestAnimationFrame(animate);
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [active, playing]);
 
   const alpha = useMemo(
     () => ({
@@ -127,32 +182,47 @@ export function HarmonicLab({
     });
   }, [display, n]);
 
-  const probabilityValues = useMemo(() => {
-    return Array.from({ length: 701 }, (_, index) => {
-      const x = -7 + (14 * index) / 700;
-      return { x, density: harmonicDensity(coefficients, x, time) };
-    });
-  }, [coefficients, time]);
+  const probabilityGrid = useMemo(
+    () =>
+      Array.from({ length: 401 }, (_, index) => {
+        const x = -7 + (14 * index) / 400;
+        return {
+          x,
+          basis: coefficients.map((coefficient) =>
+            harmonicEigenfunction(coefficient.n, x),
+          ),
+        };
+      }),
+    [coefficients],
+  );
+  const evolvedCoefficients = useMemo(
+    () => evolveOscillatorCoefficients(coefficients, time),
+    [coefficients, time],
+  );
+  const probabilityValues = useMemo(
+    () =>
+      probabilityGrid.map((point) => ({
+        x: point.x,
+        density: probabilityFromBasis(point.basis, evolvedCoefficients),
+      })),
+    [evolvedCoefficients, probabilityGrid],
+  );
 
-  const meanEnergy = expectationEnergy(coefficients);
-  const evolutionValues = probabilityValues.map((point) => ({
-    x: point.x,
-    y: meanEnergy + psiScale * point.density,
-  }));
-  const potentialStationary = Array.from({ length: 401 }, (_, index) => {
-    const x = -4 + (8 * index) / 400;
-    return { x, y: (x * x) / 2 };
-  });
-  const potentialEvolution = Array.from({ length: 501 }, (_, index) => {
-    const x = -5 + (10 * index) / 500;
-    return { x, y: (x * x) / 2 };
-  });
+  const meanEnergy = useMemo(
+    () => expectationEnergy(coefficients),
+    [coefficients],
+  );
+  const evolutionValues = useMemo(
+    () =>
+      probabilityValues.map((point) => ({
+        x: point.x,
+        y: meanEnergy + psiScale * point.density,
+      })),
+    [meanEnergy, probabilityValues, psiScale],
+  );
   const meanX = numericalExpectationX(probabilityValues);
   const stationaryMaximum = Math.max(9, n + 1.65);
-  const evolutionMaximum = Math.max(
-    13.4,
-    ...evolutionValues.map((point) => point.y * 1.08),
-  );
+  const evolutionMaximum = 13.4;
 
   const selectPreset = (nextPreset: OscillatorPreset) => {
     setPreset(nextPreset);
@@ -384,13 +454,13 @@ export function HarmonicLab({
               xDomain={[-4, 4]}
               yDomain={[0, stationaryMaximum]}
               xTicks={[-4, -2, 0, 2, 4]}
-              xLabel="ξ = x/x₀"
-              yLabel="E/ℏω + amplitude"
+              xLabel={String.raw`$\xi=x/x_0$`}
+              yLabel={String.raw`$\frac{E}{\hbar\omega}+\text{amplitude}$`}
               series={[
-                { values: potentialStationary, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
+                { values: POTENTIAL_STATIONARY, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
                 { values: stationaryValues, tone: 'accent', width: 2.8, fillTo: n + 0.5, fillOpacity: 0.24 },
               ]}
-              horizontalLines={[{ value: n + 0.5, label: `E${n}`, tone: 'teal', dashed: true }]}
+              horizontalLines={[{ value: n + 0.5, label: String.raw`$E_${n}$`, tone: 'teal', dashed: true }]}
             />
           ) : (
             <ScientificPlot
@@ -398,13 +468,13 @@ export function HarmonicLab({
               xDomain={[-5, 5]}
               yDomain={[0, evolutionMaximum]}
               xTicks={[-4, -2, 0, 2, 4]}
-              xLabel="ξ = x/x₀"
-              yLabel="E/ℏω + s · densité"
+              xLabel={String.raw`$\xi=x/x_0$`}
+              yLabel={String.raw`$\frac{E}{\hbar\omega}+s\,|\psi(\xi,\tau)|^2$`}
               series={[
-                { values: potentialEvolution, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
+                { values: POTENTIAL_EVOLUTION, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
                 { values: evolutionValues, tone: 'accent', width: 2.8, fillTo: meanEnergy, fillOpacity: 0.3 },
               ]}
-              horizontalLines={[{ value: meanEnergy, label: '⟨E⟩', tone: 'teal', dashed: true }]}
+              horizontalLines={[{ value: meanEnergy, label: String.raw`$\langle E\rangle$`, tone: 'teal', dashed: true }]}
             />
           )}
         </div>

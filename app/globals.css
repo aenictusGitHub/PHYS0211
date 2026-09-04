@@ -333,8 +333,9 @@ h1 { max-width: 440px; margin-bottom: 14px; font-size: clamp(34px, 4vw, 58px); f
   background: radial-gradient(circle at 84% 12%, rgba(45, 111, 106, 0.08), transparent 28%), var(--card);
 }
 
-.figure-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
-.figure-heading h2 { margin-bottom: 0; font-size: clamp(23px, 2.2vw, 28px); font-weight: 400; }
+.figure-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.figure-heading .eyebrow { font-size: 13px; }
+.figure-heading h2 { margin-bottom: 0; font-size: clamp(18px, 1.5vw, 21px); font-weight: 400; }
 .figure-heading h2 .katex { font-size: 1em; }
 .figure-tag { border: 1px solid var(--line); padding: 8px 12px; color: var(--muted-foreground); font-size: 12px; }
 .plot-shell { display: grid; min-height: 360px; flex: 1; place-items: center; margin: 12px 0 4px; }
@@ -346,9 +347,9 @@ h1 { max-width: 440px; margin-bottom: 14px; font-size: clamp(34px, 4vw, 58px); f
 .wave { fill: none; stroke: var(--accent); stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
 .plot-labels { fill: var(--muted-foreground); font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts'; font-size: 13px; }
 
-.plot-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 18px; padding-top: 6px; color: var(--muted-foreground); font-size: 15px; line-height: 1.2; }
+.plot-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 20px; padding-top: 6px; color: var(--muted-foreground); font-size: 18px; line-height: 1.15; }
 .plot-legend span { display: inline-flex; align-items: center; gap: 8px; }
-.legend-swatch { display: inline-block; width: 32px; height: 4px; background: var(--accent); }
+.legend-swatch { display: inline-block; width: 36px; height: 4px; background: var(--accent); }
 .legend-swatch.teal { background: var(--teal); }
 .legend-swatch.ink { background: var(--foreground); }
 .legend-swatch.dashed { height: 1px; background: repeating-linear-gradient(90deg, var(--teal) 0 4px, transparent 4px 7px); }
@@ -371,10 +372,28 @@ h1 { max-width: 440px; margin-bottom: 14px; font-size: clamp(34px, 4vw, 58px); f
 .scientific-plot .guide-labels text {
   fill: var(--muted-foreground);
   font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
-  font-size: 13px;
+  font-size: 15px;
 }
 .scientific-plot .axis-layer .axis-label { fill: var(--foreground); font-size: 15px; }
 .scientific-plot .guide-labels text { fill: var(--teal); font-size: 13px; }
+
+.scientific-plot foreignObject { overflow: visible; }
+.plot-math-label {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  overflow: visible;
+  color: var(--foreground);
+  font-size: 20px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.plot-math-label.is-start { justify-content: flex-start; }
+.plot-math-label.is-middle { justify-content: center; }
+.plot-math-label.is-end { justify-content: flex-end; }
+.plot-math-label.is-guide { color: var(--teal); font-size: 18px; }
+.plot-math-label .katex { font-size: 1em; }
 
 .scale-note { margin: 9px 0 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.4; }
 
