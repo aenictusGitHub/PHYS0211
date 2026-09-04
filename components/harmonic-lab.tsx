@@ -241,7 +241,7 @@ export function HarmonicLab({
     <section className="workspace" aria-labelledby="oscillator-title">
       <aside className="control-panel">
         <div>
-          <p className="eyebrow">Laboratoire 02 · Oscillation</p>
+          <p className="eyebrow">02</p>
           <h1 id="oscillator-title">Oscillateur harmonique</h1>
           <p className="lede">
             Explorez les modes d’Hermite, l’échelle régulière des énergies et
@@ -379,8 +379,8 @@ export function HarmonicLab({
 
             <div className="control-block scale-control">
               <div className="control-heading">
-                <label htmlFor="oscillator-scale">Échelle de <Formula>{String.raw`$|\psi|^2$`}</Formula></label>
-                <output>×{psiScale.toFixed(1)}</output>
+                <label htmlFor="oscillator-scale">Facteur d’affichage <Formula>{String.raw`$s$`}</Formula></label>
+                <output><Formula>{`$s=${psiScale.toFixed(1)}$`}</Formula></output>
               </div>
               <Slider
                 id="oscillator-scale"
@@ -389,10 +389,10 @@ export function HarmonicLab({
                 step={0.1}
                 value={[psiScale]}
                 onValueChange={(value) => setPsiScale(sliderValue(value, 2))}
-                aria-label="Facteur d’échelle graphique de la densité de probabilité"
+                aria-label="Facteur d’affichage s de la densité de probabilité"
               />
-              <div className="range-labels" aria-hidden="true"><span>×0,5</span><span>×8</span></div>
-              <p className="scale-note">Affichage uniquement · <Formula>{String.raw`$\int |\psi|^2\,dx=1$`}</Formula></p>
+              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0{,}5$`}</Formula></span><span><Formula>{String.raw`$s=8$`}</Formula></span></div>
+              <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’affichage · <Formula>{String.raw`$\int |\psi|^2\,dx=1$`}</Formula></p>
             </div>
 
             <div className="transport-controls">
@@ -421,7 +421,7 @@ export function HarmonicLab({
             <>
               <div><dt>Énergie moyenne</dt><dd><Formula>{String.raw`$${meanEnergy.toFixed(2)}\,\hbar\omega$`}</Formula></dd></div>
               <div><dt>Position moyenne</dt><dd><Formula>{String.raw`$${meanX.toFixed(2)}\,x_0$`}</Formula></dd></div>
-              <div><dt>Facteur visuel</dt><dd>×{psiScale.toFixed(1)}</dd></div>
+              <div><dt>Facteur <Formula>{String.raw`$s$`}</Formula></dt><dd><Formula>{`$s=${psiScale.toFixed(1)}$`}</Formula></dd></div>
             </>
           )}
         </dl>
@@ -442,8 +442,8 @@ export function HarmonicLab({
             </h2>
           </div>
           <div className="plot-legend" aria-label="Légende">
-            <span><i className="legend-swatch accent" />{mode === 'stationary' ? (display === 'wave' ? 'fonction propre' : 'densité') : 'densité'}</span>
-            <span><i className="legend-swatch ink" />potentiel</span>
+            <span><i className="legend-swatch accent" aria-hidden="true" />{mode === 'stationary' ? (display === 'wave' ? 'fonction propre' : 'densité') : 'densité'}</span>
+            <span><i className="legend-swatch ink" aria-hidden="true" />potentiel</span>
           </div>
         </div>
 
@@ -464,7 +464,7 @@ export function HarmonicLab({
             />
           ) : (
             <ScientificPlot
-              ariaLabel={`Densité de probabilité de l’oscillateur harmonique au temps réduit ${time.toFixed(2)}, facteur graphique ${psiScale.toFixed(1)}`}
+              ariaLabel={`Densité de probabilité de l’oscillateur harmonique au temps réduit ${time.toFixed(2)}, facteur s égal à ${psiScale.toFixed(1)}`}
               xDomain={[-5, 5]}
               yDomain={[0, evolutionMaximum]}
               xTicks={[-4, -2, 0, 2, 4]}

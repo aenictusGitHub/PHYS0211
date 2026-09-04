@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Atom, FlaskConical } from 'lucide-react';
+import { Atom } from 'lucide-react';
 
 import { HarmonicLab } from '@/components/harmonic-lab';
 import { InfiniteWellLab } from '@/components/infinite-well-lab';
@@ -110,7 +110,7 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          'Ouvre le puits infini ou l’oscillateur harmonique et règle son mode, son état quantique, son état initial, son temps réduit ou le facteur d’affichage de sa densité.',
+          'Ouvre le puits infini ou l’oscillateur harmonique et règle son mode, son état quantique, son état initial, son temps réduit ou le facteur d’affichage s de sa densité.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -186,9 +186,9 @@ export function QuantumLab() {
     <main className="app-shell">
       <a className="skip-link" href="#laboratory">Aller au laboratoire</a>
       <header className="site-header">
-        <a className="brand" href="#laboratory" aria-label="Atelier quantique, accueil">
+        <a className="brand" href="#laboratory" aria-label="Mécanique quantique, accueil">
           <span className="brand-mark"><Atom aria-hidden="true" /></span>
-          <span><strong>Atelier quantique</strong><small>PHYS0211-3 · 2023–2024</small></span>
+          <span><strong>Mécanique quantique</strong><small>PHYS0211-3 · 2026–2027</small></span>
         </a>
 
         <nav aria-label="Choisir un laboratoire">
@@ -210,10 +210,6 @@ export function QuantumLab() {
           </Button>
         </nav>
 
-        <div className="course-mark">
-          <FlaskConical aria-hidden="true" />
-          <span>Laboratoire interactif</span>
-        </div>
       </header>
 
       <div id="laboratory" tabIndex={-1}>
@@ -226,8 +222,7 @@ export function QuantumLab() {
       </div>
 
       <footer>
-        <span>John Martin &amp; Baptiste Debecker</span>
-        <span>Université de Liège</span>
+        <span>John Martin</span>
       </footer>
     </main>
   );

@@ -211,7 +211,7 @@ export function InfiniteWellLab({
     <section className="workspace" aria-labelledby="well-title">
       <aside className="control-panel">
         <div>
-          <p className="eyebrow">Laboratoire 01 · Confinement</p>
+          <p className="eyebrow">01</p>
           <h1 id="well-title">Puits de potentiel infini</h1>
           <p className="lede">
             Reliez quantification, nœuds et interférences dans un espace où la
@@ -321,8 +321,8 @@ export function InfiniteWellLab({
 
             <div className="control-block scale-control">
               <div className="control-heading">
-                <label htmlFor="well-scale">Échelle de <Formula>{String.raw`$|\psi|^2$`}</Formula></label>
-                <output>×{psiScale.toFixed(1)}</output>
+                <label htmlFor="well-scale">Facteur d’affichage <Formula>{String.raw`$s$`}</Formula></label>
+                <output><Formula>{`$s=${psiScale.toFixed(1)}$`}</Formula></output>
               </div>
               <Slider
                 id="well-scale"
@@ -331,10 +331,10 @@ export function InfiniteWellLab({
                 step={0.1}
                 value={[psiScale]}
                 onValueChange={(value) => setPsiScale(sliderValue(value, 2))}
-                aria-label="Facteur d’échelle graphique de la densité de probabilité"
+                aria-label="Facteur d’affichage s de la densité de probabilité"
               />
-              <div className="range-labels" aria-hidden="true"><span>×0,5</span><span>×8</span></div>
-              <p className="scale-note">Affichage uniquement · <Formula>{String.raw`$\int |\psi|^2\,dx=1$`}</Formula></p>
+              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0{,}5$`}</Formula></span><span><Formula>{String.raw`$s=8$`}</Formula></span></div>
+              <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’affichage · <Formula>{String.raw`$\int |\psi|^2\,dx=1$`}</Formula></p>
             </div>
 
             <div className="transport-controls">
@@ -363,7 +363,7 @@ export function InfiniteWellLab({
             <>
               <div><dt>Largeur</dt><dd><Formula>{String.raw`$a=${width.toFixed(1)}$`}</Formula></dd></div>
               <div><dt>Énergie moyenne</dt><dd><Formula>{String.raw`$${expectedReducedEnergy.toFixed(2)}\,E_1$`}</Formula></dd></div>
-              <div><dt>Facteur visuel</dt><dd>×{psiScale.toFixed(1)}</dd></div>
+              <div><dt>Facteur <Formula>{String.raw`$s$`}</Formula></dt><dd><Formula>{`$s=${psiScale.toFixed(1)}$`}</Formula></dd></div>
             </>
           )}
         </dl>
@@ -382,8 +382,8 @@ export function InfiniteWellLab({
             </h2>
           </div>
           <div className="plot-legend" aria-label="Légende">
-            <span><i className="legend-swatch accent" />{mode === 'stationary' ? 'fonction d’onde' : 'densité'}</span>
-            <span><i className="legend-swatch teal dashed" />axe de symétrie</span>
+            <span><i className="legend-swatch accent" aria-hidden="true" />{mode === 'stationary' ? 'fonction d’onde' : 'densité'}</span>
+            <span><i className="legend-swatch teal dashed" aria-hidden="true" />axe de symétrie</span>
           </div>
         </div>
 
@@ -392,7 +392,7 @@ export function InfiniteWellLab({
             ariaLabel={
               mode === 'stationary'
                 ? `Fonction propre du puits infini pour n égal à ${n} et largeur ${width.toFixed(1)}`
-                : `Densité de probabilité dans le puits infini au temps réduit ${time.toFixed(2)}, facteur graphique ${psiScale.toFixed(1)}`
+                : `Densité de probabilité dans le puits infini au temps réduit ${time.toFixed(2)}, facteur s égal à ${psiScale.toFixed(1)}`
             }
             xDomain={[-0.12 * width, 1.12 * width]}
             yDomain={mode === 'stationary' ? [-2.3, 2.3] : [0, maximumDensity * 1.08]}

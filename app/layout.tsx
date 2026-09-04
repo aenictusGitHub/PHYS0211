@@ -4,11 +4,11 @@ import './globals.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://atelier-quantique.jmartin741572.chatgpt.site'),
-  title: 'Atelier quantique — PHYS0211-3',
+  title: 'Mécanique quantique — PHYS0211-3',
   description:
     'Deux laboratoires interactifs sur le puits infini et l’oscillateur harmonique quantique.',
   openGraph: {
-    title: 'Atelier quantique',
+    title: 'Mécanique quantique',
     description: 'Puits infini · Oscillateur harmonique',
     type: 'website',
     locale: 'fr_BE',
@@ -17,13 +17,13 @@ export const metadata: Metadata = {
         url: '/og.png',
         width: 1200,
         height: 630,
-        alt: 'Atelier quantique — puits infini et oscillateur harmonique',
+        alt: 'Mécanique quantique — puits infini et oscillateur harmonique',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Atelier quantique',
+    title: 'Mécanique quantique',
     description: 'Puits infini · Oscillateur harmonique',
     images: ['/og.png'],
   },
