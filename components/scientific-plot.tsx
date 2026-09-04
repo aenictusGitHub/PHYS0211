@@ -57,7 +57,6 @@ const SvgMathLabel = memo(function SvgMathLabel({
   y,
   width,
   height,
-  rotate = 0,
   anchor = 'middle',
   variant = 'axis',
 }: {
@@ -66,7 +65,6 @@ const SvgMathLabel = memo(function SvgMathLabel({
   y: number;
   width: number;
   height: number;
-  rotate?: number;
   anchor?: MathAnchor;
   variant?: 'axis' | 'guide';
 }) {
@@ -78,7 +76,6 @@ const SvgMathLabel = memo(function SvgMathLabel({
       aria-hidden="true"
       focusable="false"
       pointerEvents="none"
-      transform={rotate ? `rotate(${rotate} ${x} ${y})` : undefined}
     >
       <foreignObject
         x={left}
@@ -141,13 +138,14 @@ export function ScientificPlot({
   };
 
   return (
-    <svg
-      className="scientific-plot"
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      role="img"
-      aria-label={ariaLabel}
-    >
-      <defs>
+    <div className="scientific-plot-frame">
+      <svg
+        className="scientific-plot"
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        role="img"
+        aria-label={ariaLabel}
+      >
+        <defs>
         <clipPath id={clipId}>
           <rect
             x={MARGIN.left}
@@ -205,7 +203,7 @@ export function ScientificPlot({
             />
           </linearGradient>
         ))}
-      </defs>
+        </defs>
 
       <g className="plot-grid" aria-hidden="true">
         {resolvedXTicks.map((tick) => (
@@ -340,21 +338,6 @@ export function ScientificPlot({
           </g>
         ))}
 
-        <SvgMathLabel
-          math={xLabel}
-          x={MARGIN.left + innerWidth / 2}
-          y={HEIGHT - 16}
-          width={240}
-          height={32}
-        />
-        <SvgMathLabel
-          math={yLabel}
-          x={24}
-          y={MARGIN.top + innerHeight / 2}
-          width={280}
-          height={44}
-          rotate={-90}
-        />
       </g>
 
       <g className="guide-labels" aria-hidden="true">
@@ -390,7 +373,29 @@ export function ScientificPlot({
             />
           ) : null,
         )}
-      </g>
-    </svg>
+        </g>
+      </svg>
+
+      <div
+        className="plot-axis-label is-x"
+        style={{
+          left: `${((MARGIN.left + innerWidth / 2) / WIDTH) * 100}%`,
+          top: `${((HEIGHT - 16) / HEIGHT) * 100}%`,
+        }}
+        aria-hidden="true"
+      >
+        <Formula>{xLabel}</Formula>
+      </div>
+      <div
+        className="plot-axis-label is-y"
+        style={{
+          left: `${(24 / WIDTH) * 100}%`,
+          top: `${((MARGIN.top + innerHeight / 2) / HEIGHT) * 100}%`,
+        }}
+        aria-hidden="true"
+      >
+        <Formula>{yLabel}</Formula>
+      </div>
+    </div>
   );
 }

@@ -7,7 +7,7 @@ import { HarmonicLab } from '@/components/harmonic-lab';
 import { InfiniteWellLab } from '@/components/infinite-well-lab';
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Button } from '@/components/ui/button';
-import { TAU_MAX } from '@/lib/quantum';
+import { DISPLAY_SCALE_MAX, DISPLAY_SCALE_MIN, TAU_MAX } from '@/lib/quantum';
 
 type Lab = 'well' | 'oscillator';
 
@@ -67,9 +67,13 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
 
   if (
     data.scale !== undefined &&
-    (typeof data.scale !== 'number' || data.scale < 0.5 || data.scale > 8)
+    (typeof data.scale !== 'number' ||
+      data.scale < DISPLAY_SCALE_MIN ||
+      data.scale > DISPLAY_SCALE_MAX)
   ) {
-    throw new Error('scale doit être compris entre 0,5 et 8.');
+    throw new Error(
+      `scale doit être compris entre ${DISPLAY_SCALE_MIN.toLocaleString('fr-BE')} et ${DISPLAY_SCALE_MAX}.`,
+    );
   }
 
   const wellPresets = ['low-pair', 'high-pair', 'parabola'];
@@ -110,7 +114,7 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          'Ouvre le puits infini ou l’oscillateur harmonique et règle son mode, son état quantique, son état initial, son temps réduit ou le facteur d’affichage s de sa densité.',
+          'Ouvre le puits infini ou l’oscillateur harmonique et règle son mode, son état quantique, son état initial, son temps réduit ou le facteur d’affichage s de la courbe représentée.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -130,7 +134,11 @@ export function QuantumLab() {
               ],
             },
             time: { type: 'number', minimum: 0, maximum: TAU_MAX },
-            scale: { type: 'number', minimum: 0.5, maximum: 8 },
+            scale: {
+              type: 'number',
+              minimum: DISPLAY_SCALE_MIN,
+              maximum: DISPLAY_SCALE_MAX,
+            },
           },
           required: ['lab'],
           additionalProperties: false,
@@ -194,7 +202,7 @@ export function QuantumLab() {
         <nav aria-label="Choisir un laboratoire">
           <Button
             variant="ghost"
-            className={lab === 'well' ? 'lab-tab is-active' : 'lab-tab'}
+            className={lab === 'well' ? 'lab-tab lab-tab-well is-active' : 'lab-tab lab-tab-well'}
             onClick={() => setLab('well')}
             aria-pressed={lab === 'well'}
           >
@@ -202,7 +210,7 @@ export function QuantumLab() {
           </Button>
           <Button
             variant="ghost"
-            className={lab === 'oscillator' ? 'lab-tab is-active' : 'lab-tab'}
+            className={lab === 'oscillator' ? 'lab-tab lab-tab-oscillator is-active' : 'lab-tab lab-tab-oscillator'}
             onClick={() => setLab('oscillator')}
             aria-pressed={lab === 'oscillator'}
           >

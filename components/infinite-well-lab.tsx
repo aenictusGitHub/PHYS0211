@@ -9,6 +9,8 @@ import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
+  DISPLAY_SCALE_MAX,
+  DISPLAY_SCALE_MIN,
   TAU_MAX,
   clamp,
   sliderValue,
@@ -326,14 +328,14 @@ export function InfiniteWellLab({
               </div>
               <Slider
                 id="well-scale"
-                min={0.5}
-                max={8}
+                min={DISPLAY_SCALE_MIN}
+                max={DISPLAY_SCALE_MAX}
                 step={0.1}
                 value={[psiScale]}
                 onValueChange={(value) => setPsiScale(sliderValue(value, 2))}
                 aria-label="Facteur d’affichage s de la densité de probabilité"
               />
-              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0{,}5$`}</Formula></span><span><Formula>{String.raw`$s=8$`}</Formula></span></div>
+              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0{,}5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
               <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’affichage · <Formula>{String.raw`$\int |\psi|^2\,dx=1$`}</Formula></p>
             </div>
 
@@ -382,7 +384,7 @@ export function InfiniteWellLab({
             </h2>
           </div>
           <div className="plot-legend" aria-label="Légende">
-            <span><i className="legend-swatch accent" aria-hidden="true" />{mode === 'stationary' ? 'fonction d’onde' : 'densité'}</span>
+            <span><i className="legend-swatch accent" aria-hidden="true" />{mode === 'stationary' ? 'fonction d’onde' : 'densité de probabilité'}</span>
             <span><i className="legend-swatch teal dashed" aria-hidden="true" />axe de symétrie</span>
           </div>
         </div>
@@ -439,19 +441,19 @@ export function InfiniteWellLab({
           <div className="theory-grid">
             <div>
               <span>Potentiel</span>
-              <Formula display>{String.raw`$V(x)=\begin{cases}0,&0\le x\le a\\ \infty,&\text{sinon}\end{cases}$`}</Formula>
+              <Formula display>{String.raw`$V(x)=\begin{cases}0,&0<x<a,\\ +\infty,&x\le 0\ \text{ou}\ x\ge a.\end{cases}$`}</Formula>
             </div>
             <div>
               <span>Énergies propres</span>
-              <Formula display>{String.raw`$E_n=n^2\frac{\pi^2\hbar^2}{2ma^2}$`}</Formula>
+              <Formula display>{String.raw`$E_n=\frac{n^2\pi^2\hbar^2}{2ma^2},\qquad n=1,2,3,\ldots$`}</Formula>
             </div>
             <div>
-              <span>Évolution spectrale</span>
-              <Formula display>{String.raw`$\psi(x,t)=\sum_n c_n e^{-iE_nt/\hbar}\phi_n(x)$`}</Formula>
+              <span>Décomposition sur les états propres</span>
+              <Formula display>{String.raw`$\psi(x,t)=\sum_{n=1}^{\infty}c_n\,\phi_n(x)\,e^{-iE_nt/\hbar}$`}</Formula>
             </div>
           </div>
           <p>
-            La fonction propre est nulle hors de <Formula>{String.raw`$[0,a]$`}</Formula>. Ici, <Formula>{String.raw`$\tau=E_1t/\hbar$`}</Formula> et les barrières infinies sont représentées par des parois verticales.
+            Les coefficients sont donnés par <Formula>{String.raw`$c_n=\langle\phi_n|\psi(0)\rangle$`}</Formula>. Les conditions aux bords sont <Formula>{String.raw`$\psi(0,t)=\psi(a,t)=0$`}</Formula>. Le temps réduit est <Formula>{String.raw`$\tau=E_1t/\hbar$`}</Formula>.
           </p>
         </details>
       </div>

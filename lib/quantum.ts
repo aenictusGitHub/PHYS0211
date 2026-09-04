@@ -6,6 +6,8 @@ export type WellPreset = 'low-pair' | 'high-pair' | 'parabola';
 export type OscillatorPreset = 'mixture' | 'coherent' | 'opposite' | 'quadrature';
 
 export const TAU_MAX = 2 * Math.PI;
+export const DISPLAY_SCALE_MIN = 0.5;
+export const DISPLAY_SCALE_MAX = 20;
 
 export function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));

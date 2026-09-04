@@ -9,6 +9,8 @@ import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
+  DISPLAY_SCALE_MAX,
+  DISPLAY_SCALE_MIN,
   TAU_MAX,
   clamp,
   expectationEnergy,
@@ -104,6 +106,7 @@ export function HarmonicLab({
   const [mode, setMode] = useState<OscillatorMode>('stationary');
   const [n, setN] = useState(0);
   const [display, setDisplay] = useState<StateDisplay>('wave');
+  const [stationaryScale, setStationaryScale] = useState(1);
   const [preset, setPreset] = useState<OscillatorPreset>('mixture');
   const [alphaMagnitude, setAlphaMagnitude] = useState(2);
   const [alphaPhase, setAlphaPhase] = useState(Math.PI / 2);
@@ -131,7 +134,16 @@ export function HarmonicLab({
       );
     }
     if (command.time !== undefined) setTime(command.time);
-    if (command.scale !== undefined) setPsiScale(command.scale);
+    if (command.scale !== undefined) {
+      if (command.mode === 'stationary') {
+        setStationaryScale(command.scale);
+      } else if (command.mode === 'evolution') {
+        setPsiScale(command.scale);
+      } else {
+        setStationaryScale(command.scale);
+        setPsiScale(command.scale);
+      }
+    }
     setPlaying(false);
   }, [command]);
 
@@ -177,10 +189,12 @@ export function HarmonicLab({
       const phi = harmonicEigenfunction(n, x);
       return {
         x,
-        y: baseline + (display === 'wave' ? phi : phi * phi),
+        y:
+          baseline +
+          stationaryScale * (display === 'wave' ? phi : phi * phi),
       };
     });
-  }, [display, n]);
+  }, [display, n, stationaryScale]);
 
   const probabilityGrid = useMemo(
     () =>
@@ -221,8 +235,22 @@ export function HarmonicLab({
     [meanEnergy, probabilityValues, psiScale],
   );
   const meanX = numericalExpectationX(probabilityValues);
-  const stationaryMaximum = Math.max(9, n + 1.65);
-  const evolutionMaximum = 13.4;
+  const stationaryDomain = useMemo(() => {
+    const minimum = stationaryValues.reduce(
+      (current, point) => Math.min(current, point.y),
+      Number.POSITIVE_INFINITY,
+    );
+    const maximum = stationaryValues.reduce(
+      (current, point) => Math.max(current, point.y),
+      Number.NEGATIVE_INFINITY,
+    );
+    const padding = Math.max(0.35, (maximum - minimum) * 0.08);
+    return [Math.min(0, minimum - padding), Math.max(9, maximum + padding)] as [
+      number,
+      number,
+    ];
+  }, [stationaryValues]);
+  const evolutionMaximum = Math.max(13.4, 4.5 + 1.12 * psiScale);
 
   const selectPreset = (nextPreset: OscillatorPreset) => {
     setPreset(nextPreset);
@@ -307,6 +335,24 @@ export function HarmonicLab({
                 <Formula>{String.raw`$|\phi_n(x)|^2$`}</Formula>
               </Button>
             </div>
+
+            <div className="control-block scale-control">
+              <div className="control-heading">
+                <label htmlFor="oscillator-stationary-scale">Facteur d’affichage <Formula>{String.raw`$s$`}</Formula></label>
+                <output><Formula>{`$s=${stationaryScale.toFixed(1)}$`}</Formula></output>
+              </div>
+              <Slider
+                id="oscillator-stationary-scale"
+                min={DISPLAY_SCALE_MIN}
+                max={DISPLAY_SCALE_MAX}
+                step={0.1}
+                value={[stationaryScale]}
+                onValueChange={(value) => setStationaryScale(sliderValue(value, 1))}
+                aria-label={`Facteur d’affichage s de ${display === 'wave' ? 'la fonction propre' : 'la densité de probabilité'}`}
+              />
+              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0{,}5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
+              <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’amplitude affichée.</p>
+            </div>
           </div>
         ) : (
           <div className="control-stack">
@@ -384,14 +430,14 @@ export function HarmonicLab({
               </div>
               <Slider
                 id="oscillator-scale"
-                min={0.5}
-                max={8}
+                min={DISPLAY_SCALE_MIN}
+                max={DISPLAY_SCALE_MAX}
                 step={0.1}
                 value={[psiScale]}
                 onValueChange={(value) => setPsiScale(sliderValue(value, 2))}
                 aria-label="Facteur d’affichage s de la densité de probabilité"
               />
-              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0{,}5$`}</Formula></span><span><Formula>{String.raw`$s=8$`}</Formula></span></div>
+              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0{,}5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
               <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’affichage · <Formula>{String.raw`$\int |\psi|^2\,dx=1$`}</Formula></p>
             </div>
 
@@ -435,14 +481,14 @@ export function HarmonicLab({
               <Formula>
                 {mode === 'stationary'
                   ? display === 'wave'
-                    ? String.raw`$\phi_${n}(\xi)+E_${n}$`
-                    : String.raw`$|\phi_${n}(\xi)|^2+E_${n}$`
+                    ? String.raw`$s\,\phi_${n}(\xi)+E_${n}$`
+                    : String.raw`$s\,|\phi_${n}(\xi)|^2+E_${n}$`
                   : String.raw`$s\,|\psi(\xi,\tau)|^2+\langle E\rangle$`}
               </Formula>
             </h2>
           </div>
           <div className="plot-legend" aria-label="Légende">
-            <span><i className="legend-swatch accent" aria-hidden="true" />{mode === 'stationary' ? (display === 'wave' ? 'fonction propre' : 'densité') : 'densité'}</span>
+            <span><i className="legend-swatch accent" aria-hidden="true" />{mode === 'stationary' && display === 'wave' ? 'fonction propre' : 'densité de probabilité'}</span>
             <span><i className="legend-swatch ink" aria-hidden="true" />potentiel</span>
           </div>
         </div>
@@ -452,10 +498,14 @@ export function HarmonicLab({
             <ScientificPlot
               ariaLabel={`Oscillateur harmonique, état n égal à ${n}, ${display === 'wave' ? 'fonction propre' : 'densité de probabilité'}`}
               xDomain={[-4, 4]}
-              yDomain={[0, stationaryMaximum]}
+              yDomain={stationaryDomain}
               xTicks={[-4, -2, 0, 2, 4]}
               xLabel={String.raw`$\xi=x/x_0$`}
-              yLabel={String.raw`$\frac{E}{\hbar\omega}+\text{amplitude}$`}
+              yLabel={
+                display === 'wave'
+                  ? String.raw`$\frac{E}{\hbar\omega}+s\,\phi_n(\xi)$`
+                  : String.raw`$\frac{E}{\hbar\omega}+s\,|\phi_n(\xi)|^2$`
+              }
               series={[
                 { values: POTENTIAL_STATIONARY, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
                 { values: stationaryValues, tone: 'accent', width: 2.8, fillTo: n + 0.5, fillOpacity: 0.24 },
@@ -496,21 +546,19 @@ export function HarmonicLab({
           <div className="theory-grid">
             <div>
               <span>Hamiltonien</span>
-              <Formula display>{String.raw`$\hat H=\frac{\hat p_x^2}{2m}+\frac{m\omega^2\hat x^2}{2}$`}</Formula>
+              <Formula display>{String.raw`$\hat H=\frac{\hat p^{\,2}}{2m}+\frac12m\omega^2\hat x^{\,2}$`}</Formula>
             </div>
             <div>
-              <span>Polynômes d’Hermite</span>
-              <Formula display>{String.raw`$H_{n+1}=2\xi H_n-2nH_{n-1}$`}</Formula>
+              <span>Polynômes d’Hermite (physiciens)</span>
+              <Formula display>{String.raw`$\begin{aligned}H_0(\xi)&=1,\qquad H_1(\xi)=2\xi,\\ H_{n+1}(\xi)&=2\xi H_n(\xi)\\ &\quad-2nH_{n-1}(\xi).\end{aligned}$`}</Formula>
             </div>
             <div>
               <span>État cohérent</span>
-              <Formula display>{String.raw`$|\alpha\rangle=e^{-|\alpha|^2/2}\sum_{n=0}^{\infty}\frac{\alpha^n}{\sqrt{n!}}|n\rangle$`}</Formula>
+              <Formula display>{String.raw`$\begin{aligned}\hat a|\alpha\rangle&=\alpha|\alpha\rangle,\\ |\alpha\rangle&=e^{-|\alpha|^2/2}\sum_{n=0}^{\infty}\frac{\alpha^n}{\sqrt{n!}}\,|n\rangle.\end{aligned}$`}</Formula>
             </div>
           </div>
           <p>
-            Les amplitudes sont décalées verticalement sur leur niveau
-            d’énergie pour rendre le diagramme lisible. Le calcul temporel
-            emploie la phase physique <Formula>{String.raw`$\exp[-i(n+1/2)\tau]$`}</Formula>.
+            On pose <Formula>{String.raw`$x_0=\sqrt{\hbar/(m\omega)}$`}</Formula>, <Formula>{String.raw`$\xi=x/x_0$`}</Formula> et <Formula>{String.raw`$\tau=\omega t$`}</Formula>. Chaque état propre acquiert la phase <Formula>{String.raw`$e^{-iE_nt/\hbar}=e^{-i(n+\frac12)\tau}$`}</Formula>. Le décalage vertical des courbes de <Formula>{String.raw`$E_n/(\hbar\omega)=n+\frac12$`}</Formula> est uniquement graphique.
           </p>
         </details>
       </div>

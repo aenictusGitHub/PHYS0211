@@ -172,6 +172,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .site-header nav { display: flex; align-self: stretch; }
 
 .lab-tab {
+  --tab-tone: var(--accent);
+  --tab-tint: rgba(179, 61, 42, 0.1);
   position: relative;
   height: auto;
   min-width: 166px;
@@ -181,10 +183,12 @@ button, a { -webkit-tap-highlight-color: transparent; }
   padding: 0 20px;
   color: var(--muted-foreground);
   font-size: 13px;
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 .lab-tab:last-child { border-right: 1px solid var(--line); }
-.lab-tab span { color: var(--accent); font-size: 10px; }
+.lab-tab-oscillator { --tab-tone: var(--teal); --tab-tint: rgba(45, 111, 106, 0.12); }
+.lab-tab span { color: var(--tab-tone); font-size: 10px; }
 
 .lab-tab::after {
   position: absolute;
@@ -192,12 +196,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
   bottom: -1px;
   left: 20px;
   height: 3px;
-  background: var(--accent);
+  background: var(--tab-tone);
   content: '';
   opacity: 0;
 }
 
-.lab-tab.is-active { background: rgba(228, 222, 207, 0.45); color: var(--foreground); }
+.lab-tab:hover { background: var(--tab-tint); color: var(--foreground); }
+.lab-tab.is-active { background: var(--tab-tint); color: var(--foreground); }
 .lab-tab.is-active::after { opacity: 1; }
 
 .skip-link {
@@ -327,7 +332,8 @@ h1 { max-width: 440px; margin-bottom: 14px; font-size: clamp(34px, 4vw, 58px); f
 .figure-heading h2 .katex { font-size: 1em; }
 .figure-tag { border: 1px solid var(--line); padding: 8px 12px; color: var(--muted-foreground); font-size: 12px; }
 .plot-shell { display: grid; min-height: 360px; flex: 1; place-items: center; margin: 12px 0 4px; }
-.plot-shell svg { width: 100%; max-height: 470px; overflow: visible; }
+.scientific-plot-frame { position: relative; width: 100%; max-width: 873px; aspect-ratio: 780 / 420; }
+.plot-shell .scientific-plot { display: block; width: 100%; height: 100%; max-height: none; overflow: visible; }
 .plot-grid line { stroke: var(--grid); stroke-width: 1; }
 .axis { stroke: var(--foreground); stroke-width: 1.2; }
 .wall { stroke: var(--foreground); stroke-width: 4; }
@@ -384,8 +390,24 @@ h1 { max-width: 440px; margin-bottom: 14px; font-size: clamp(34px, 4vw, 58px); f
 .plot-math-label.is-guide { color: var(--teal); font-size: 18px; }
 .plot-math-label .katex { font-size: 1em; }
 
+.plot-axis-label {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--foreground);
+  font-size: clamp(14px, 2.3vw, 20px);
+  line-height: 1;
+  pointer-events: none;
+  transform-origin: center;
+  white-space: nowrap;
+}
+.plot-axis-label.is-x { transform: translate(-50%, -50%); }
+.plot-axis-label.is-y { transform: translate(-50%, -50%) rotate(-90deg); }
+
 .scale-note { margin: 9px 0 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.4; }
-.scale-control .control-heading output { min-width: 58px; padding: 0 6px; }
+.scale-control .control-heading output { min-width: 66px; padding: 0 6px; }
 
 .insight-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; border-top: 1px solid var(--line); padding-top: 20px; }
 .insight-index { color: var(--accent); font-size: 12px; }
@@ -393,13 +415,14 @@ h1 { max-width: 440px; margin-bottom: 14px; font-size: clamp(34px, 4vw, 58px); f
 .insight-formula { color: var(--teal); font-size: 12px; white-space: nowrap; }
 
 .theory-notes { margin-top: 22px; border-top: 1px solid var(--line); }
-.theory-notes summary { cursor: pointer; padding: 16px 0 2px; color: var(--teal); font-size: 12px; letter-spacing: 0.08em; list-style-position: inside; text-transform: uppercase; }
-.theory-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; margin-top: 16px; border: 1px solid var(--line); background: var(--line); }
-.theory-grid > div { min-width: 0; overflow-x: auto; background: var(--paper); padding: 16px; }
-.theory-grid > div > span { display: block; margin-bottom: 10px; color: var(--muted-foreground); font-size: 10px; text-transform: uppercase; }
+.theory-notes summary { cursor: pointer; padding: 18px 0 4px; color: var(--teal); font-size: 14px; letter-spacing: 0.08em; list-style-position: inside; text-transform: uppercase; }
+.theory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 18px; border: 1px solid var(--line); background: var(--line); }
+.theory-grid > div { min-width: 0; overflow-x: auto; background: var(--paper); padding: 20px; }
+.theory-grid > div:last-child { grid-column: 1 / -1; }
+.theory-grid > div > span { display: block; margin-bottom: 12px; color: var(--muted-foreground); font-size: 11px; text-transform: uppercase; }
 .theory-grid .katex-display { margin: 0; text-align: left; }
-.theory-grid .katex-display > .katex { text-align: left; font-size: 1em; }
-.theory-notes > p { max-width: 780px; margin: 14px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.55; }
+.theory-grid .katex-display > .katex { text-align: left; font-size: clamp(19px, 1.6vw, 22px); }
+.theory-notes > p { max-width: 780px; margin: 14px 0 0; color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
 
 .empty-figure { justify-content: center; }
 .empty-figure > div { max-width: 620px; }
@@ -420,6 +443,8 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
   .lab-tab { min-height: 48px; flex: 1; }
   .workspace { min-height: auto; }
   .control-panel { padding: 34px; }
+  .theory-grid { grid-template-columns: 1fr; }
+  .theory-grid > div:last-child { grid-column: auto; }
 }
 
 @media (max-width: 780px) {
