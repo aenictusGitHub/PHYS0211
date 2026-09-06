@@ -6,10 +6,10 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://atelier-quantique.jmartin741572.chatgpt.site'),
   title: 'Mécanique quantique — PHYS0211-3',
   description:
-    'Trois laboratoires interactifs : puits infini, oscillateur harmonique et diffusion de paquets d’ondes par un potentiel.',
+    'Quatre laboratoires interactifs : puits infini, oscillateur harmonique, diffusion de paquets d’ondes et double puits.',
   openGraph: {
     title: 'Mécanique quantique',
-    description: 'Puits infini · Oscillateur harmonique · Diffusion de paquets d’ondes',
+    description: 'Puits infini · Oscillateur harmonique · Diffusion de paquets d’ondes · Double puits',
     type: 'website',
     locale: 'fr_BE',
     images: [
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Mécanique quantique',
-    description: 'Puits infini · Oscillateur harmonique · Diffusion de paquets d’ondes',
+    description: 'Puits infini · Oscillateur harmonique · Diffusion de paquets d’ondes · Double puits',
     images: ['/og.png'],
   },
 };

@@ -1,6 +1,6 @@
 export type ExperimentCommand = {
   id: number;
-  lab: 'well' | 'oscillator' | 'scattering';
+  lab: 'well' | 'oscillator' | 'scattering' | 'double-well';
   mode?: 'stationary' | 'evolution';
   quantumNumber?: number;
   preset?: string;
@@ -12,4 +12,6 @@ export type ExperimentCommand = {
   momentum?: number;
   sigma?: number;
   progress?: number;
+  barrier?: number;
+  separation?: number;
 };

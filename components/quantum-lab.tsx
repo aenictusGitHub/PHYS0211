@@ -6,6 +6,7 @@ import { Atom } from 'lucide-react';
 import { HarmonicLab } from '@/components/harmonic-lab';
 import { InfiniteWellLab } from '@/components/infinite-well-lab';
 import { ScatteringLab } from '@/components/scattering-lab';
+import { DoubleWellLab } from '@/components/double-well-lab';
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Button } from '@/components/ui/button';
 import { DISPLAY_SCALE_MAX, DISPLAY_SCALE_MIN, TAU_MAX } from '@/lib/quantum';
@@ -35,8 +36,8 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
   }
 
   const data = input as Record<string, unknown>;
-  if (data.lab !== 'well' && data.lab !== 'oscillator' && data.lab !== 'scattering') {
-    throw new Error('lab doit valoir “well”, “oscillator” ou “scattering”.');
+  if (data.lab !== 'well' && data.lab !== 'oscillator' && data.lab !== 'scattering' && data.lab !== 'double-well') {
+    throw new Error('lab doit valoir “well”, “oscillator”, “scattering” ou “double-well”.');
   }
 
   if (
@@ -84,7 +85,8 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
 
   const wellPresets = ['low-pair', 'high-pair', 'parabola'];
   const oscillatorPresets = ['mixture', 'coherent', 'opposite', 'quadrature'];
-  const presets = data.lab === 'well' ? wellPresets : data.lab === 'oscillator' ? oscillatorPresets : ['tunnel', 'transmission', 'reflection'];
+  const presets = data.lab === 'well' ? wellPresets : data.lab === 'oscillator' ? oscillatorPresets
+    : data.lab === 'double-well' ? ['left', 'right'] : ['tunnel', 'transmission', 'reflection'];
   if (
     data.preset !== undefined &&
     (typeof data.preset !== 'string' || !presets.includes(data.preset))
@@ -103,6 +105,15 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
     throw new Error('Potentiel inconnu pour la diffusion.');
   }
 
+  const doubleWellBounds = { barrier: [0.5, 8], separation: [0.8, 2.5] } as const;
+  for (const field of Object.keys(doubleWellBounds) as Array<keyof typeof doubleWellBounds>) {
+    const value = data[field];
+    if (value !== undefined && (data.lab !== 'double-well' || typeof value !== 'number' || !Number.isFinite(value)
+      || value < doubleWellBounds[field][0] || value > doubleWellBounds[field][1])) {
+      throw new Error(`${field} : réservé au double puits, entre ${doubleWellBounds[field][0]} et ${doubleWellBounds[field][1]}.`);
+    }
+  }
+
   return {
     lab: data.lab,
     mode:
@@ -118,6 +129,8 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
     momentum: data.momentum as number | undefined,
     sigma: data.sigma as number | undefined,
     progress: data.progress as number | undefined,
+    barrier: data.barrier as number | undefined,
+    separation: data.separation as number | undefined,
   };
 }
 
@@ -137,11 +150,11 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          'Ouvre et configure l’un des trois laboratoires. Pour scattering, règle potential, height, width, momentum, sigma et progress (de 0 à 1 dans la durée de diffusion). Le calcul se prépare en arrière-plan ; la lecture reste en pause.',
+          'Ouvre et configure l’un des quatre laboratoires. Pour scattering, règle potential, height, width, momentum, sigma et progress (de 0 à 1 dans la durée de diffusion). Pour double-well, règle barrier (hauteur centrale), separation (demi-écartement), preset left/right et time (phase ΔE t/ℏ, de 0 à 2π). La lecture reste en pause.',
         inputSchema: {
           type: 'object',
           properties: {
-            lab: { type: 'string', enum: ['well', 'oscillator', 'scattering'] },
+            lab: { type: 'string', enum: ['well', 'oscillator', 'scattering', 'double-well'] },
             mode: { type: 'string', enum: ['stationary', 'evolution'] },
             quantumNumber: { type: 'integer', minimum: 0, maximum: 8 },
             preset: {
@@ -157,6 +170,8 @@ export function QuantumLab() {
                 'tunnel',
                 'transmission',
                 'reflection',
+                'left',
+                'right',
               ],
             },
             time: { type: 'number', minimum: 0, maximum: TAU_MAX },
@@ -166,6 +181,8 @@ export function QuantumLab() {
             momentum: { type: 'number', minimum: 1, maximum: 4 },
             sigma: { type: 'number', minimum: 2, maximum: 5 },
             progress: { type: 'number', minimum: 0, maximum: 1 },
+            barrier: { type: 'number', minimum: 0.5, maximum: 8 },
+            separation: { type: 'number', minimum: 0.8, maximum: 2.5 },
             scale: {
               type: 'number',
               minimum: DISPLAY_SCALE_MIN,
@@ -257,6 +274,14 @@ export function QuantumLab() {
           >
             <span>03</span> Diffusion de paquets
           </Button>
+          <Button
+            variant="ghost"
+            className={lab === 'double-well' ? 'lab-tab lab-tab-double-well is-active' : 'lab-tab lab-tab-double-well'}
+            onClick={() => setLab('double-well')}
+            aria-pressed={lab === 'double-well'}
+          >
+            <span>04</span> Double puits
+          </Button>
         </nav>
 
       </header>
@@ -270,6 +295,9 @@ export function QuantumLab() {
         </div>
         <div hidden={lab !== 'scattering'}>
           <ScatteringLab active={lab === 'scattering'} command={command} />
+        </div>
+        <div hidden={lab !== 'double-well'}>
+          <DoubleWellLab active={lab === 'double-well'} command={command} />
         </div>
       </div>
 
