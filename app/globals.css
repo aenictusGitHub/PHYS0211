@@ -171,7 +171,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 .brand-mark {
   display: grid;
-  width: 50px;
+  width: 74px;
   height: 50px;
   flex-shrink: 0;
   place-items: center;
