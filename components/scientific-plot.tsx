@@ -262,7 +262,7 @@ export function ScientificPlot({
         })}
       </g>
 
-      <g className="axis-layer" aria-hidden="true" style={{ '--plot-tick-size': `${14 * textScale}px` } as React.CSSProperties}>
+      <g className="axis-layer" aria-hidden="true" style={{ '--plot-tick-scale': textScale } as React.CSSProperties}>
         <line
           x1={MARGIN.left}
           x2={MARGIN.left + innerWidth}

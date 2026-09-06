@@ -91,6 +91,13 @@
 }
 
 :root {
+  /* One shared scale across controls, captions, results, and all laboratories. */
+  --text-small: 0.875rem;
+  --text-ui: 0.9375rem;
+  --text-body: 1rem;
+  --text-emphasis: 1.125rem;
+  --text-heading: 1.25rem;
+  --text-title: 1.875rem;
   --paper: #f5f7fb;
   --background: #e9eef5;
   --foreground: #182a45;
@@ -123,7 +130,7 @@ body, button, input, output, select, textarea {
   font-family: 'KaTeX_Main', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
 }
 
-body { min-width: 320px; background: var(--background); color: var(--foreground); font-size: 16px; line-height: 1.5; }
+body { min-width: 320px; background: var(--background); color: var(--foreground); font-size: var(--text-body); line-height: 1.5; }
 
 button, a { -webkit-tap-highlight-color: transparent; }
 
@@ -168,8 +175,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 .brand-mark svg { width: 22px; }
 .brand strong, .brand small { display: block; }
-.brand strong { font-size: 21px; letter-spacing: 0.01em; }
-.brand small { margin-top: 2px; color: var(--muted-foreground); font-size: 12px; letter-spacing: 0.08em; }
+.brand strong { font-size: var(--text-heading); letter-spacing: 0.01em; }
+.brand small { margin-top: 2px; color: var(--muted-foreground); font-size: var(--text-small); letter-spacing: 0.08em; }
 
 .site-header nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); }
 
@@ -185,7 +192,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   border-radius: 0;
   padding: 0 20px;
   color: var(--muted-foreground);
-  font-size: 16px;
+  font-size: var(--text-body);
   transition: background-color 160ms ease, color 160ms ease;
 }
 
@@ -193,7 +200,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .lab-tab:last-child { border-right: 0; }
 .lab-tab-oscillator { --tab-tone: var(--teal); --tab-tint: rgba(45, 111, 106, 0.12); }
 .lab-tab-scattering { --tab-tone: var(--violet); --tab-tint: #f0edfa; }
-.lab-tab span { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid currentColor; border-radius: 50%; color: var(--tab-tone); font-size: 12px; flex-shrink: 0; }
+.lab-tab span { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid currentColor; border-radius: 50%; color: var(--tab-tone); font-size: var(--text-small); flex-shrink: 0; }
 
 .lab-tab::after {
   position: absolute;
@@ -246,13 +253,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
   background: var(--card);
 }
 
-.eyebrow { margin: 0 0 9px; color: var(--lab-tone, var(--accent)); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
+.eyebrow { margin: 0 0 9px; color: var(--lab-tone, var(--accent)); font-size: var(--text-small); letter-spacing: 0.1em; text-transform: uppercase; }
 h1, h2, p { margin-top: 0; }
-h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; line-height: 1.08; letter-spacing: -0.035em; }
-.lede { max-width: 520px; margin-bottom: 0; color: var(--muted-foreground); font-size: 16px; line-height: 1.5; }
+h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-weight: 400; line-height: 1.08; letter-spacing: -0.035em; }
+.lede { max-width: 520px; margin-bottom: 0; color: var(--muted-foreground); font-size: var(--text-body); line-height: 1.5; }
 
-.equation-card { min-width: 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; padding: 16px 14px; background: var(--paper); font-size: 15px; }
-.equation-card > span:first-child { display: block; margin-bottom: 10px; color: var(--muted-foreground); font-size: 13px; }
+.equation-card { min-width: 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; padding: 16px 14px; background: var(--paper); font-size: var(--text-ui); }
+.equation-card > span:first-child { display: block; margin-bottom: 10px; color: var(--muted-foreground); font-size: var(--text-small); }
 .equation-card .katex-display { margin: 0; text-align: left; }
 .equation-card .katex-display > .katex { text-align: left; }
 
@@ -268,7 +275,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; l
 .mode-switch button {
   height: 42px;
   border-radius: 5px;
-  font-size: 15px;
+  font-size: var(--text-ui);
   color: var(--muted-foreground);
 }
 
@@ -276,13 +283,13 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; l
 
 .control-stack { display: grid; gap: 20px; min-width: 0; }
 .control-block { padding: 4px 0; }
-.control-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; font-size: 15px; }
+.control-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; font-size: var(--text-ui); }
 .control-heading label { min-width: 0; }
-.control-heading output { display: grid; flex-shrink: 0; min-width: 42px; padding: 2px 7px; min-height: 32px; place-items: center; border: 1px solid var(--line); border-radius: 6px; background: var(--lab-tint); color: var(--foreground); font-size: 16px; font-variant-numeric: tabular-nums; }
+.control-heading output { display: grid; flex-shrink: 0; min-width: 42px; padding: 2px 7px; min-height: 32px; place-items: center; border: 1px solid var(--line); border-radius: 6px; background: var(--lab-tint); color: var(--foreground); font-size: var(--text-body); font-variant-numeric: tabular-nums; }
 .control-block [data-slot='slider-track'] { height: 4px; background: var(--line); }
 .control-block [data-slot='slider-range'] { background: var(--lab-tone); }
 .control-block [data-slot='slider-thumb'] { width: 18px; height: 18px; border: 3px solid #fff; border-radius: 50%; background: var(--lab-tone); box-shadow: 0 0 0 1px var(--lab-tone); }
-.range-labels { display: flex; justify-content: space-between; margin-top: 10px; color: var(--muted-foreground); font-size: 12px; }
+.range-labels { display: flex; justify-content: space-between; gap: 12px; line-height: 1.4; margin-top: 10px; color: var(--muted-foreground); font-size: var(--text-small); }
 
 .preset-grid {
   display: grid;
@@ -301,7 +308,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; l
   border-radius: 6px;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: 14px;
+  font-size: var(--text-small);
   white-space: normal;
   line-height: 1.3;
 }
@@ -317,18 +324,18 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; l
 .display-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .compact-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .compact-controls .control-heading { margin-bottom: 13px; }
-.compact-controls .control-heading output { min-width: 42px; height: 26px; font-size: 12px; }
+.compact-controls .control-heading output { min-width: 42px; height: 26px; font-size: var(--text-small); }
 .time-control { border-top: 1px solid var(--line); padding-top: 18px; }
 
 .transport-controls { display: flex; gap: 8px; }
-.transport-controls > button:first-child { flex: 1; height: 44px; border-radius: 7px; background: var(--lab-tone); color: #fff; font-size: 16px; }
+.transport-controls > button:first-child { flex: 1; height: 44px; border-radius: 7px; background: var(--lab-tone); color: #fff; font-size: var(--text-body); }
 .transport-controls > button:last-child { width: 44px; height: 44px; border-color: var(--line); border-radius: 7px; background: var(--card); }
 
 .measurements { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; padding: 6px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
 .measurements div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; }
 .measurements div + div { border-top: 1px solid var(--line); }
-.measurements dt { margin-bottom: 0; color: var(--muted-foreground); font-size: 13px; }
-.measurements dd { overflow-wrap: anywhere; margin: 0; font-size: 15px; }
+.measurements dt { margin-bottom: 0; color: var(--muted-foreground); font-size: var(--text-small); }
+.measurements dd { overflow-wrap: anywhere; margin: 0; font-size: var(--text-ui); }
 .measurements dd .katex { font-size: 1em; }
 
 .figure-panel {
@@ -344,10 +351,10 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; l
 }
 
 .figure-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
-.figure-heading .eyebrow { font-size: 13px; }
-.figure-heading h2 { margin-bottom: 0; font-size: clamp(20px, 1.6vw, 24px); font-weight: 400; }
+.figure-heading .eyebrow { font-size: var(--text-small); }
+.figure-heading h2 { margin-bottom: 0; font-size: var(--text-heading); font-weight: 400; }
 .figure-heading h2 .katex { font-size: 1em; }
-.figure-tag { border: 1px solid var(--line); padding: 8px 12px; color: var(--muted-foreground); font-size: 12px; }
+.figure-tag { border: 1px solid var(--line); padding: 8px 12px; color: var(--muted-foreground); font-size: var(--text-small); }
 .plot-shell { display: grid; min-width: 0; place-items: center; margin: 28px 0; }
 .scientific-plot-frame { position: relative; width: 100%; aspect-ratio: 780 / 440; }
 .plot-shell .scientific-plot { display: block; width: 100%; height: 100%; max-height: none; overflow: visible; }
@@ -356,9 +363,9 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; l
 .wall { stroke: var(--foreground); stroke-width: 4; }
 .symmetry { stroke: var(--teal); stroke-dasharray: 5 6; stroke-width: 1; }
 .wave { fill: none; stroke: var(--accent); stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
-.plot-labels { fill: var(--muted-foreground); font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts'; font-size: 13px; }
+.plot-labels { fill: var(--muted-foreground); font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts'; font-size: var(--text-small); }
 
-.plot-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px 18px; padding-top: 6px; color: var(--muted-foreground); font-size: 16px; line-height: 1.3; }
+.plot-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px 18px; padding-top: 6px; color: var(--muted-foreground); font-size: var(--text-body); line-height: 1.3; }
 .plot-legend span { display: inline-flex; align-items: center; gap: 8px; }
 .legend-swatch { display: inline-flex; flex: 0 0 24px; width: 24px; height: 1em; align-items: center; background: none; }
 .legend-swatch::before { display: block; width: 100%; height: 4px; background: var(--accent); content: ''; }
@@ -384,10 +391,10 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; l
 .scientific-plot .guide-labels text {
   fill: var(--muted-foreground);
   font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
-  font-size: var(--plot-tick-size, 15px);
+  font-size: calc(var(--text-small) * var(--plot-tick-scale, 1));
 }
-.scientific-plot .axis-layer .axis-label { fill: var(--foreground); font-size: 15px; }
-.scientific-plot .guide-labels text { fill: var(--teal); font-size: 13px; }
+.scientific-plot .axis-layer .axis-label { fill: var(--foreground); font-size: var(--text-ui); }
+.scientific-plot .guide-labels text { fill: var(--teal); font-size: var(--text-small); }
 
 .scientific-plot foreignObject { overflow: visible; }
 .plot-math-label {
@@ -397,14 +404,14 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; l
   align-items: center;
   overflow: visible;
   color: var(--foreground);
-  font-size: 20px;
+  font-size: var(--text-heading);
   line-height: 1;
   white-space: nowrap;
 }
 .plot-math-label.is-start { justify-content: flex-start; }
 .plot-math-label.is-middle { justify-content: center; }
 .plot-math-label.is-end { justify-content: flex-end; }
-.plot-math-label.is-guide { color: var(--teal); font-size: 18px; }
+.plot-math-label.is-guide { color: var(--teal); font-size: var(--text-emphasis); }
 .plot-math-label .katex { font-size: 1em; }
 
 .plot-axis-label {
@@ -414,7 +421,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; l
   align-items: center;
   justify-content: center;
   color: var(--foreground);
-  font-size: clamp(14px, 2.3vw, 20px);
+  font-size: var(--text-body);
   line-height: 1;
   pointer-events: none;
   transform-origin: center;
@@ -422,46 +429,46 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: 34px; font-weight: 400; l
 }
 .plot-axis-label.is-x { transform: translate(-50%, -50%); }
 .plot-axis-label.is-y { transform: translate(-50%, -50%) rotate(-90deg); }
-.plot-guide-label { position: absolute; padding: 4px 7px; color: var(--teal); font-size: 15px; line-height: 1; pointer-events: none; white-space: nowrap; }
+.plot-guide-label { position: absolute; padding: 4px 7px; color: var(--teal); font-size: var(--text-ui); line-height: 1; pointer-events: none; white-space: nowrap; }
 .plot-guide-label .katex { font-size: 1em; }
 .plot-guide-label.is-end { transform: translateX(-100%); }
 .plot-guide-label.is-horizontal { transform: translateY(-100%); }
 
-.scale-note { margin: 10px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.5; }
+.scale-note { margin: 10px 0 0; color: var(--muted-foreground); font-size: var(--text-small); line-height: 1.5; }
 .scale-control .control-heading output { min-width: 66px; padding: 0 6px; }
 
 .insight-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; border: 1px solid var(--line); border-left: 3px solid var(--lab-tone); border-radius: 8px; padding: 16px 18px; background: var(--lab-tint); }
-.insight-index { color: var(--accent); font-size: 12px; }
-.insight-row p { margin: 0; font-size: 16px; line-height: 1.5; }
-.insight-formula { grid-column: 2; color: var(--teal); font-size: 14px; white-space: nowrap; }
+.insight-index { color: var(--accent); font-size: var(--text-small); }
+.insight-row p { margin: 0; font-size: var(--text-body); line-height: 1.5; }
+.insight-formula { grid-column: 2; color: var(--teal); font-size: var(--text-small); white-space: nowrap; }
 
 .theory-notes { margin-top: 22px; border-top: 1px solid var(--line); }
-.theory-notes summary { cursor: pointer; padding: 18px 0 4px; color: var(--teal); font-size: 14px; letter-spacing: 0.08em; list-style-position: inside; text-transform: uppercase; }
+.theory-notes summary { cursor: pointer; padding: 18px 0 4px; color: var(--teal); font-size: var(--text-small); letter-spacing: 0.08em; list-style-position: inside; text-transform: uppercase; }
 .theory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 18px; border: 1px solid var(--line); background: var(--line); }
 .theory-grid > div { min-width: 0; overflow-x: auto; background: var(--paper); padding: 18px; }
 .theory-grid > div:last-child { grid-column: 1 / -1; }
-.theory-grid > div > span:first-child { display: block; margin-bottom: 12px; color: var(--muted-foreground); font-size: 13px; }
+.theory-grid > div > span:first-child { display: block; margin-bottom: 12px; color: var(--muted-foreground); font-size: var(--text-small); }
 .theory-grid .katex-display { margin: 0; text-align: left; }
-.theory-grid .katex-display > .katex { text-align: left; font-size: clamp(19px, 1.6vw, 22px); }
-.theory-notes > p { max-width: 780px; margin: 14px 0 0; color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
+.theory-grid .katex-display > .katex { text-align: left; font-size: var(--text-emphasis); }
+.theory-notes > p { max-width: 780px; margin: 14px 0 0; color: var(--muted-foreground); font-size: var(--text-small); line-height: 1.6; }
 
 .empty-figure { justify-content: center; }
 .empty-figure > div { max-width: 620px; }
 .empty-figure h2 { margin-bottom: 18px; font-size: clamp(36px, 5vw, 70px); font-weight: 400; line-height: 1.03; }
 .empty-figure p:last-child { color: var(--muted-foreground); }
 
-footer { display: flex; justify-content: space-between; max-width: 1440px; margin: 0 auto; padding: 18px 2px 0; color: var(--muted-foreground); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+footer { display: flex; justify-content: space-between; max-width: 1440px; margin: 0 auto; padding: 18px 2px 0; color: var(--muted-foreground); font-size: var(--text-small); letter-spacing: 0.08em; text-transform: uppercase; }
 
 @media (min-width: 781px) and (max-width: 1279px) {
-  .equation-card .katex-display > .katex { font-size: 1.02em; }
-  .measurements dd { font-size: 15px; }
+  .equation-card .katex-display > .katex { font-size: var(--text-body); }
+  .measurements dd { font-size: var(--text-ui); }
 }
 
 @media (max-width: 1050px) {
-  .lab-tab { padding: 12px; font-size: 15px; }
+  .lab-tab { padding: 12px; font-size: var(--text-ui); }
   .workspace { grid-template-columns: 290px minmax(0, 1fr); gap: 14px; }
   .control-panel { padding: 22px; }
-  h1 { font-size: 31px; }
+  h1 { font-size: var(--text-title); }
   .theory-grid { grid-template-columns: 1fr; }
   .theory-grid > div:last-child { grid-column: auto; }
 }
@@ -469,7 +476,7 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
 @media (max-width: 780px) {
   .app-shell { padding: 10px; }
   .site-header nav { grid-column: 1; }
-  .lab-tab { min-width: 0; padding: 12px 8px; font-size: 14px; white-space: normal; }
+  .lab-tab { min-width: 0; padding: 12px 8px; font-size: var(--text-small); white-space: normal; }
   .lab-tab:first-child { border-left: 0; }
   .lab-tab:last-child { border-right: 0; }
   .workspace { grid-template-columns: 1fr; }
@@ -484,12 +491,12 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
   .figure-heading { display: block; }
   .plot-legend { justify-content: flex-start; margin-top: 12px; }
   .theory-grid { grid-template-columns: 1fr; }
-  footer { gap: 12px; font-size: 12px; }
+  footer { gap: 12px; font-size: var(--text-small); }
 }
 
 @media (max-width: 460px) {
   .brand { padding: 12px; }
-  .brand small { font-size: 12px; }
+  .brand small { font-size: var(--text-small); }
   .lab-tab { flex-direction: column; gap: 8px; line-height: 1.25; }
   .control-panel, .figure-panel { padding: 20px 16px; }
   .control-panel, .control-panel > .control-stack { display: flex; flex-direction: column; }
@@ -501,7 +508,7 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
   .insight-formula { display: none; }
 }
 
-.katex { font-size: 1.08em; }
+.katex { font-size: 1.04em; }
 .plot-axis-label .katex { font-size: 1em; }
 .math-formula { max-width: 100%; }
 .control-panel > *, .figure-heading > * { min-width: 0; }
@@ -510,13 +517,13 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .scattering-controls .control-block { padding: 0; }
 .scattering-controls .control-heading { margin-bottom: 12px; }
 .potential-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.potential-choices button { display: flex; flex-direction: column; gap: 6px; height: 70px; padding: 8px 4px; border-radius: 7px; border: 1px solid var(--line); background: var(--card); font-size: 13px; }
+.potential-choices button { display: flex; flex-direction: column; gap: 6px; height: 70px; padding: 8px 4px; border-radius: 7px; border: 1px solid var(--line); background: var(--card); font-size: var(--text-small); }
 .potential-choices button.is-selected { color: var(--violet); background: var(--lab-tint); border-color: var(--violet); }
 .potential-choices svg { width: 44px; height: 22px; }
 .scattering-presets { display: flex; flex-wrap: wrap; gap: 7px; }
-.scattering-presets button { height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 18px; color: var(--foreground); background: var(--paper); font-size: 14px; }
+.scattering-presets button { height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 18px; color: var(--foreground); background: var(--paper); font-size: var(--text-small); }
 .scattering-presets button.is-selected { border-color: var(--violet); background: var(--lab-tint); }
-.simulation-status { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted-foreground); }
+.simulation-status { display: flex; align-items: center; gap: 8px; font-size: var(--text-small); color: var(--muted-foreground); }
 .simulation-status::before { width: 7px; height: 7px; content: ''; background: var(--teal); border-radius: 50%; }
 .simulation-status.is-computing::before { background: var(--violet); }
 .scattering-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; margin-top: 18px; }
@@ -527,20 +534,20 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .probability-card { min-width: 0; border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 8px; padding: 14px 16px; }
 .probability-card.is-center { border-top-color: var(--violet); }
 .probability-card.is-right { border-top-color: var(--teal); }
-.probability-card dt { color: var(--muted-foreground); font-size: 14px; }
-.probability-card dd { font-size: clamp(23px, 2.6vw, 32px); margin: 4px 0 0; font-variant-numeric: tabular-nums; }
-.probability-card small { color: var(--muted-foreground); font-size: 12px; }
-.probability-note { margin: 0 0 18px; font-size: 13px; color: var(--muted-foreground); }
+.probability-card dt { color: var(--muted-foreground); font-size: var(--text-ui); }
+.probability-card dd { font-size: var(--text-emphasis); margin: 4px 0 0; font-variant-numeric: tabular-nums; }
+.probability-card small { color: var(--muted-foreground); font-size: var(--text-small); }
+.probability-note { margin: 0 0 18px; font-size: var(--text-small); color: var(--muted-foreground); }
 .probability-bar { display: flex; height: 5px; overflow: hidden; border-radius: 6px; margin-top: 12px; background: var(--muted); }
 .probability-bar span { background: var(--accent); }
 .probability-bar span:nth-child(2) { background: var(--violet); }
 .probability-bar span:nth-child(3) { background: var(--teal); }
 .theory-notes a { color: var(--teal); text-underline-offset: 3px; }
 .scattering-components { margin-top: 20px; border-top: 1px solid var(--line); }
-.scattering-components summary { padding-top: 16px; cursor: pointer; font-size: 15px; color: var(--muted-foreground); }
+.scattering-components summary { padding-top: 16px; cursor: pointer; font-size: var(--text-ui); color: var(--muted-foreground); }
 .scattering-components .plot-shell { margin-bottom: 4px; }
 @media (min-width: 781px) and (max-width: 1100px) {
-  .plot-axis-label { font-size: 14px; }
+  .plot-axis-label { font-size: var(--text-ui); }
   .figure-panel { padding: 20px 14px; }
   .scattering-timeline { grid-template-columns: 1fr; gap: 16px; }
   .probability-card { padding: 12px 8px; }
@@ -549,9 +556,8 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
   .scientific-plot-frame { aspect-ratio: 780 / 580; }
   .scattering-timeline { grid-template-columns: 1fr; gap: 16px; }
   .probability-card { padding: 12px 8px; }
-  .probability-card dt { font-size: 13px; }
-  .figure-heading h2 { font-size: 19px; }
-  .plot-axis-label { font-size: 13px; }
+  .figure-heading h2 { font-size: var(--text-heading); }
+  .plot-axis-label { font-size: var(--text-small); }
 }
 
 @media (prefers-reduced-motion: reduce) {
