@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://atelier-quantique.jmartin741572.chatgpt.site'),
   title: 'Mécanique quantique — PHYS0211-3',
   description:
-    'Six laboratoires interactifs de mécanique quantique : puits infini, oscillateur harmonique, diffusion, double puits, rotateur rigide et atome d’hydrogène.',
+    'Sept laboratoires interactifs de mécanique quantique : puits infini, oscillateur harmonique, diffusion, double puits, rotateur rigide, atome d’hydrogène et spin-1/2.',
   openGraph: {
     title: 'Mécanique quantique',
     description: 'Six laboratoires : du puits infini aux orbitales de l’hydrogène.',

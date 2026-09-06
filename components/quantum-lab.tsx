@@ -9,6 +9,8 @@ import { ScatteringLab } from '@/components/scattering-lab';
 import { DoubleWellLab } from '@/components/double-well-lab';
 import { RotorLab } from '@/components/rotor-lab';
 import { HydrogenLab } from '@/components/hydrogen-lab';
+import { SpinLab } from '@/components/spin-lab';
+import { parseSpinExperiment, SPIN_TIME_MAX } from '@/lib/spin';
 import { parseAtomicExperiment } from '@/lib/atomic-command';
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Button } from '@/components/ui/button';
@@ -39,9 +41,10 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
   }
 
   const data = input as Record<string, unknown>;
+  if (data.lab === 'spin') return parseSpinExperiment(data);
   if (data.lab === 'rotor' || data.lab === 'hydrogen') return parseAtomicExperiment(data);
   if (data.lab !== 'well' && data.lab !== 'oscillator' && data.lab !== 'scattering' && data.lab !== 'double-well') {
-    throw new Error('lab doit valoir well, oscillator, scattering, double-well, rotor ou hydrogen.');
+    throw new Error('lab doit valoir well, oscillator, scattering, double-well, rotor, hydrogen ou spin.');
   }
 
   if (
@@ -154,11 +157,11 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          'Configure les six laboratoires. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 2π). Ils n’utilisent pas quantumNumber. La lecture reste en pause.',
+          'Configure les sept laboratoires. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 2π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 4π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. La lecture reste en pause.',
         inputSchema: {
           type: 'object',
           properties: {
-            lab: { type: 'string', enum: ['well', 'oscillator', 'scattering', 'double-well', 'rotor', 'hydrogen'] },
+            lab: { type: 'string', enum: ['well', 'oscillator', 'scattering', 'double-well', 'rotor', 'hydrogen', 'spin'] },
             mode: { type: 'string', enum: ['stationary', 'evolution'] },
             quantumNumber: { type: 'integer', minimum: 0, maximum: 8 },
             preset: {
@@ -182,9 +185,15 @@ export function QuantumLab() {
                 'hydrogen-dipole',
                 'hydrogen-rotation',
                 'hydrogen-rydberg',
+                'spin-x-plus', 'spin-x-minus', 'spin-y-plus', 'spin-y-minus', 'spin-z-plus', 'spin-z-minus',
               ],
             },
-            time: { type: 'number', minimum: 0, maximum: TAU_MAX },
+            time: { type: 'number', minimum: 0, maximum: SPIN_TIME_MAX, description: 'Jusqu’à 4π pour spin ; jusqu’à 2π pour les autres laboratoires.' },
+            spinTheta: { type: 'number', minimum: 0, maximum: 180 },
+            spinPhi: { type: 'number', minimum: 0, maximum: 360 },
+            spinOmega: { type: 'number', minimum: .25, maximum: 3 },
+            spinField: { type: 'string', enum: ['x', 'y', 'z', 'tilted'] },
+            spinMeasure: { type: 'string', enum: ['x', 'y', 'z'] },
             potential: { type: 'string', enum: ['barrier', 'gaussian', 'well'] },
             height: { type: 'number', minimum: 0, maximum: 8 },
             width: { type: 'number', minimum: 0.5, maximum: 6 },
@@ -248,6 +257,11 @@ export function QuantumLab() {
             principal: parsed.principal ?? null,
             angular: parsed.angular ?? null,
             magnetic: parsed.magnetic ?? null,
+            spinTheta: parsed.spinTheta ?? null,
+            spinPhi: parsed.spinPhi ?? null,
+            spinOmega: parsed.spinOmega ?? null,
+            spinField: parsed.spinField ?? null,
+            spinMeasure: parsed.spinMeasure ?? null,
           };
         },
       },
@@ -306,6 +320,8 @@ export function QuantumLab() {
             onClick={() => setLab('rotor')} aria-pressed={lab === 'rotor'}><span>05</span> Rotateur rigide</Button>
           <Button variant="ghost" className={`lab-tab lab-tab-hydrogen${lab === 'hydrogen' ? ' is-active' : ''}`}
             onClick={() => setLab('hydrogen')} aria-pressed={lab === 'hydrogen'}><span>06</span> Atome d’hydrogène</Button>
+          <Button variant="ghost" className={`lab-tab lab-tab-spin${lab === 'spin' ? ' is-active' : ''}`}
+            onClick={() => setLab('spin')} aria-pressed={lab === 'spin'}><span>07</span> Spin-1/2</Button>
         </nav>
 
       </header>
@@ -325,6 +341,7 @@ export function QuantumLab() {
         </div>
         <div hidden={lab !== 'rotor'}><RotorLab active={lab === 'rotor'} command={command} /></div>
         <div hidden={lab !== 'hydrogen'}><HydrogenLab active={lab === 'hydrogen'} command={command} /></div>
+        <div hidden={lab !== 'spin'}><SpinLab active={lab === 'spin'} command={command} /></div>
       </div>
 
       <footer>

@@ -144,6 +144,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .app-shell[data-lab='double-well'] { --lab-tone: var(--blue); --lab-tint: #edf3fd; }
 .app-shell[data-lab='rotor'] { --lab-tone: var(--ochre); --lab-tint: #fbf4e6; }
 .app-shell[data-lab='hydrogen'] { --lab-tone: var(--rose); --lab-tint: #fcf0f5; }
+.app-shell[data-lab='spin'] { --lab-tone: #5054a6; --lab-tint: #f0f1fc; }
 
 .site-header {
   display: grid;
@@ -184,9 +185,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .brand strong { font-size: var(--text-heading); letter-spacing: 0.01em; }
 .brand small { margin-top: 2px; color: var(--muted-foreground); font-size: var(--text-small); letter-spacing: 0.08em; }
 
-.site-header nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); }
-.lab-tab:nth-child(4) { border-left: 0; }
-.lab-tab:nth-child(n+4) { border-top: 1px solid var(--line); }
+.site-header nav { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.site-header .lab-tab { grid-column: span 3; }
+.site-header .lab-tab:nth-child(n+5) { grid-column: span 4; border-top: 1px solid var(--line); }
+.lab-tab:nth-child(5) { border-left: 0; }
 
 .lab-tab {
   --tab-tone: var(--accent);
@@ -213,6 +215,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .lab-tab-double-well { --tab-tone: var(--blue); --tab-tint: #edf3fd; }
 .lab-tab-rotor { --tab-tone: var(--ochre); --tab-tint: #fbf4e6; }
 .lab-tab-hydrogen { --tab-tone: var(--rose); --tab-tint: #fcf0f5; }
+.lab-tab-spin { --tab-tone: #5054a6; --tab-tint: #f0f1fc; }
 .lab-tab span { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid currentColor; border-radius: 50%; color: var(--tab-tone); font-size: var(--text-small); flex-shrink: 0; }
 
 .lab-tab::after {
@@ -489,6 +492,8 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
 @media (max-width: 780px) {
   .app-shell { padding: 10px; }
   .site-header nav { grid-column: 1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .site-header .lab-tab, .site-header .lab-tab:nth-child(n+5) { grid-column: auto; }
+  .site-header .lab-tab:last-child { grid-column: 1 / -1; }
   .lab-tab:nth-child(odd) { border-left: 0; }
   .lab-tab:nth-child(even) { border-left: 1px solid var(--line); }
   .lab-tab:nth-child(n+3) { border-top: 1px solid var(--line); }
@@ -604,9 +609,9 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .density-key { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; margin: 18px 0; color: var(--muted-foreground); font-size: var(--text-small); }
 .density-key i { height: 9px; width: 120px; border: 1px solid var(--line); border-radius: 5px; background: linear-gradient(90deg, white, #325bab); }
 @media (min-width: 1350px) {
-  .site-header nav { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .lab-tab:nth-child(4) { border-left: 1px solid var(--line); }
-  .lab-tab:nth-child(n+4) { border-top: 0; }
+  .site-header nav { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .site-header .lab-tab, .site-header .lab-tab:nth-child(n+5) { grid-column: auto; border-top: 0; }
+  .lab-tab:nth-child(5) { border-left: 1px solid var(--line); }
 }
 @media (min-width: 781px) and (max-width: 1100px) {
   .plot-axis-label { font-size: var(--text-ui); }
@@ -622,6 +627,34 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
   .plot-axis-label { font-size: var(--text-small); }
 }
 
+.spin-workspace .figure-panel { position: static; }
+.spin-workspace .control-caption { margin: 0 0 12px; font-size: var(--text-ui); }
+.spin-presets, .spin-fields, .spin-measure-axis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.spin-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.spin-workspace button.is-selected { color: var(--lab-tone); background: var(--lab-tint); border-color: var(--lab-tone); }
+.spin-presets button, .spin-fields button, .spin-measure-axis button { min-width: 0; min-height: 44px; padding: 8px; }
+.spin-fields .katex { font-size: 1em; }
+.spin-visual { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 20px 0; }
+.bloch-frame { width: 100%; max-width: 470px; position: relative; margin: 0 auto; aspect-ratio: 440 / 410; }
+.bloch-frame svg { width: 100%; height: 100%; display: block; }
+.bloch-axis { position: absolute; transform: translate(-50%, -50%); padding: 2px 5px; background: var(--card); border-radius: 4px; pointer-events: none; font-size: var(--text-body); }
+.spin-state-card { min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 18px; background: var(--lab-tint); }
+.spin-state-card > span:first-child { font-size: var(--text-small); color: var(--muted-foreground); }
+.spin-state-card .katex-display { margin: 14px 0; overflow-x: auto; }
+.spin-state-card .katex-display > .katex { font-size: var(--text-body); }
+.spin-state-card p { margin-top: 12px; font-size: var(--text-ui); }
+.spin-clock > .scale-note { grid-column: 1 / -1; margin: 0; }
+.spin-measure-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0 18px; }
+.spin-measure-heading h3 { font-size: var(--text-body); font-weight: 400; margin: 0; }
+.spin-measure-axis { min-width: 160px; }
+.spin-probabilities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.spin-probability-plot .scientific-plot-frame { height: 270px; aspect-ratio: auto; }
+.spin-energy .scientific-plot-frame { height: 240px; aspect-ratio: auto; }
+.legend-swatch.spin-swatch::before { background: var(--lab-tone); }
+.legend-swatch.spin-minus-swatch::before { height: 3px; background: repeating-linear-gradient(90deg, var(--teal) 0 5px, transparent 5px 9px); }
+@media (min-width: 1350px) {
+  .spin-visual { grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr); align-items: center; }
+}
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }

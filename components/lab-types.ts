@@ -1,6 +1,6 @@
 export type ExperimentCommand = {
   id: number;
-  lab: 'well' | 'oscillator' | 'scattering' | 'double-well' | 'rotor' | 'hydrogen';
+  lab: 'well' | 'oscillator' | 'scattering' | 'double-well' | 'rotor' | 'hydrogen' | 'spin';
   mode?: 'stationary' | 'evolution';
   quantumNumber?: number;
   preset?: string;
@@ -21,4 +21,9 @@ export type ExperimentCommand = {
   basis?: 'complex' | 'real';
   atomicView?: 'slice' | 'radial';
   plane?: 'xz' | 'xy' | 'yz' | 'oblique';
+  spinTheta?: number;
+  spinPhi?: number;
+  spinOmega?: number;
+  spinField?: 'x' | 'y' | 'z' | 'tilted';
+  spinMeasure?: 'x' | 'y' | 'z';
 };
