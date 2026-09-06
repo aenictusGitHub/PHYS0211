@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Atom } from 'lucide-react';
+import { QuantumMark } from '@/components/quantum-mark';
 
 import { HarmonicLab } from '@/components/harmonic-lab';
 import { InfiniteWellLab } from '@/components/infinite-well-lab';
@@ -83,7 +83,7 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
       data.scale > DISPLAY_SCALE_MAX)
   ) {
     throw new Error(
-      `scale doit être compris entre ${DISPLAY_SCALE_MIN.toLocaleString('fr-BE')} et ${DISPLAY_SCALE_MAX}.`,
+      `scale doit être compris entre ${DISPLAY_SCALE_MIN.toLocaleString('en-US', { useGrouping: false })} et ${DISPLAY_SCALE_MAX}.`,
     );
   }
 
@@ -154,7 +154,7 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          'Configure les six laboratoires. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. Ces deux laboratoires montrent des états stationnaires et n’utilisent pas mode, time, preset ou quantumNumber. La lecture reste en pause.',
+          'Configure les six laboratoires. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 2π). Ils n’utilisent pas quantumNumber. La lecture reste en pause.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -176,6 +176,12 @@ export function QuantumLab() {
                 'reflection',
                 'left',
                 'right',
+                'rotor-polar',
+                'rotor-rotation',
+                'hydrogen-breathing',
+                'hydrogen-dipole',
+                'hydrogen-rotation',
+                'hydrogen-rydberg',
               ],
             },
             time: { type: 'number', minimum: 0, maximum: TAU_MAX },
@@ -187,9 +193,9 @@ export function QuantumLab() {
             progress: { type: 'number', minimum: 0, maximum: 1 },
             barrier: { type: 'number', minimum: 0.5, maximum: 8 },
             separation: { type: 'number', minimum: 0.8, maximum: 2.5 },
-            principal: { type: 'integer', minimum: 1, maximum: 5 },
-            angular: { type: 'integer', minimum: 0, maximum: 5 },
-            magnetic: { type: 'integer', minimum: -5, maximum: 5 },
+            principal: { type: 'integer', minimum: 1, maximum: 40, description: 'Hydrogène : 1 à 5, ou 10 à 40 pour les états circulaires (ell=n−1, |m|=ell).' },
+            angular: { type: 'integer', minimum: 0, maximum: 39, description: 'Rotateur : au plus 5. Hydrogène : ell<n ; pour n≥10, ell=n−1.' },
+            magnetic: { type: 'integer', minimum: -39, maximum: 39 },
             inertia: { type: 'number', minimum: .5, maximum: 5 },
             basis: { type: 'string', enum: ['complex', 'real'] },
             atomicView: { type: 'string', enum: ['slice', 'radial'] },
@@ -259,7 +265,7 @@ export function QuantumLab() {
       <a className="skip-link" href="#laboratory">Aller au laboratoire</a>
       <header className="site-header">
         <a className="brand" href="#laboratory" aria-label="Mécanique quantique, accueil">
-          <span className="brand-mark"><Atom aria-hidden="true" /></span>
+          <span className="brand-mark"><QuantumMark /></span>
           <span><strong>Mécanique quantique</strong><small>PHYS0211-3 · 2026–2027</small></span>
         </a>
 

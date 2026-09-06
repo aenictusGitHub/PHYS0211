@@ -8,6 +8,7 @@ import { Math as Formula } from '@/components/math';
 import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { eigenstateDomain, energyGuides } from '@/lib/energy-display';
 import {
   DISPLAY_SCALE_MAX,
   DISPLAY_SCALE_MIN,
@@ -40,6 +41,8 @@ const POTENTIAL_STATIONARY = Array.from({ length: 401 }, (_, index) => {
   const x = -4 + (8 * index) / 400;
   return { x, y: (x * x) / 2 };
 });
+const STATIONARY_ENERGIES = Array.from({ length: 9 }, (_, n) => n + .5);
+const STATIONARY_STATES = STATIONARY_ENERGIES.map((_, n) => POTENTIAL_STATIONARY.map(point => harmonicEigenfunction(n, point.x)));
 
 const POTENTIAL_EVOLUTION = Array.from({ length: 401 }, (_, index) => {
   const x = -5 + (10 * index) / 400;
@@ -186,7 +189,7 @@ export function HarmonicLab({
     const baseline = n + 0.5;
     return Array.from({ length: 401 }, (_, index) => {
       const x = -4 + (8 * index) / 400;
-      const phi = harmonicEigenfunction(n, x);
+      const phi = STATIONARY_STATES[n][index];
       return {
         x,
         y:
@@ -235,21 +238,7 @@ export function HarmonicLab({
     [meanEnergy, probabilityValues, psiScale],
   );
   const meanX = numericalExpectationX(probabilityValues);
-  const stationaryDomain = useMemo(() => {
-    const minimum = stationaryValues.reduce(
-      (current, point) => Math.min(current, point.y),
-      Number.POSITIVE_INFINITY,
-    );
-    const maximum = stationaryValues.reduce(
-      (current, point) => Math.max(current, point.y),
-      Number.NEGATIVE_INFINITY,
-    );
-    const padding = Math.max(0.35, (maximum - minimum) * 0.08);
-    return [Math.min(0, minimum - padding), Math.max(9, maximum + padding)] as [
-      number,
-      number,
-    ];
-  }, [stationaryValues]);
+  const stationaryDomain = useMemo(() => eigenstateDomain(STATIONARY_ENERGIES, STATIONARY_STATES, stationaryScale, 9), [stationaryScale]);
   const evolutionMaximum = Math.max(13.4, 4.5 + 1.12 * psiScale);
 
   const selectPreset = (nextPreset: OscillatorPreset) => {
@@ -350,7 +339,7 @@ export function HarmonicLab({
                 onValueChange={(value) => setStationaryScale(sliderValue(value, 1))}
                 aria-label={`Facteur d’affichage s de ${display === 'wave' ? 'la fonction propre' : 'la densité de probabilité'}`}
               />
-              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0{,}5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
+              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0.5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
               <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’amplitude affichée.</p>
             </div>
           </div>
@@ -437,7 +426,7 @@ export function HarmonicLab({
                 onValueChange={(value) => setPsiScale(sliderValue(value, 2))}
                 aria-label="Facteur d’affichage s de la densité de probabilité"
               />
-              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0{,}5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
+              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0.5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
               <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’affichage · <Formula>{String.raw`$\int |\psi|^2\,dx=1$`}</Formula></p>
             </div>
 
@@ -510,7 +499,7 @@ export function HarmonicLab({
                 { values: POTENTIAL_STATIONARY, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
                 { values: stationaryValues, tone: 'accent', width: 2.8, fillTo: n + 0.5, fillOpacity: 0.24 },
               ]}
-              horizontalLines={[{ value: n + 0.5, label: String.raw`$E_${n}$`, tone: 'teal', dashed: true }]}
+              horizontalLines={energyGuides(STATIONARY_ENERGIES, n)}
             />
           ) : (
             <ScientificPlot
@@ -529,6 +518,7 @@ export function HarmonicLab({
           )}
         </div>
 
+        {mode === 'stationary' ? <p className="scale-note">Échelle commune aux états <Formula>{'$n=0,\\ldots,8$'}</Formula> à facteur <Formula>{'$s$'}</Formula> fixé. Tous les niveaux sont indiqués en pointillés ; le niveau sélectionné est en vert.</p> : null}
         <div className="insight-row">
           <span className="insight-index">{mode === 'stationary' ? String(n).padStart(2, '0') : 'τ'}</span>
           <p>

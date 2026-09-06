@@ -4,6 +4,8 @@ export type HarmonicBasis = 'complex' | 'real';
 export type OrbitalPlane = 'xz' | 'xy' | 'yz' | 'oblique';
 export const ROTOR_L_MAX = 5;
 export const HYDROGEN_N_MAX = 5;
+export const RYDBERG_N_MIN = 10;
+export const RYDBERG_N_MAX = 40;
 
 function factorial(n: number) {
   let result = 1;
@@ -12,7 +14,7 @@ function factorial(n: number) {
 }
 
 export function validAngularNumbers(l: number, m: number) {
-  return Number.isInteger(l) && l >= 0 && l <= ROTOR_L_MAX && Number.isInteger(m) && Math.abs(m) <= l;
+  return Number.isInteger(l) && l >= 0 && l < RYDBERG_N_MAX && Number.isInteger(m) && Math.abs(m) <= l;
 }
 
 export function associatedLegendre(l: number, m: number, x: number) {
@@ -64,7 +66,7 @@ export function generalizedLaguerre(k: number, alpha: number, x: number) {
 
 /** a0^(3/2) R_nl(r), where radius is r/a0. */
 export function hydrogenRadial(n: number, l: number, radius: number) {
-  if (!Number.isInteger(n) || n < 1 || n > HYDROGEN_N_MAX || !Number.isInteger(l) || l < 0 || l >= n) {
+  if (!Number.isInteger(n) || n < 1 || n > RYDBERG_N_MAX || !Number.isInteger(l) || l < 0 || l >= n) {
     throw new Error('Nombres quantiques de l’hydrogène non valides.');
   }
   if (radius < 0 || !Number.isFinite(radius)) return 0;

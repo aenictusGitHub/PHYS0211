@@ -7,6 +7,7 @@ import { Math as Formula } from '@/components/math';
 import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { eigenstateDomain, energyGuides } from '@/lib/energy-display';
 import { DISPLAY_SCALE_MAX, DISPLAY_SCALE_MIN, TAU_MAX, sliderValue } from '@/lib/quantum';
 import {
   DOUBLE_WELL_DEFAULT, DOUBLE_WELL_LIMITS, DOUBLE_WELL_STATES, DOUBLE_WELL_EXTENT, DOUBLE_WELL_INTERVALS,
@@ -16,9 +17,9 @@ import {
 function numberTex(value: number) {
   if (Math.abs(value) < 0.001 || Math.abs(value) >= 10000) {
     const [mantissa, exponent] = value.toExponential(2).split('e');
-    return `${mantissa.replace('.', '{,}')}\\times10^{${Number(exponent)}}`;
+    return `${mantissa}\\times10^{${Number(exponent)}}`;
   }
-  return value.toFixed(value < 0.1 ? 4 : 3).replace('.', '{,}');
+  return value.toFixed(value < 0.1 ? 4 : 3);
 }
 
 function Parameter({ id, label, symbol, value, min, max, step, onChange }: {
@@ -28,11 +29,11 @@ function Parameter({ id, label, symbol, value, min, max, step, onChange }: {
   return <div className="control-block">
     <div className="control-heading">
       <label htmlFor={id}>{label} <Formula>{symbol}</Formula></label>
-      <output>{value.toLocaleString('fr-BE', { maximumFractionDigits: 2 })}</output>
+      <output>{value.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 2 })}</output>
     </div>
     <Slider id={id} min={min} max={max} step={step} value={[value]}
       onValueChange={next => onChange(sliderValue(next, value))} aria-label={`${label} — double puits`} />
-    <div className="range-labels" aria-hidden="true"><span>{min.toLocaleString('fr-BE')}</span><span>{max.toLocaleString('fr-BE')}</span></div>
+    <div className="range-labels" aria-hidden="true"><span>{min.toLocaleString('en-US', { useGrouping: false })}</span><span>{max.toLocaleString('en-US', { useGrouping: false })}</span></div>
   </div>;
 }
 
@@ -92,19 +93,22 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
   ) })), [spectrum, baseline, scale, mode, frame, display, n]);
   const potentialValues = useMemo(() => Array.from(spectrum.x, (x, j) => ({ x, y: spectrum.potential[j] })), [spectrum]);
   const domain = useMemo(() => {
-    let upper = Math.max(config.barrier * 1.3, baseline + 1), lower = 0;
-    for (let j = 0; j < spectrum.x.length; j++) {
-      // A phase-independent bound keeps axes still during the animation.
-      const amplitude = mode === 'evolution'
-        ? (Math.abs(spectrum.states[0][j]) + Math.abs(spectrum.states[1][j])) ** 2 / 2
-        : display === 'wave' ? spectrum.states[n][j] : spectrum.states[n][j] ** 2;
-      upper = Math.max(upper, baseline + scale * amplitude + 0.35);
-      lower = Math.min(lower, baseline + scale * amplitude - 0.2);
+    let lower: number, upper: number;
+    if (mode === 'stationary') {
+      [lower, upper] = eigenstateDomain(spectrum.energies, spectrum.states, scale, config.barrier * 1.3);
+    } else {
+      upper = Math.max(config.barrier * 1.3, meanEnergy + 1); lower = 0;
+      for (let j = 0; j < spectrum.x.length; j++) {
+        // A phase-independent bound keeps axes still during the animation.
+        const amplitude = (Math.abs(spectrum.states[0][j]) + Math.abs(spectrum.states[1][j])) ** 2 / 2;
+        upper = Math.max(upper, meanEnergy + scale * amplitude + 0.35);
+        lower = Math.min(lower, meanEnergy + scale * amplitude - 0.2);
+      }
     }
     const extent = Math.min(DOUBLE_WELL_EXTENT, Math.max(2.4, config.separation * Math.sqrt(1 + Math.sqrt(upper / config.barrier)) * 1.06));
     return { x: [-extent, extent] as [number, number], y: [lower, upper] as [number, number] };
-  }, [baseline, config, display, mode, n, scale, spectrum]);
-  const pct = (value: number) => `${(value * 100).toLocaleString('fr-BE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+  }, [config, meanEnergy, mode, scale, spectrum]);
+  const pct = (value: number) => `${(value * 100).toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
   const densityMode = mode === 'evolution' || display === 'density';
 
   return <section className="workspace double-well-workspace" aria-labelledby="double-well-title">
@@ -179,9 +183,10 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
             { values: potentialValues, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
             { values, tone: 'accent', width: 2.8, fillTo: baseline, fillOpacity: 0.27 },
           ]}
-          horizontalLines={[{ value: baseline, label: mode === 'stationary' ? `$E_${n}$` : String.raw`$\langle E\rangle$`, tone: 'teal', dashed: true }]}
+          horizontalLines={mode === 'stationary' ? energyGuides(spectrum.energies, n) : [{ value: baseline, label: String.raw`$\langle E\rangle$`, tone: 'teal', dashed: true }]}
           verticalLines={[{ value: 0, tone: 'muted', dashed: true }]} />
       </div>
+      {mode === 'stationary' ? <p className="scale-note">Échelles communes aux neuf états à potentiel et facteur <Formula>{'$s$'}</Formula> fixés. Tous les niveaux sont en pointillés ; le niveau sélectionné est en vert. Les doublets très proches peuvent se confondre à cette échelle.</p> : null}
       {mode === 'evolution' ? <>
         <div className="scattering-timeline">
           <div className="transport-controls">
@@ -189,7 +194,7 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
             <Button variant="outline" size="icon" aria-label="Réinitialiser le double puits" onClick={() => { setPhase(0); setPlaying(false); }}><RotateCcw aria-hidden="true" /></Button>
           </div>
           <div className="control-block">
-            <div className="control-heading"><label htmlFor="double-well-time">Temps <Formula>{'$t/T$'}</Formula></label><output>{(phase / TAU_MAX).toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</output></div>
+            <div className="control-heading"><label htmlFor="double-well-time">Temps <Formula>{'$t/T$'}</Formula></label><output>{(phase / TAU_MAX).toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2 })}</output></div>
             <Slider id="double-well-time" min={0} max={TAU_MAX} step={TAU_MAX / 200} value={[phase]} aria-label="Temps du double puits, fraction de la période" onValueChange={next => { setPhase(sliderValue(next, 0)); setPlaying(false); }} />
             <div className="range-labels" aria-hidden="true"><span>0</span><span><Formula>{'$T/2$'}</Formula></span><span><Formula>{'$T$'}</Formula></span></div>
           </div>
@@ -217,7 +222,7 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
           <div><span>Évolution de la superposition</span><Formula display>{String.raw`$\begin{aligned}\psi(x,t)&=\frac{1}{\sqrt2}\bigl[\phi_0(x)e^{-iE_0t/\hbar}\\&\qquad\pm\phi_1(x)e^{-iE_1t/\hbar}\bigr],\\T&=\frac{2\pi\hbar}{\Delta E}.\end{aligned}$`}</Formula></div>
         </div>
         <p>Le signe choisit le côté initial. Après une demi-période, la densité devient son image miroir ; après une période, elle se reforme. Pour une barrière basse, le paquet n’est pas entièrement localisé dans un seul puits. Les probabilités affichées sont les intégrales de la densité sur chaque demi-axe.</p>
-        <p>États propres calculés par différences finies sur <Formula>{`$[-${DOUBLE_WELL_EXTENT},${DOUBLE_WELL_EXTENT}]$`}</Formula> avec {DOUBLE_WELL_INTERVALS.toLocaleString('fr-BE')} intervalles et des bords où la fonction s’annule. Le potentiel est quartique ; seuls les deux premiers états entrent dans cette évolution. <a href="https://doi.org/10.1039/D0RA07292C" target="_blank" rel="noreferrer">Doublets et effet tunnel · RSC Advances</a>.</p>
+        <p>États propres calculés par différences finies sur <Formula>{`$[-${DOUBLE_WELL_EXTENT},${DOUBLE_WELL_EXTENT}]$`}</Formula> avec {DOUBLE_WELL_INTERVALS.toLocaleString('en-US', { useGrouping: false })} intervalles et des bords où la fonction s’annule. Le potentiel est quartique ; seuls les deux premiers états entrent dans cette évolution. <a href="https://doi.org/10.1039/D0RA07292C" target="_blank" rel="noreferrer">Doublets et effet tunnel · RSC Advances</a>.</p>
       </details>
     </div>
   </section>;

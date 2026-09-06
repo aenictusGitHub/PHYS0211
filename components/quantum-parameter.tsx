@@ -11,12 +11,12 @@ export function QuantumParameter({ id, label, symbol, value, min, max, step = 1,
   return <div className="control-block">
     <div className="control-heading">
       <label htmlFor={id}>{label} <Formula>{symbol}</Formula></label>
-      <output>{value.toLocaleString('fr-BE', { maximumFractionDigits: 2 })}</output>
+      <output>{value.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 2 })}</output>
     </div>
     {min < max ? <>
       <Slider id={id} min={min} max={max} step={step} value={[value]}
         onValueChange={next => onChange(sliderValue(next, value))} aria-label={label} />
-      <div className="range-labels" aria-hidden="true"><span>{min.toLocaleString('fr-BE')}</span><span>{max.toLocaleString('fr-BE')}</span></div>
+      <div className="range-labels" aria-hidden="true"><span>{min.toLocaleString('en-US', { useGrouping: false })}</span><span>{max.toLocaleString('en-US', { useGrouping: false })}</span></div>
     </> : <p className="scale-note">Valeur fixée par les autres nombres quantiques.</p>}
   </div>;
 }

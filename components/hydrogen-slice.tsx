@@ -3,29 +3,34 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Math as Formula } from '@/components/math';
 import { hydrogenWave, phaseRgb, sliceCoordinates, type AtomicState, type HarmonicBasis, type OrbitalPlane } from '@/lib/atomic';
+import { basisDensityCeiling, evolveSamples, type AtomicTerm } from '@/lib/atomic-dynamics';
 
 const RESOLUTION = 241;
 
-export function HydrogenSlice({ state, basis, plane, extent, phaseColors, active }: {
+export function HydrogenSlice({ state, basis, plane, extent, phaseColors, active, evolutionTerms, phase = 0 }: {
   state: AtomicState; basis: HarmonicBasis; plane: OrbitalPlane; extent: number; phaseColors: boolean; active: boolean;
+  evolutionTerms?: readonly AtomicTerm[]; phase?: number;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const field = useMemo(() => {
+  const sampled = useMemo(() => {
     if (!active) return null;
-    const real = new Float64Array(RESOLUTION ** 2), imaginary = new Float64Array(RESOLUTION ** 2);
-    let maximum = 0;
-    for (let row = 0; row < RESOLUTION; row++) {
-      const vertical = extent * (1 - 2 * row / (RESOLUTION - 1));
-      for (let column = 0; column < RESOLUTION; column++) {
-        const x = extent * (2 * column / (RESOLUTION - 1) - 1);
-        const value = hydrogenWave(state, ...sliceCoordinates(x, vertical, plane), basis);
-        const index = row * RESOLUTION + column;
-        real[index] = value.re; imaginary[index] = value.im;
-        maximum = Math.max(maximum, value.re ** 2 + value.im ** 2);
+    const terms = evolutionTerms ?? [{ ...state, basis }];
+    const samples = terms.map(term => {
+      const real = new Float64Array(RESOLUTION ** 2), imaginary = new Float64Array(RESOLUTION ** 2);
+      for (let row = 0; row < RESOLUTION; row++) {
+        const vertical = extent * (1 - 2 * row / (RESOLUTION - 1));
+        for (let column = 0; column < RESOLUTION; column++) {
+          const x = extent * (2 * column / (RESOLUTION - 1) - 1);
+          const value = hydrogenWave(term, ...sliceCoordinates(x, vertical, plane), term.basis);
+          const index = row * RESOLUTION + column;
+          real[index] = value.re; imaginary[index] = value.im;
+        }
       }
-    }
-    return { real, imaginary, maximum, nodal: maximum < 1e-24 };
-  }, [active, basis, extent, plane, state]);
+      return { real, imaginary };
+    });
+    return { samples, maximum: basisDensityCeiling(samples) };
+  }, [active, basis, extent, plane, state, evolutionTerms]);
+  const field = useMemo(() => sampled ? { ...evolveSamples(sampled.samples, phase), maximum: sampled.maximum, nodal: sampled.maximum < 1e-24 } : null, [sampled, phase]);
 
   useEffect(() => {
     if (!active || !canvas.current || !field) return;
@@ -46,16 +51,16 @@ export function HydrogenSlice({ state, basis, plane, extent, phaseColors, active
     <div className="hydrogen-slice-frame">
       <div className="hydrogen-slice">
         <canvas ref={canvas} width={RESOLUTION} height={RESOLUTION} role="img"
-          aria-label={`Coupe ${plane} de l’orbitale n ${state.n}, ell ${state.l}, m ${state.m}, base ${basis === 'real' ? 'réelle' : 'complexe'}, de moins ${extent} à plus ${extent} rayons de Bohr. ${field?.nodal ? 'Ce plan est nodal.' : 'La saturation représente la densité de probabilité.'}`} />
+          aria-label={`Coupe ${plane} ${evolutionTerms ? 'de la superposition évolutive' : `de l’orbitale n ${state.n}, ell ${state.l}, m ${state.m}, base ${basis === 'real' ? 'réelle' : 'complexe'}`}, de moins ${extent} à plus ${extent} rayons de Bohr. ${field?.nodal ? 'Ce plan est nodal.' : 'La saturation représente la densité de probabilité.'}`} />
         <div className="slice-axis horizontal" aria-hidden="true" /><div className="slice-axis vertical" aria-hidden="true" />
         <span className="slice-origin" aria-hidden="true" />
-        <div className="slice-ticks" aria-hidden="true"><span>−{extent.toLocaleString('fr-BE')}</span><span>0</span><span>{extent.toLocaleString('fr-BE')}</span></div>
+        <div className="slice-ticks" aria-hidden="true"><span>−{extent.toLocaleString('en-US', { useGrouping: false })}</span><span>0</span><span>{extent.toLocaleString('en-US', { useGrouping: false })}</span></div>
         <span className="slice-x-label" aria-hidden="true"><Formula>{`$${plane === 'oblique' ? 'u' : plane === 'yz' ? 'y' : 'x'}/a_0$`}</Formula></span>
         <span className="slice-y-label" aria-hidden="true"><Formula>{`$${plane === 'oblique' ? 'v' : plane === 'xy' ? 'y' : 'z'}/a_0$`}</Formula></span>
       </div>
     </div>
     {field?.nodal ? <p className="nodal-notice" role="status">Ce plan est un plan nodal : la fonction d’onde y est nulle. Choisissez la coupe oblique pour voir l’orbitale.</p> : null}
     {plane === 'oblique' ? <p className="scale-note">Plan <Formula>{'$x+y+z=0$'}</Formula>, dans les coordonnées orthonormées <Formula>{String.raw`$u=(x-y)/\sqrt2$`}</Formula> et <Formula>{String.raw`$v=(x+y-2z)/\sqrt6$`}</Formula>.</p> : null}
-    <p className="scale-note">Coupe au centre du noyau, et non projection. Contraste renforcé : la saturation suit <Formula>{String.raw`$(|\psi|^2/\max|\psi|^2)^{0{,}32}$`}</Formula>. Les zones blanches correspondent aux faibles densités et aux nœuds.</p>
+    <p className="scale-note">Coupe au centre du noyau, et non projection. Contraste renforcé : la saturation suit <Formula>{String.raw`$(|\psi|^2/\rho_{\mathrm{ref}})^{0.32}$`}</Formula>, avec une référence fixe pendant l’animation. Les zones blanches correspondent aux faibles densités et aux nœuds.</p>
   </>;
 }

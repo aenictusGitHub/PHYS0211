@@ -5,6 +5,7 @@ import { Pause, RotateCcw, Rotate3D } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Math as Formula } from '@/components/math';
 import { sphericalHarmonic, phaseRgb } from '@/lib/atomic';
+import { basisDensityCeiling, evolveSamples, type AtomicTerm } from '@/lib/atomic-dynamics';
 
 type Vertex = { x: number; y: number; z: number };
 type Face = { indices: number[]; phase: number };
@@ -16,36 +17,46 @@ function project(point: Vertex, yaw: number, pitch: number) {
   return { x: u, y: Math.sin(pitch) * v - Math.cos(pitch) * point.z, z: Math.cos(pitch) * v + Math.sin(pitch) * point.z };
 }
 
-export function AngularSurface({ l, m, active, phaseColors }: { l: number; m: number; active: boolean; phaseColors: boolean }) {
+export function AngularSurface({ l, m, active, phaseColors, evolutionTerms, phase = 0 }: { l: number; m: number; active: boolean; phaseColors: boolean; evolutionTerms?: readonly AtomicTerm[]; phase?: number }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState({ width: 640, height: 400 });
   const [view, setView] = useState({ yaw: .65, pitch: .35 });
   const [rotating, setRotating] = useState(false);
-  const mesh = useMemo(() => {
-    const vertices: Vertex[] = [], faces: Face[] = [];
-    let maxDensity = 0;
-    for (let i = 0; i <= LATITUDES; i++) {
-      const value = sphericalHarmonic(l, m, i * Math.PI / LATITUDES, 0);
-      maxDensity = Math.max(maxDensity, value.re ** 2 + value.im ** 2);
-    }
+  const sampled = useMemo(() => {
+    const angles: { theta: number; phi: number }[] = [], directions: Vertex[] = [];
+    const faces: { indices: number[]; sample: number }[] = [];
     for (let i = 0; i <= LATITUDES; i++) {
       const theta = i * Math.PI / LATITUDES;
       for (let j = 0; j <= LONGITUDES; j++) {
         const phi = j * 2 * Math.PI / LONGITUDES;
-        const value = sphericalHarmonic(l, m, theta, phi);
-        const radius = (value.re ** 2 + value.im ** 2) / maxDensity;
-        vertices.push({ x: radius * Math.sin(theta) * Math.cos(phi), y: radius * Math.sin(theta) * Math.sin(phi), z: radius * Math.cos(theta) });
-        if (i < LATITUDES && j < LONGITUDES) {
-          const first = i * (LONGITUDES + 1) + j;
-          const middle = sphericalHarmonic(l, m, (i + .5) * Math.PI / LATITUDES, (j + .5) * 2 * Math.PI / LONGITUDES);
-          faces.push({ indices: [first, first + 1, first + LONGITUDES + 2, first + LONGITUDES + 1], phase: Math.atan2(middle.im, middle.re) });
-        }
+        angles.push({ theta, phi });
+        directions.push({ x: Math.sin(theta) * Math.cos(phi), y: Math.sin(theta) * Math.sin(phi), z: Math.cos(theta) });
       }
     }
+    for (let i = 0; i < LATITUDES; i++) for (let j = 0; j < LONGITUDES; j++) {
+      const first = i * (LONGITUDES + 1) + j;
+      faces.push({ indices: [first, first + 1, first + LONGITUDES + 2, first + LONGITUDES + 1], sample: angles.length });
+      angles.push({ theta: (i + .5) * Math.PI / LATITUDES, phi: (j + .5) * 2 * Math.PI / LONGITUDES });
+    }
+    const terms = evolutionTerms ?? [{ l, m }];
+    const basis = terms.map(term => {
+      const real = new Float64Array(angles.length), imaginary = new Float64Array(angles.length);
+      angles.forEach((point, index) => { const value = sphericalHarmonic(term.l, term.m, point.theta, point.phi); real[index] = value.re; imaginary[index] = value.im; });
+      return { real, imaginary };
+    });
+    return { basis, maximum: basisDensityCeiling(basis), directions, faces };
+  }, [l, m, evolutionTerms]);
+  const mesh = useMemo(() => {
+    const values = evolveSamples(sampled.basis, phase);
+    const vertices = sampled.directions.map((direction, index) => {
+      const radius = (values.real[index] ** 2 + values.imaginary[index] ** 2) / sampled.maximum;
+      return { x: radius * direction.x, y: radius * direction.y, z: radius * direction.z };
+    });
+    const faces: Face[] = sampled.faces.map(face => ({ indices: face.indices, phase: Math.atan2(values.imaginary[face.sample], values.real[face.sample]) }));
     return { vertices, faces };
-  }, [l, m]);
+  }, [sampled, phase]);
 
   useEffect(() => {
     if (!frame.current) return;
@@ -119,7 +130,7 @@ export function AngularSurface({ l, m, active, phaseColors }: { l: number; m: nu
 
   return <>
     <div ref={frame} className="angular-surface" role="group" aria-label="Vue tridimensionnelle orientable">
-      <canvas ref={canvas} tabIndex={0} role="img" aria-label={`Surface de probabilité angulaire pour ell égal à ${l}, m égal à ${m}. Utilisez les flèches pour tourner la vue.`}
+      <canvas ref={canvas} tabIndex={0} role="img" aria-label={`${evolutionTerms ? 'Densité angulaire évolutive d’une superposition' : `Surface de probabilité angulaire pour ell égal à ${l}, m égal à ${m}`}. Utilisez les flèches pour tourner la vue.`}
         onPointerDown={event => { drag.current = { x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId); setRotating(false); }}
         onPointerMove={event => {
           if (!drag.current) return;

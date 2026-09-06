@@ -171,15 +171,15 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 .brand-mark {
   display: grid;
-  width: 38px;
-  height: 38px;
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
   place-items: center;
-  border: 1px solid var(--foreground);
-  border-radius: 50%;
-  color: var(--accent);
+  border-radius: 14px;
+  isolation: isolate;
 }
 
-.brand-mark svg { width: 22px; }
+.brand-mark svg { width: 100%; height: 100%; }
 .brand strong, .brand small { display: block; }
 .brand strong { font-size: var(--text-heading); letter-spacing: 0.01em; }
 .brand small { margin-top: 2px; color: var(--muted-foreground); font-size: var(--text-small); letter-spacing: 0.08em; }
@@ -579,8 +579,13 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .phase-gradient { height: 10px; border-radius: 5px; background: linear-gradient(90deg, rgb(55,210,210), rgb(55,55,210), rgb(210,55,210), rgb(210,55,55), rgb(210,210,55), rgb(55,210,55), rgb(55,210,210)); }
 .phase-key .range-labels { margin-top: 6px; }
 .atomic-insight { margin-top: 22px; }
+.energy-levels { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 20px; }
+.energy-levels .scientific-plot-frame { height: 250px; aspect-ratio: auto; }
 .atomic-profile .scientific-plot-frame { aspect-ratio: 780 / 340; }
 .atomic-presets { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.atomic-dynamic-presets { grid-template-columns: 1fr; }
+.atomic-clock { margin-top: 20px; }
+.atomic-clock > .scale-note { margin-top: 12px; }
 .atomic-view-controls { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-top: 20px; }
 .atomic-view-controls .display-switch { min-width: 150px; }
 .atomic-view-controls .slice-plane-switch { grid-template-columns: repeat(4, minmax(0, 1fr)); }

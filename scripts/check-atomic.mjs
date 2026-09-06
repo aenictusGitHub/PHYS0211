@@ -88,3 +88,19 @@ for (const data of [
   { lab: 'hydrogen', basis: 'invalid' }, { lab: 'rotor', principal: 2 },
 ]) assert.throws(() => parseAtomicExperiment(data));
 console.log('Configuration validation rejects invalid quantum numbers and unsupported parameters.');
+
+for (const n of [10, 20, 30, 40]) {
+  const l = n - 1, upper = radialExtent(n);
+  close(simpson(r => radialDistribution(n, l, r), 0, upper, 12000), 1, 2e-10, `Circular Rydberg norm n=${n}`);
+  close(simpson(r => r * radialDistribution(n, l, r), 0, upper, 12000), n * (n + .5), 2e-7, `Circular Rydberg radius n=${n}`);
+  close(simpson(theta => 2 * Math.PI * Math.sin(theta) * angularDensity(l, l, theta), 0, Math.PI, 4000), 1, 2e-10, `Circular angular norm n=${n}`);
+  const peak = radialDistribution(n, l, n * n);
+  assert.ok(peak > radialDistribution(n, l, n * n - 1) && peak > radialDistribution(n, l, n * n + 1), 'Circular radial maximum at n squared');
+  assert.ok(peak < .02, 'Common circular-state vertical bound');
+  const plus = hydrogenWave({ n, l, m: l }, n * n, 0, 0), minus = hydrogenWave({ n, l, m: -l }, n * n, 0, 0);
+  close(plus.re ** 2 + plus.im ** 2, minus.re ** 2 + minus.im ** 2, 1e-18, 'Opposite circular signs have equal density');
+  assert.equal(parseAtomicExperiment({ lab: 'hydrogen', principal: n }).angular, n - 1);
+}
+assert.throws(() => parseAtomicExperiment({ lab: 'hydrogen', principal: 20, angular: 0 }));
+assert.throws(() => parseAtomicExperiment({ lab: 'hydrogen', principal: 40, angular: 39, magnetic: 0 }));
+console.log('Circular Rydberg n=10…40: radial/angular norms, radii, signs and bounds pass.');

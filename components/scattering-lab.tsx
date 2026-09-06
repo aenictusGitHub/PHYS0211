@@ -24,11 +24,11 @@ function Parameter({ id, label, symbol, value, min, max, step, onChange }: {
     <div className="control-block">
       <div className="control-heading">
         <label htmlFor={id}>{label} <Formula>{symbol}</Formula></label>
-        <output>{value.toLocaleString('fr-BE', { maximumFractionDigits: 2 })}</output>
+        <output>{value.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 2 })}</output>
       </div>
       <Slider id={id} min={min} max={max} step={step} value={[value]}
         onValueChange={next => onChange(sliderValue(next, value))} aria-label={label} />
-      <div className="range-labels" aria-hidden="true"><span>{min.toLocaleString('fr-BE')}</span><span>{max.toLocaleString('fr-BE')}</span></div>
+      <div className="range-labels" aria-hidden="true"><span>{min.toLocaleString('en-US', { useGrouping: false })}</span><span>{max.toLocaleString('en-US', { useGrouping: false })}</span></div>
     </div>
   );
 }
@@ -147,7 +147,7 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
   const stateLabel = error ? 'Calcul interrompu' : !timeline ? `Préparation · ${Math.round(progress * 100)} %`
     : finished ? 'Fin de l’évolution' : playing ? 'Évolution en cours' : time === 0 ? 'Paquet incident prêt' : 'En pause';
   const boundaryFormula = config.potential === 'gaussian' ? String.raw`$b=3a/2$` : String.raw`$b=a/2$`;
-  const pct = (value: number) => `${(100 * value).toLocaleString('fr-BE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
+  const pct = (value: number) => `${(100 * value).toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
   const potentialFormula = config.potential === 'gaussian' ? String.raw`$V(x)=V_0e^{-2x^2/a^2}$`
     : config.potential === 'well' ? String.raw`$V(x)=\begin{cases}-V_0,&|x|<a/2,\\0,&|x|\ge a/2.\end{cases}$`
     : String.raw`$V(x)=\begin{cases}V_0,&|x|<a/2,\\0,&|x|\ge a/2.\end{cases}$`;

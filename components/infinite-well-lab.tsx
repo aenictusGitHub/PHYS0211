@@ -6,6 +6,7 @@ import { Pause, Play, RotateCcw } from 'lucide-react';
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Math as Formula } from '@/components/math';
 import { ScientificPlot } from '@/components/scientific-plot';
+import { EnergyLevels } from '@/components/energy-levels';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
@@ -285,7 +286,7 @@ export function InfiniteWellLab({
                 onValueChange={(value) => setWidth(sliderValue(value, 1))}
                 aria-label="Largeur du puits a"
               />
-              <div className="range-labels" aria-hidden="true"><span>0,5</span><span>4,0</span></div>
+              <div className="range-labels" aria-hidden="true"><span>0.5</span><span>4.0</span></div>
             </div>
           </div>
         ) : (
@@ -335,7 +336,7 @@ export function InfiniteWellLab({
                 onValueChange={(value) => setPsiScale(sliderValue(value, 2))}
                 aria-label="Facteur d’affichage s de la densité de probabilité"
               />
-              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0{,}5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
+              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0.5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
               <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’affichage · <Formula>{String.raw`$\int |\psi|^2\,dx=1$`}</Formula></p>
             </div>
 
@@ -424,6 +425,7 @@ export function InfiniteWellLab({
           />
         </div>
 
+        {mode === 'stationary' ? <EnergyLevels energies={Array.from({ length: 8 }, (_, index) => (index + 1) ** 2)} selected={n - 1} firstIndex={1} unit="$E/E_1$" label="Niveaux d’énergie du puits infini, de n égal à 1 à 8" /> : null}
         <div className="insight-row">
           <span className="insight-index">{mode === 'stationary' ? String(n).padStart(2, '0') : 'τ'}</span>
           <p>
