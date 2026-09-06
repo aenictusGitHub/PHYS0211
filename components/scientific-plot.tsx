@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useId } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { Math as Formula } from '@/components/math';
 
@@ -46,55 +46,11 @@ type ScientificPlotProps = {
 };
 
 const WIDTH = 780;
-const HEIGHT = 420;
-const MARGIN = { left: 72, right: 34, top: 30, bottom: 62 };
-
-type MathAnchor = 'start' | 'middle' | 'end';
-
-const SvgMathLabel = memo(function SvgMathLabel({
-  math,
-  x,
-  y,
-  width,
-  height,
-  anchor = 'middle',
-  variant = 'axis',
-}: {
-  math: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  anchor?: MathAnchor;
-  variant?: 'axis' | 'guide';
-}) {
-  const left =
-    anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2;
-
-  return (
-    <g
-      aria-hidden="true"
-      focusable="false"
-      pointerEvents="none"
-    >
-      <foreignObject
-        x={left}
-        y={y - height / 2}
-        width={width}
-        height={height}
-      >
-        <div className={`plot-math-label is-${variant} is-${anchor}`}>
-          <Formula>{math}</Formula>
-        </div>
-      </foreignObject>
-    </g>
-  );
-});
-
-function formatTick(value: number) {
+function formatTick(value: number, interval: number) {
   if (Math.abs(value) < 1e-9) return '0';
   if (Number.isInteger(value)) return String(value);
-  return value.toFixed(1).replace(/\.0$/, '');
+  const digits = interval < 0.1 ? 3 : interval < 1 ? 2 : 1;
+  return value.toFixed(digits).replace(/\.?0+$/, '');
 }
 
 export function ScientificPlot({
@@ -111,6 +67,24 @@ export function ScientificPlot({
   yTicks,
 }: ScientificPlotProps) {
   const clipId = `plot-${useId().replaceAll(':', '')}`;
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: WIDTH, height: 440 });
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (width > 0 && height > 0) setSize({ width, height });
+    });
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
+  const textScale = WIDTH / size.width;
+  const HEIGHT = WIDTH * size.height / size.width;
+  const MARGIN = {
+    left: Math.max(72, 54 * textScale), right: Math.max(24, 14 * textScale),
+    top: Math.max(26, 18 * textScale), bottom: Math.max(60, 48 * textScale),
+  };
   const innerWidth = WIDTH - MARGIN.left - MARGIN.right;
   const innerHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
   const mapX = (x: number) =>
@@ -138,7 +112,7 @@ export function ScientificPlot({
   };
 
   return (
-    <div className="scientific-plot-frame">
+    <div className="scientific-plot-frame" ref={frameRef}>
       <svg
         className="scientific-plot"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -288,7 +262,7 @@ export function ScientificPlot({
         })}
       </g>
 
-      <g className="axis-layer" aria-hidden="true">
+      <g className="axis-layer" aria-hidden="true" style={{ '--plot-tick-size': `${14 * textScale}px` } as React.CSSProperties}>
         <line
           x1={MARGIN.left}
           x2={MARGIN.left + innerWidth}
@@ -312,10 +286,10 @@ export function ScientificPlot({
             />
             <text
               x={mapX(tick)}
-              y={MARGIN.top + innerHeight + 24}
+              y={MARGIN.top + innerHeight + 21 * textScale}
               textAnchor="middle"
             >
-              {formatTick(tick)}
+              {formatTick(tick, Math.abs(resolvedXTicks[1] - resolvedXTicks[0]))}
             </text>
           </g>
         ))}
@@ -329,58 +303,49 @@ export function ScientificPlot({
               y2={mapY(tick)}
             />
             <text
-              x={MARGIN.left - 12}
-              y={mapY(tick) + 4}
+              x={MARGIN.left - 9 * textScale}
+              y={mapY(tick) + 4 * textScale}
               textAnchor="end"
             >
-              {formatTick(tick)}
+              {formatTick(tick, Math.abs(resolvedYTicks[1] - resolvedYTicks[0]))}
             </text>
           </g>
         ))}
 
       </g>
 
-      <g className="guide-labels" aria-hidden="true">
+      </svg>
+
+      <div className="plot-guide-labels" aria-hidden="true">
         {verticalLines.map((line, index) => {
           if (!line.label) return null;
           const guideX = mapX(line.value);
           const onRight = guideX > MARGIN.left + innerWidth / 2;
 
           return (
-            <SvgMathLabel
+            <div
               key={`vertical-label-${index}`}
-              math={line.label}
-              x={guideX + (onRight ? -8 : 8)}
-              y={MARGIN.top + 18}
-              width={108}
-              height={32}
-              anchor={onRight ? 'end' : 'start'}
-              variant="guide"
-            />
+              className={`plot-guide-label${onRight ? ' is-end' : ''}`}
+              style={{ left: `${(guideX / WIDTH) * 100}%`, top: `${(MARGIN.top / HEIGHT) * 100}%` }}
+            ><Formula>{line.label}</Formula></div>
           );
         })}
         {horizontalLines.map((line, index) =>
           line.label ? (
-            <SvgMathLabel
+            <div
               key={`horizontal-label-${index}`}
-              math={line.label}
-              x={MARGIN.left + innerWidth - 7}
-              y={mapY(line.value) - 15}
-              width={132}
-              height={32}
-              anchor="end"
-              variant="guide"
-            />
+              className="plot-guide-label is-horizontal"
+              style={{ right: `${(MARGIN.right / WIDTH) * 100}%`, top: `${(mapY(line.value) / HEIGHT) * 100}%` }}
+            ><Formula>{line.label}</Formula></div>
           ) : null,
         )}
-        </g>
-      </svg>
+      </div>
 
       <div
         className="plot-axis-label is-x"
         style={{
           left: `${((MARGIN.left + innerWidth / 2) / WIDTH) * 100}%`,
-          top: `${((HEIGHT - 16) / HEIGHT) * 100}%`,
+          top: `${((HEIGHT - 10 * textScale) / HEIGHT) * 100}%`,
         }}
         aria-hidden="true"
       >
@@ -389,7 +354,7 @@ export function ScientificPlot({
       <div
         className="plot-axis-label is-y"
         style={{
-          left: `${(24 / WIDTH) * 100}%`,
+          left: `${(12 * textScale / WIDTH) * 100}%`,
           top: `${((MARGIN.top + innerHeight / 2) / HEIGHT) * 100}%`,
         }}
         aria-hidden="true"

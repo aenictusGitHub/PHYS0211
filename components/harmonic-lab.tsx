@@ -329,10 +329,10 @@ export function HarmonicLab({
 
             <div className="display-switch" role="group" aria-label="Grandeur représentée">
               <Button variant="outline" className={display === 'wave' ? 'is-selected' : ''} onClick={() => setDisplay('wave')} aria-pressed={display === 'wave'}>
-                <Formula>{String.raw`$\phi_n(x)$`}</Formula>
+                <Formula>{String.raw`$\phi_n(\xi)$`}</Formula>
               </Button>
               <Button variant="outline" className={display === 'density' ? 'is-selected' : ''} onClick={() => setDisplay('density')} aria-pressed={display === 'density'}>
-                <Formula>{String.raw`$|\phi_n(x)|^2$`}</Formula>
+                <Formula>{String.raw`$|\phi_n(\xi)|^2$`}</Formula>
               </Button>
             </div>
 
@@ -391,7 +391,7 @@ export function HarmonicLab({
                 <div className="control-block">
                   <div className="control-heading">
                     <label htmlFor="alpha-phase">Phase <Formula>{String.raw`$\arg(\alpha)$`}</Formula></label>
-                    <output>{(alphaPhase / Math.PI).toFixed(1)}π</output>
+                    <output><Formula>{`$${(alphaPhase / Math.PI).toFixed(1)}\\pi$`}</Formula></output>
                   </div>
                   <Slider
                     id="alpha-phase"
@@ -420,7 +420,7 @@ export function HarmonicLab({
                 onValueChange={(value) => setTime(clamp(sliderValue(value, 0), 0, TAU_MAX))}
                 aria-label="Temps réduit omega t"
               />
-              <div className="range-labels" aria-hidden="true"><span>0</span><span>2π</span></div>
+              <div className="range-labels" aria-hidden="true"><span>0</span><span><Formula>{String.raw`$2\pi$`}</Formula></span></div>
             </div>
 
             <div className="control-block scale-control">
@@ -481,9 +481,9 @@ export function HarmonicLab({
               <Formula>
                 {mode === 'stationary'
                   ? display === 'wave'
-                    ? String.raw`$s\,\phi_${n}(\xi)+E_${n}$`
-                    : String.raw`$s\,|\phi_${n}(\xi)|^2+E_${n}$`
-                  : String.raw`$s\,|\psi(\xi,\tau)|^2+\langle E\rangle$`}
+                    ? String.raw`$s\,\phi_${n}(\xi)+\frac{E_${n}}{\hbar\omega}$`
+                    : String.raw`$s\,|\phi_${n}(\xi)|^2+\frac{E_${n}}{\hbar\omega}$`
+                  : String.raw`$s\,|\psi(\xi,\tau)|^2+\frac{\langle E\rangle}{\hbar\omega}$`}
               </Formula>
             </h2>
           </div>

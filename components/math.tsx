@@ -39,7 +39,7 @@ export const Math = memo(function Math({
 
   return (
     <span
-      className={className}
+      className={`math-formula ${className}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

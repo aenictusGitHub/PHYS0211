@@ -318,7 +318,7 @@ export function InfiniteWellLab({
                 onValueChange={(value) => setTime(clamp(sliderValue(value, 0), 0, TAU_MAX))}
                 aria-label="Temps réduit tau"
               />
-              <div className="range-labels" aria-hidden="true"><span>0</span><span>2π</span></div>
+              <div className="range-labels" aria-hidden="true"><span>0</span><span><Formula>{String.raw`$2\pi$`}</Formula></span></div>
             </div>
 
             <div className="control-block scale-control">
