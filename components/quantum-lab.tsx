@@ -7,6 +7,9 @@ import { HarmonicLab } from '@/components/harmonic-lab';
 import { InfiniteWellLab } from '@/components/infinite-well-lab';
 import { ScatteringLab } from '@/components/scattering-lab';
 import { DoubleWellLab } from '@/components/double-well-lab';
+import { RotorLab } from '@/components/rotor-lab';
+import { HydrogenLab } from '@/components/hydrogen-lab';
+import { parseAtomicExperiment } from '@/lib/atomic-command';
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Button } from '@/components/ui/button';
 import { DISPLAY_SCALE_MAX, DISPLAY_SCALE_MIN, TAU_MAX } from '@/lib/quantum';
@@ -36,8 +39,9 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
   }
 
   const data = input as Record<string, unknown>;
+  if (data.lab === 'rotor' || data.lab === 'hydrogen') return parseAtomicExperiment(data);
   if (data.lab !== 'well' && data.lab !== 'oscillator' && data.lab !== 'scattering' && data.lab !== 'double-well') {
-    throw new Error('lab doit valoir “well”, “oscillator”, “scattering” ou “double-well”.');
+    throw new Error('lab doit valoir well, oscillator, scattering, double-well, rotor ou hydrogen.');
   }
 
   if (
@@ -150,11 +154,11 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          'Ouvre et configure l’un des quatre laboratoires. Pour scattering, règle potential, height, width, momentum, sigma et progress (de 0 à 1 dans la durée de diffusion). Pour double-well, règle barrier (hauteur centrale), separation (demi-écartement), preset left/right et time (phase ΔE t/ℏ, de 0 à 2π). La lecture reste en pause.',
+          'Configure les six laboratoires. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. Ces deux laboratoires montrent des états stationnaires et n’utilisent pas mode, time, preset ou quantumNumber. La lecture reste en pause.',
         inputSchema: {
           type: 'object',
           properties: {
-            lab: { type: 'string', enum: ['well', 'oscillator', 'scattering', 'double-well'] },
+            lab: { type: 'string', enum: ['well', 'oscillator', 'scattering', 'double-well', 'rotor', 'hydrogen'] },
             mode: { type: 'string', enum: ['stationary', 'evolution'] },
             quantumNumber: { type: 'integer', minimum: 0, maximum: 8 },
             preset: {
@@ -183,6 +187,13 @@ export function QuantumLab() {
             progress: { type: 'number', minimum: 0, maximum: 1 },
             barrier: { type: 'number', minimum: 0.5, maximum: 8 },
             separation: { type: 'number', minimum: 0.8, maximum: 2.5 },
+            principal: { type: 'integer', minimum: 1, maximum: 5 },
+            angular: { type: 'integer', minimum: 0, maximum: 5 },
+            magnetic: { type: 'integer', minimum: -5, maximum: 5 },
+            inertia: { type: 'number', minimum: .5, maximum: 5 },
+            basis: { type: 'string', enum: ['complex', 'real'] },
+            atomicView: { type: 'string', enum: ['slice', 'radial'] },
+            plane: { type: 'string', enum: ['xz', 'xy', 'yz', 'oblique'] },
             scale: {
               type: 'number',
               minimum: DISPLAY_SCALE_MIN,
@@ -228,6 +239,9 @@ export function QuantumLab() {
             time: parsed.time ?? null,
             scale: parsed.scale ?? null,
             progress: parsed.progress ?? null,
+            principal: parsed.principal ?? null,
+            angular: parsed.angular ?? null,
+            magnetic: parsed.magnetic ?? null,
           };
         },
       },
@@ -282,6 +296,10 @@ export function QuantumLab() {
           >
             <span>04</span> Double puits
           </Button>
+          <Button variant="ghost" className={`lab-tab lab-tab-rotor${lab === 'rotor' ? ' is-active' : ''}`}
+            onClick={() => setLab('rotor')} aria-pressed={lab === 'rotor'}><span>05</span> Rotateur rigide</Button>
+          <Button variant="ghost" className={`lab-tab lab-tab-hydrogen${lab === 'hydrogen' ? ' is-active' : ''}`}
+            onClick={() => setLab('hydrogen')} aria-pressed={lab === 'hydrogen'}><span>06</span> Atome d’hydrogène</Button>
         </nav>
 
       </header>
@@ -299,6 +317,8 @@ export function QuantumLab() {
         <div hidden={lab !== 'double-well'}>
           <DoubleWellLab active={lab === 'double-well'} command={command} />
         </div>
+        <div hidden={lab !== 'rotor'}><RotorLab active={lab === 'rotor'} command={command} /></div>
+        <div hidden={lab !== 'hydrogen'}><HydrogenLab active={lab === 'hydrogen'} command={command} /></div>
       </div>
 
       <footer>

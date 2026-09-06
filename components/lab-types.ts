@@ -1,6 +1,6 @@
 export type ExperimentCommand = {
   id: number;
-  lab: 'well' | 'oscillator' | 'scattering' | 'double-well';
+  lab: 'well' | 'oscillator' | 'scattering' | 'double-well' | 'rotor' | 'hydrogen';
   mode?: 'stationary' | 'evolution';
   quantumNumber?: number;
   preset?: string;
@@ -14,4 +14,11 @@ export type ExperimentCommand = {
   progress?: number;
   barrier?: number;
   separation?: number;
+  principal?: number;
+  angular?: number;
+  magnetic?: number;
+  inertia?: number;
+  basis?: 'complex' | 'real';
+  atomicView?: 'slice' | 'radial';
+  plane?: 'xz' | 'xy' | 'yz' | 'oblique';
 };
