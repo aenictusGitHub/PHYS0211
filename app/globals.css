@@ -567,7 +567,18 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
    Size only the expression root: the math font handles fractions and indices.
    There is no HTML copy to hide or expose through competing CSS rules. */
 .math-formula math { font-family: 'Atelier Latin Modern Math'; font-size: 1em; }
+.math-display { display: block; min-width: 0; padding-block: .15em; overflow-x: auto; }
+.math-display > .katex-display { min-width: max-content; }
 .math-display math[display='block'] { margin: 0; text-align: inherit; }
+.math-formula .math-hat { font-size: .75em; }
+/* Restore cell breathing room lost to the global padding reset. CSS cell
+   spacing works in MathML Core as well as Safari's legacy table layout. */
+.math-formula mtable { border-collapse: separate; border-spacing: 0; }
+.math-formula mtd { padding: .22em .3em; }
+.math-formula mtable[columnalign='left left'] > mtr > mtd { text-align: left; padding: .18em 0; }
+.math-formula mtable[columnalign='left left'] > mtr > mtd + mtd { padding-left: .8em; }
+.math-formula mtable[columnalign='right left'] > mtr > mtd:first-child { text-align: right; padding-right: 0; }
+.math-formula mtable[columnalign='right left'] > mtr > mtd:nth-child(2) { text-align: left; padding-left: 0; }
 .control-panel > *, .figure-heading > * { min-width: 0; }
 .transport-controls button:disabled { opacity: .55; cursor: wait; }
 button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--lab-tone, var(--teal)); outline-offset: 4px; }

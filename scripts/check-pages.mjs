@@ -40,6 +40,16 @@ for (const file of assets.filter(name => name.endsWith('.css'))) {
     'Both block and inline formulas retain the local native LaTeX math font');
   assert.doesNotMatch(css, /\.math-display \.katex-(?:mathml|html)\{/,
     'No competing visibility overrides: a single native expression is emitted');
+  assert.match(css, /\.math-formula \.math-hat\{font-size:\.75em\}/,
+    'Operator hats remain compact in the published stylesheet');
+  assert.match(css, /\.math-formula mtd\{padding:\.22em \.3em\}/,
+    'Matrix rows have explicit vertical padding after the global reset');
+  assert.match(css, /mtd\+mtd\{padding-left:\.8em\}/,
+    'Piecewise potential columns retain their gap');
+  assert.match(css, /\.math-display\{[^}]*overflow-x:auto/,
+    'Unbroken equations remain accessible in narrow cards');
+  assert.match(css, /\.math-display>\.katex-display\{min-width:max-content\}/,
+    'Wide equations do not lose their beginning to centered overflow');
 }
 assert.ok(assets.some(name => /^scattering\.worker-.*\.js$/.test(name)), 'Missing numerical worker');
 let nativeMathComponent = false;

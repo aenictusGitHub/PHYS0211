@@ -192,9 +192,9 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
   const pct = (value: number) => `${(100 * value).toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
   const potentialFormula = gravity ? String.raw`$V(z)=mgz,\qquad F_z=-mg$`
     : config.potential === 'free' ? String.raw`$V(x)=0$`
-    : config.potential === 'gaussian' ? String.raw`$V(x)=V_0e^{-2x^2/a^2}$`
-    : config.potential === 'well' ? String.raw`$V(x)=\begin{cases}-V_0,&|x|<a/2,\\0,&|x|\ge a/2.\end{cases}$`
-    : String.raw`$V(x)=\begin{cases}V_0,&|x|<a/2,\\0,&|x|\ge a/2.\end{cases}$`;
+    : config.potential === 'gaussian' ? String.raw`$V(x)=V_0\,e^{-2x^2/a^2}$`
+    : config.potential === 'well' ? String.raw`$V(x)=\begin{cases}-V_0&\lvert x\rvert<a/2\\0&\lvert x\rvert\ge a/2\end{cases}$`
+    : String.raw`$V(x)=\begin{cases}V_0&\lvert x\rvert<a/2\\0&\lvert x\rvert\ge a/2\end{cases}$`;
 
   return (
     <section className="workspace" aria-labelledby="scattering-title">

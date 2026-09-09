@@ -55,7 +55,7 @@ export function SpinLab({ active, command }: { active: boolean; command: Experim
   return <section className="workspace spin-workspace" aria-labelledby="spin-title">
     <aside className="control-panel">
       <div><p className="eyebrow">07</p><h1 id="spin-title">Spin-1/2</h1><p className="lede">Deux résultats possibles, une infinité de superpositions. Préparez un spin, faites-le précesser et changez l’axe de mesure.</p></div>
-      <div className="equation-card"><span>État initial dans la base de <Formula>{'$S_z$'}</Formula></span><Formula display>{String.raw`$\begin{aligned}|\psi(0)\rangle={}&\cos\frac{\theta_0}{2}|+z\rangle\\&+e^{i\varphi_0}\sin\frac{\theta_0}{2}|-z\rangle\end{aligned}$`}</Formula></div>
+      <div className="equation-card"><span>État initial dans la base de <Formula>{'$S_z$'}</Formula></span><Formula display>{String.raw`$|\psi(0)\rangle=\cos(\theta_0/2)\,|+z\rangle+e^{i\varphi_0}\,\sin(\theta_0/2)\,|-z\rangle$`}</Formula></div>
       <div className="control-stack">
         <div className="control-block"><p className="control-caption">Préparer un état propre</p><div className="spin-presets" role="group" aria-label="État initial du spin">{SPIN_PRESETS.map(p => {
           const selected = theta === p.theta && (theta === 0 || theta === 180 || phi % 360 === p.phi);
@@ -90,7 +90,7 @@ export function SpinLab({ active, command }: { active: boolean; command: Experim
       <details className="theory-notes"><summary>Repères théoriques</summary><div className="theory-grid">
         <div><span>Spin et matrices de Pauli</span><Formula display>{String.raw`$\begin{aligned}\hat{\boldsymbol S}&=\frac{\hbar}{2}\boldsymbol\sigma,\\\hat S^2&=\frac34\hbar^2\mathbb I.\end{aligned}$`}</Formula></div>
         <div><span>Probabilités de mesure</span><Formula display>{String.raw`$\begin{aligned}P_\pm^{(j)}&=\frac{1\pm r_j}{2},\\\langle S_j\rangle&=\frac{\hbar}{2}r_j.\end{aligned}$`}</Formula></div>
-        <div><span>Évolution unitaire exacte</span><Formula display>{String.raw`$\begin{aligned}|\psi(t)\rangle&=U(t)|\psi(0)\rangle,\\U(t)&=\cos\frac{\Omega t}{2}\,\mathbb I\\&\quad-i\sin\frac{\Omega t}{2}\,\boldsymbol b\cdot\boldsymbol\sigma,\\\dot{\boldsymbol r}&=\Omega\,\boldsymbol b\times\boldsymbol r.\end{aligned}$`}</Formula></div>
+        <div><span>Évolution unitaire exacte</span><Formula display>{String.raw`$\begin{aligned}|\psi(t)\rangle&=U(t)\,|\psi(0)\rangle,\\U(t)&=\cos(\Omega t/2)\,\mathbb I-i\sin(\Omega t/2)\,\boldsymbol b\cdot\boldsymbol\sigma,\\\dot{\boldsymbol r}&=\Omega\,\boldsymbol b\times\boldsymbol r.\end{aligned}$`}</Formula></div>
       </div><p>Un état pur vérifie <Formula>{String.raw`$|\boldsymbol r|=1$`}</Formula>. La phase globale est conservée dans le spineur affiché.</p></details>
     </div>
   </section>;

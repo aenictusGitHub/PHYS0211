@@ -60,4 +60,40 @@ const eigenfunction = renderToStaticMarkup(createElement(Formula, { display: tru
 assert.match(eigenfunction, /<msqrt><mfrac>/, 'The radical and fraction form one native layout');
 assert.doesNotMatch(eigenfunction, /style="[^"]*(?:top|left|vertical-align):/,
   'No manually positioned HTML pieces at low zoom');
-console.log('Math: one native rendition per block/inline formula; cases, roots, fractions, indices, responsive wrappers and accessibility pass.');
+
+// Regressions use the actual laboratory formulas from the reported cards.
+function labFormula(file, predicate) {
+  const source = readFileSync(new URL(`../components/${file}.tsx`, import.meta.url), 'utf8');
+  const formula = [...source.matchAll(/String\.raw`([^`]*)`/g)].map(match => match[1]).find(predicate);
+  assert.ok(formula, `Missing representative formula in ${file}`);
+  return formula;
+}
+function render(expression) {
+  return renderToStaticMarkup(createElement(Formula, { display: true }, expression));
+}
+const spin = labFormula('spin-lab', tex => tex.startsWith('$|\\psi(0)\\rangle=\\cos'));
+const hydrogen = labFormula('hydrogen-lab', tex => tex.startsWith('$\\psi_{n\\ell m}='));
+const realHydrogen = labFormula('hydrogen-lab', tex => tex.startsWith('$\\psi^{\\mathrm{réel}}'));
+for (const tex of [spin, hydrogen, realHydrogen]) {
+  assert.doesNotMatch(render(tex), /<mtable|<mspace[^>]*linebreak/, 'One equation, one mathematical row');
+  assert.ok(tex.includes('\\,'), 'Products have deliberate thin spacing');
+}
+const well = labFormula('infinite-well-lab', tex => tex.startsWith('$\\phi_n(x)=\\sqrt'));
+assert.match(render(well), /<\/msqrt><mtext>\u2009<\/mtext><mi>sin<\/mi>/,
+  'The normalization factor is separated from the sine');
+assert.ok(!well.includes('\\!') && !well.includes('\\bigl'), 'No negative gap or oversized parentheses');
+const rotor = labFormula('rotor-lab', tex => tex.startsWith('$\\hat H='));
+assert.equal((render(rotor).match(/class="math-hat" stretchy="false"/g) ?? []).length, 2,
+  'Both Hamiltonian and angular-momentum hats are non-stretching');
+const wide = render(String.raw`\widehat{AB}`);
+assert.match(wide, /<mo stretchy="true">\^<\/mo>/, 'An intentional wide hat stays wide');
+assert.ok(!wide.includes('math-hat'));
+const potential = labFormula('scattering-lab', tex => tex.startsWith('$V(x)=\\begin{cases}V_0'));
+assert.equal((render(potential).match(/<mtr>/g) ?? []).length, 2);
+assert.ok(potential.includes('\\lvert x\\rvert') && !potential.includes(','),
+  'The case separator is column spacing, not a cramped comma');
+const spinor = render(String.raw`|\psi(t)\rangle=\begin{pmatrix}0.14-0.83i\\-0.53+0.05i\end{pmatrix}`);
+assert.equal((spinor.match(/<mtr>/g) ?? []).length, 2, 'The two spinor components keep separate rows');
+for (const number of ['0.14', '0.83', '0.53', '0.05']) assert.ok(spinor.includes(`<mn>${number}</mn>`));
+assert.doesNotMatch(spinor, /katex-error|<merror|katex-html/);
+console.log('Math: unique native rendering, one-line equations, compact hats, product spacing, cases, two-row spinors and accessibility pass.');

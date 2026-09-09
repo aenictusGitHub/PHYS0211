@@ -471,7 +471,7 @@ export function HarmonicLab({
             </div>
             <div>
               <span>Base harmonique non perturbée</span>
-              <Formula display>{String.raw`$\begin{aligned}H_0(\xi)&=1,\qquad H_1(\xi)=2\xi,\\ H_{n+1}(\xi)&=2\xi H_n(\xi)\\ &\quad-2nH_{n-1}(\xi).\end{aligned}$`}</Formula>
+              <Formula display>{String.raw`$\begin{aligned}H_0(\xi)&=1,\qquad H_1(\xi)=2\xi,\\ H_{n+1}(\xi)&=2\xi\,H_n(\xi)-2n\,H_{n-1}(\xi).\end{aligned}$`}</Formula>
             </div>
             <div>
               <span>État cohérent</span>

@@ -76,8 +76,8 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
         <Button variant="ghost" className={evolving ? 'is-selected' : ''} aria-pressed={evolving} onClick={() => setMode('evolution')}>Évolution</Button>
       </div>
       <div className="equation-card"><span>{evolving ? 'État initial' : 'Séparation radiale et angulaire'}</span><Formula display>{evolving ? preset.formula : basis === 'complex'
-        ? String.raw`$\begin{aligned}\psi_{n\ell m}&=R_{n\ell}(r)\\&\quad\times Y_\ell^m(\theta,\varphi).\end{aligned}$`
-        : String.raw`$\begin{aligned}\psi^{\mathrm{réel}}_{n\ell m}&=R_{n\ell}(r)\\&\quad\times\mathcal Y_{\ell m}(\theta,\varphi).\end{aligned}$`}</Formula></div>
+        ? String.raw`$\psi_{n\ell m}=R_{n\ell}(r)\,Y_\ell^m(\theta,\varphi)$`
+        : String.raw`$\psi^{\mathrm{réel}}_{n\ell m}=R_{n\ell}(r)\,\mathcal Y_{\ell m}(\theta,\varphi)$`}</Formula></div>
       <div className="mode-switch" role="group" aria-label="Vue de l’atome d’hydrogène">
         <Button variant="ghost" className={view === 'slice' ? 'is-selected' : ''} aria-pressed={view === 'slice'} onClick={() => setView('slice')}>Coupe spatiale</Button>
         <Button variant="ghost" className={view === 'radial' ? 'is-selected' : ''} aria-pressed={view === 'radial'} onClick={() => setView('radial')}>Partie radiale</Button>

@@ -159,7 +159,7 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
             })}
           </div>
           <div className="equation-card"><span>Superposition initiale</span>
-            <Formula display>{String.raw`$\begin{aligned}\psi(x,0)&=\sqrt{1-p}\,\phi_{${initial.lower}}(x)\\&\quad+e^{i\delta}\sqrt{p}\,\phi_{${initial.lower + 1}}(x).\end{aligned}$`}</Formula>
+            <Formula display>{String.raw`$\psi(x,0)=\sqrt{1-p}\,\phi_{${initial.lower}}(x)+e^{i\delta}\,\sqrt{p}\,\phi_{${initial.lower + 1}}(x)$`}</Formula>
           </div>
           <Parameter id="double-well-population" label={`Population du niveau ${initial.lower + 1}`} symbol="$p$" value={initial.upperWeight}
             min={0} max={1} step={.05} onChange={upperWeight => prepare({ upperWeight })} />
@@ -229,7 +229,7 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
         <div className="theory-grid">
           <div><span>Équation stationnaire</span><Formula display>{String.raw`$\begin{aligned}\hat H\phi_n&=E_n\phi_n,\\\hat H&=-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}+V(x).\end{aligned}$`}</Formula></div>
           <div><span>Doublet choisi</span><Formula display>{String.raw`$\begin{aligned}n_a&=2j,\quad n_b=2j+1,\\\Delta E&=E_{n_b}-E_{n_a},\\T&=\frac{2\pi\hbar}{\Delta E}.\end{aligned}$`}</Formula></div>
-          <div><span>Évolution de la superposition</span><Formula display>{String.raw`$\begin{aligned}\psi(x,t)&=\sqrt{1-p}\,\phi_{n_a}(x)e^{-iE_{n_a}t/\hbar}\\&\quad+e^{i\delta}\sqrt{p}\,\phi_{n_b}(x)e^{-iE_{n_b}t/\hbar},\\\langle E\rangle&=(1-p)E_{n_a}+pE_{n_b}.\end{aligned}$`}</Formula></div>
+          <div><span>Évolution de la superposition</span><Formula display>{String.raw`$\begin{aligned}\psi(x,t)&=\sqrt{1-p}\,\phi_{n_a}(x)\,e^{-iE_{n_a}t/\hbar}+e^{i\delta}\,\sqrt{p}\,\phi_{n_b}(x)\,e^{-iE_{n_b}t/\hbar},\\\langle E\rangle&=(1-p)E_{n_a}+pE_{n_b}.\end{aligned}$`}</Formula></div>
         </div>
         <p>Le poids et la phase relative règlent les interférences. Après une demi-période, la densité devient son image miroir ; après une période, elle se reforme. « À gauche » et « À droite » maximisent la localisation dans le doublet choisi, sans garantir une localisation complète, en particulier au-dessus de la barrière. Les probabilités affichées sont les intégrales de la densité sur chaque demi-axe.</p>
         <p>États propres calculés par différences finies sur <Formula>{`$[-${DOUBLE_WELL_EXTENT},${DOUBLE_WELL_EXTENT}]$`}</Formula> avec {DOUBLE_WELL_INTERVALS.toLocaleString('en-US', { useGrouping: false })} intervalles et des bords où la fonction s’annule. Le potentiel est quartique ; l’évolution utilise les deux états du doublet sélectionné.</p>
