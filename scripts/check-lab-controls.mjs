@@ -250,7 +250,9 @@ assert.equal(rotor.plots()[0].yLabel, String.raw`$p(\theta)$`);
 const unscaledPolar = rotor.plots()[0].series[0].values;
 rotor.step('rotor-resolution', 1); assert.equal(rotor.surfaces()[0].resolution, 72);
 rotor.step('rotor-resolution', -1); assert.equal(rotor.surfaces()[0].resolution, 64);
-for (const [input, expected] of [[10000, 96], [-1, 24], [55, 56], ['not-a-number', 56], [64, 64]]) {
+rotor.enter('rotor-resolution', 96);
+rotor.step('rotor-resolution', 1); assert.equal(rotor.surfaces()[0].resolution, 104, 'The arrows cross the previous upper limit');
+for (const [input, expected] of [[10000, 192], [-1, 24], [55, 56], ['not-a-number', 56], [64, 64]]) {
   rotor.enter('rotor-resolution', input); assert.equal(rotor.surfaces()[0].resolution, expected);
   assert.deepEqual(rotor.plots()[0].series[0].values, unscaledPolar, 'Resolution never scales or changes the polar density');
 }
@@ -270,8 +272,8 @@ assert.equal(rotor.sliderProps('rotor-m').value[0], 1, 'm remains valid when cha
 rotor.command({ mode: 'evolution', time: 1 });
 const oldWave = rotor.surfaces()[0].waveCoefficients, oldPolar = rotor.plots()[0].series[0].values;
 const oldReference = rotor.surfaces()[0].coefficientBounds;
-rotor.enter('rotor-resolution', 96);
-assert.equal(rotor.surfaces()[0].resolution, 96);
+rotor.enter('rotor-resolution', 192);
+assert.equal(rotor.surfaces()[0].resolution, 192);
 near(rotor.clock().time, 1);
 assert.equal(rotor.surfaces()[0].waveCoefficients, oldWave, 'Resolution leaves the evolving state untouched');
 assert.equal(rotor.surfaces()[0].coefficientBounds, oldReference, 'The density reference remains independent of mesh resolution');
@@ -298,11 +300,11 @@ const axes = () => meshView.elements().filter(element => element.props.className
 assert.equal(canvasProps()['data-faces'], 2 * 24 ** 2);
 canvasProps().onKeyDown({ key: 'ArrowLeft', preventDefault() {} }); meshView.render();
 const rotatedAxes = axes();
-meshView.setProps({ resolution: 96 });
-assert.equal(canvasProps()['data-resolution'], 96);
-assert.equal(canvasProps()['data-faces'], 2 * 96 ** 2, 'Resolution reaches the actual rendered mesh, not just its label');
+meshView.setProps({ resolution: 192 });
+assert.equal(canvasProps()['data-resolution'], 192);
+assert.equal(canvasProps()['data-faces'], 2 * 192 ** 2, 'Resolution reaches the actual rendered mesh, not just its label');
 assert.deepEqual(axes(), rotatedAxes, 'Refining the mesh preserves the camera orientation');
-assert.match(canvasProps()['aria-label'], /96 subdivisions polaires/);
+assert.match(canvasProps()['aria-label'], /192 subdivisions polaires/);
 meshView.dispose();
 
 let applied;

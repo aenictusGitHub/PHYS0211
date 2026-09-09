@@ -64,7 +64,7 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
   const meanM = perturbed ? moments.magnetic : evolving ? preset.terms.reduce((sum, term) => sum + term.m, 0) / 2 : m;
   const resolutionControl = <CompactStepper id="rotor-resolution" label="Résolution" value={resolution}
     min={ROTOR_RESOLUTION_MIN} max={ROTOR_RESOLUTION_MAX} step={ROTOR_RESOLUTION_STEP} onChange={setResolution}
-    description="Finesse du maillage 3D : de 24 à 96 subdivisions polaires, et deux fois plus autour de l’axe. Par défaut : 64. Une résolution élevée demande plus de calcul pour l’affichage, sans changer l’état quantique." />;
+    description={`Finesse du maillage 3D : de ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX} subdivisions polaires, et deux fois plus autour de l’axe. Par défaut : ${ROTOR_RESOLUTION_DEFAULT}. Une résolution élevée demande plus de calcul pour l’affichage, sans changer l’état quantique.`} />;
 
   return <section className="workspace" aria-labelledby="rotor-title">
     <aside className="control-panel">

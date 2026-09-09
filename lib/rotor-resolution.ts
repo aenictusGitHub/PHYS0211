@@ -1,5 +1,5 @@
 export const ROTOR_RESOLUTION_MIN = 24;
-export const ROTOR_RESOLUTION_MAX = 96;
+export const ROTOR_RESOLUTION_MAX = 192;
 export const ROTOR_RESOLUTION_STEP = 8;
 export const ROTOR_RESOLUTION_DEFAULT = 64;
 
@@ -11,7 +11,7 @@ export function validRotorResolution(value: unknown): value is number {
 /** Equal angular steps in theta and phi. Includes duplicated seam vertices and
  * face-center samples for phase colors; never changes the quantum basis. */
 export function rotorSurfaceGrid(resolution = ROTOR_RESOLUTION_DEFAULT) {
-  if (!validRotorResolution(resolution)) throw new Error('Résolution du rotateur : de 24 à 96, par pas de 8.');
+  if (!validRotorResolution(resolution)) throw new Error(`Résolution du rotateur : de ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX}, par pas de ${ROTOR_RESOLUTION_STEP}.`);
   const latitudes = resolution, longitudes = 2 * resolution;
   const angles: { theta: number; phi: number }[] = [];
   const directions: { x: number; y: number; z: number }[] = [];

@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { DISPLAY_SCALE_MAX, DISPLAY_SCALE_MIN, TAU_MAX } from '@/lib/quantum';
 import { ALL_SCATTERING_PRESETS, SCATTERING_POTENTIALS, GRAVITY_MAX, SCATTERING_MOMENTUM_MIN, SCATTERING_MOMENTUM_MAX, SCATTERING_FINAL_TIME_MIN, SCATTERING_FINAL_TIME_MAX } from '@/lib/scattering';
 import { PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_MAX, LAB_FINAL_TIME_MIN, LAB_FINAL_TIME_MAX } from '@/lib/playback';
+import { ROTOR_RESOLUTION_MIN, ROTOR_RESOLUTION_MAX, ROTOR_RESOLUTION_STEP } from '@/lib/rotor-resolution';
 
 type Lab = ExperimentCommand['lab'];
 
@@ -170,7 +171,7 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          'Configure les sept laboratoires. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1), resolution (maillage 3D, 24 à 96 par pas de 8, défaut 64). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 20π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 20π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. Tous les laboratoires acceptent playbackSpeed et finalTime ; ce dernier utilise la même unité interne que time, pas t/T. scale est accepté sauf pour rotor, qui utilise resolution à la place. La lecture reste en pause.',
+          `Configure les sept laboratoires. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1), resolution (maillage 3D, ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX} par pas de ${ROTOR_RESOLUTION_STEP}, défaut 64). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 20π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 20π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. Tous les laboratoires acceptent playbackSpeed et finalTime ; ce dernier utilise la même unité interne que time, pas t/T. scale est accepté sauf pour rotor, qui utilise resolution à la place. La lecture reste en pause.`,
         inputSchema: {
           type: 'object',
           properties: {
@@ -228,7 +229,7 @@ export function QuantumLab() {
             angular: { type: 'integer', minimum: 0, maximum: 39, description: 'Rotateur : au plus 5. Hydrogène : ell<n ; pour n≥10, ell=n−1.' },
             magnetic: { type: 'integer', minimum: -39, maximum: 39 },
             inertia: { type: 'number', minimum: .5, maximum: 5 },
-            resolution: { type: 'integer', enum: [24, 32, 40, 48, 56, 64, 72, 80, 88, 96], description: 'Rotateur uniquement : subdivisions polaires du maillage 3D ; deux fois plus de subdivisions azimutales. Défaut 64. Sans effet sur la physique, le zoom ou la distribution polaire.' },
+            resolution: { type: 'integer', minimum: ROTOR_RESOLUTION_MIN, maximum: ROTOR_RESOLUTION_MAX, multipleOf: ROTOR_RESOLUTION_STEP, description: 'Rotateur uniquement : subdivisions polaires du maillage 3D ; deux fois plus de subdivisions azimutales. Défaut 64. Sans effet sur la physique, le zoom ou la distribution polaire.' },
             basis: { type: 'string', enum: ['complex', 'real'] },
             atomicView: { type: 'string', enum: ['slice', 'radial'] },
             plane: { type: 'string', enum: ['xz', 'xy', 'yz', 'oblique'] },

@@ -85,6 +85,22 @@ assert.ok(!well.includes('\\!') && !well.includes('\\bigl'), 'No negative gap or
 const rotor = labFormula('rotor-lab', tex => tex.startsWith('$H='));
 assert.doesNotMatch(render(rotor), /<mover\b|math-hat|>\^<|accent="true"/, 'Hamiltonian and angular momentum have no hats');
 assert.match(render(rotor), /<msup><mi>L<\/mi><mn>2<\/mn><\/msup>/, 'Removing hats preserves the physical square');
+const presetSource = readFileSync(new URL('../lib/atomic-dynamics.ts', import.meta.url), 'utf8')
+  .match(/export const ROTOR_PRESETS[\s\S]*?\n\];/)[0];
+const rotorInitialStates = [...presetSource.matchAll(/formula: String\.raw`([^`]*)`/g)].map(match => match[1]);
+assert.equal(rotorInitialStates.length, 2);
+for (const [index, tex] of rotorInitialStates.entries()) {
+  const html = render(tex);
+  assert.doesNotMatch(html, /katex-error|<merror|<mtable|katex-html/);
+  assert.equal((html.match(/<math\b/g) ?? []).length, 1);
+  assert.equal((html.match(/<mfrac>/g) ?? []).length, 1);
+  assert.match(html, /<mfrac><mn>1<\/mn><msqrt><mn>2<\/mn><\/msqrt><\/mfrac>/,
+    'Only the normalization factor is a fraction; harmonics retain their full size');
+  const scripts = [...html.matchAll(/<msubsup><mrow><mi>Y<\/mi><mtext>\u2009<\/mtext><\/mrow><mn>(\d)<\/mn><mn>(\d)<\/mn><\/msubsup>/g)];
+  assert.deepEqual(scripts.map(match => [+match[1], +match[2]]), [[0, 0], [1, index]],
+    'Both indices remain paired and separated from the italic Y by a thin space');
+  assert.ok(html.indexOf('</mfrac>') < html.indexOf('<msubsup>'), 'No crowded indices inside the numerator');
+}
 for (const directory of ['components', 'lib', 'app']) {
   const root = new URL(`../${directory}/`, import.meta.url);
   for (const file of readdirSync(root, { recursive: true }).filter(name => /\.tsx?$/.test(name) && !name.startsWith('ui/'))) {

@@ -8,8 +8,8 @@ const term = (n: number, l: number, m: number, basis: HarmonicBasis = 'complex')
 // Each preset is an equal, normalized superposition of two orthogonal states.
 // phase = (E_b-E_a)t/hbar. The common phase exp(-i E_a t/hbar) is omitted.
 export const ROTOR_PRESETS: readonly AtomicPreset[] = [
-  { id: 'rotor-polar', label: 'Oscillation polaire', formula: String.raw`$\psi(0)=\frac{Y_0^0+Y_1^0}{\sqrt2}$`, terms: [term(1, 0, 0), term(2, 1, 0)], description: 'L’interférence fait osciller la probabilité entre les deux pôles, sans modifier les populations des niveaux.' },
-  { id: 'rotor-rotation', label: 'Rotation azimutale', formula: String.raw`$\psi(0)=\frac{Y_0^0+Y_1^1}{\sqrt2}$`, terms: [term(1, 0, 0), term(2, 1, 1)], description: 'La densité tourne autour de l’axe z. Il s’agit du déplacement d’une distribution de probabilité, pas d’une trajectoire classique.' },
+  { id: 'rotor-polar', label: 'Oscillation polaire', formula: String.raw`$\psi(0)=\frac{1}{\sqrt{2}}\,\bigl({Y\,}_{0}^{0}+{Y\,}_{1}^{0}\bigr)$`, terms: [term(1, 0, 0), term(2, 1, 0)], description: 'L’interférence fait osciller la probabilité entre les deux pôles, sans modifier les populations des niveaux.' },
+  { id: 'rotor-rotation', label: 'Rotation azimutale', formula: String.raw`$\psi(0)=\frac{1}{\sqrt{2}}\,\bigl({Y\,}_{0}^{0}+{Y\,}_{1}^{1}\bigr)$`, terms: [term(1, 0, 0), term(2, 1, 1)], description: 'La densité tourne autour de l’axe z. Il s’agit du déplacement d’une distribution de probabilité, pas d’une trajectoire classique.' },
 ];
 export const HYDROGEN_PRESETS: readonly AtomicPreset[] = [
   { id: 'hydrogen-breathing', label: 'Respiration radiale', formula: String.raw`$\psi(0)=\frac{\psi_{100}+\psi_{200}}{\sqrt2}$`, terms: [term(1, 0, 0), term(2, 0, 0)], description: 'L’interférence entre 1s et 2s fait respirer la distribution radiale. La probabilité totale reste égale à 1.' },

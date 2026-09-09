@@ -1,6 +1,6 @@
 import type { ExperimentCommand } from '../components/lab-types';
 import { LAB_FINAL_TIME_MAX, parsePlaybackSettings } from './playback';
-import { validRotorResolution } from './rotor-resolution';
+import { validRotorResolution, ROTOR_RESOLUTION_MIN, ROTOR_RESOLUTION_MAX, ROTOR_RESOLUTION_STEP } from './rotor-resolution';
 
 export function parseAtomicExperiment(data: Record<string, unknown>): Omit<ExperimentCommand, 'id'> {
   if (data.lab !== 'rotor' && data.lab !== 'hydrogen') throw new Error('Laboratoire atomique inconnu.');
@@ -26,7 +26,7 @@ export function parseAtomicExperiment(data: Record<string, unknown>): Omit<Exper
     const l = integer('angular', 1, 0, 5), m = integer('magnetic', 0, -l, l);
     const inertia = data.inertia ?? 1;
     if (typeof inertia !== 'number' || !Number.isFinite(inertia) || inertia < .5 || inertia > 5) throw new Error('inertia doit être compris entre 0.5 et 5.');
-    if (data.resolution !== undefined && !validRotorResolution(data.resolution)) throw new Error('resolution doit aller de 24 à 96, par pas de 8.');
+    if (data.resolution !== undefined && !validRotorResolution(data.resolution)) throw new Error(`resolution doit aller de ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX}, par pas de ${ROTOR_RESOLUTION_STEP}.`);
     return { lab: 'rotor', angular: l, magnetic: m, inertia, ...dynamics, resolution: data.resolution as number | undefined };
   }
   const n = integer('principal', 1, 1, 40), l = integer('angular', n >= 10 ? n - 1 : 0, 0, n - 1), m = integer('magnetic', n >= 10 ? l : 0, -l, l);

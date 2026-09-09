@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
-import { rotorSurfaceGrid, validRotorResolution, ROTOR_RESOLUTION_DEFAULT } from '../lib/rotor-resolution.ts';
+import { rotorSurfaceGrid, validRotorResolution, ROTOR_RESOLUTION_DEFAULT, ROTOR_RESOLUTION_MAX } from '../lib/rotor-resolution.ts';
 import { sphericalHarmonic } from '../lib/atomic.ts';
 registerHooks({ resolve(specifier, context, nextResolve) {
   return nextResolve(['./atomic', './playback', './rotor-resolution', './anharmonic-oscillator'].includes(specifier) ? `${specifier}.ts` : specifier, context);
@@ -11,12 +11,14 @@ const { parseAtomicExperiment } = await import('../lib/atomic-command.ts');
 const near = (a, b, tol = 1e-12) => assert.ok(Math.abs(a - b) < tol, `${a} != ${b}`);
 
 assert.equal(ROTOR_RESOLUTION_DEFAULT, 64);
+assert.equal(ROTOR_RESOLUTION_MAX, 192);
 assert.equal(rotorSurfaceGrid().faces.length, 8192);
-for (const value of [undefined, null, NaN, Infinity, 23, 97, 64.5, 25, '64']) {
+assert.equal(rotorSurfaceGrid(192).faces.length, 73728);
+for (const value of [undefined, null, NaN, Infinity, 23, 193, 200, 64.5, 25, '64']) {
   assert.equal(validRotorResolution(value), false);
   if (value !== undefined) assert.throws(() => rotorSurfaceGrid(value));
 }
-for (let resolution = 24; resolution <= 96; resolution += 8) {
+for (let resolution = 24; resolution <= ROTOR_RESOLUTION_MAX; resolution += 8) {
   const { angles, directions, faces, latitudes, longitudes } = rotorSurfaceGrid(resolution);
   assert.equal(latitudes, resolution); assert.equal(longitudes, 2 * resolution);
   assert.equal(directions.length, (resolution + 1) * (2 * resolution + 1));
@@ -38,7 +40,7 @@ for (let resolution = 24; resolution <= 96; resolution += 8) {
   const parsed = parseAtomicExperiment({ lab: 'rotor', resolution });
   assert.equal(parsed.resolution, resolution); assert.equal(parsed.scale, undefined);
 }
-for (const value of [0, 128, 25, 64.5, '64']) assert.throws(() => parseAtomicExperiment({ lab: 'rotor', resolution: value }));
+for (const value of [0, 200, 25, 64.5, '64']) assert.throws(() => parseAtomicExperiment({ lab: 'rotor', resolution: value }));
 assert.throws(() => parseAtomicExperiment({ lab: 'rotor', scale: 2 }));
 assert.throws(() => parseAtomicExperiment({ lab: 'hydrogen', resolution: 64 }));
 assert.equal(parseAtomicExperiment({ lab: 'hydrogen', scale: 4 }).scale, 4);
@@ -49,7 +51,7 @@ const density = theta => {
   return (y.re ** 2 + y.im ** 2) / reference;
 };
 let previousError = Infinity;
-for (const resolution of [24, 48, 96]) {
+for (const resolution of [24, 48, 96, 192]) {
   // Piecewise planar approximation converges to the same analytic surface.
   let error = 0;
   for (let i = 0; i < resolution; i++) {
@@ -80,4 +82,4 @@ for (const preset of ROTOR_PRESETS) {
     }
   }
 }
-console.log('Rotor resolution: 24–96, geometry counts, closed seam, valid samples, convergence, fixed size, unchanged physical state and command validation pass.');
+console.log('Rotor resolution: 24–192, geometry counts, closed seam, valid samples, convergence, fixed size, unchanged physical state and command validation pass.');
