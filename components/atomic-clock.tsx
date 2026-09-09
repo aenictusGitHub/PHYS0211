@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { PlaybackControls } from '@/components/playback-controls';
+import { PlaybackControls, type DisplaySetting } from '@/components/playback-controls';
 import { useLabPlayback } from '@/components/use-lab-playback';
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Math as Formula } from '@/components/math';
@@ -13,12 +13,11 @@ export function useAtomicClock(active: boolean, enabled: boolean, command: Exper
   return { ...clock, phase, setPhase };
 }
 
-export function AtomicClock({ clock, period, id, scale, onScaleChange, scaleMax = 20, scaleDescription }: {
+export function AtomicClock({ clock, period, id, ...setting }: {
   clock: ReturnType<typeof useAtomicClock>; period: string; id: string;
-  scale: number; onScaleChange: (value: number) => void; scaleMax?: number; scaleDescription?: string;
-}) {
+} & DisplaySetting) {
   return <div className="atomic-clock">
-    <PlaybackControls id={id} clock={clock} scale={scale} onScaleChange={onScaleChange} scaleMax={scaleMax} scaleDescription={scaleDescription}
+    <PlaybackControls id={id} clock={clock} {...setting}
       timeUnit={TAU_MAX} timeSymbol="$t/T$" finalSymbol="$t_f/T$"
       note={<><Formula>{period}</Formula>. À vitesse ×1, une période est parcourue en 12 secondes à l’écran. La phase globale commune aux deux états est omise.</>} />
     <details className="theory-notes"><summary>Évolution de la superposition</summary>

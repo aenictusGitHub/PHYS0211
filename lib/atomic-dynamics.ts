@@ -49,6 +49,20 @@ export function basisDensityCeiling(basis: readonly ComplexSamples[], bounds?: r
   return maximum;
 }
 
+/** Fixed reference for the rotor, independent of mesh resolution and time.
+ * |Y_l^m| is independent of phi. The dense polar grid plus a small margin
+ * avoids apparent zoom changes when only the drawing's tessellation changes. */
+export function angularSurfaceReference(terms: readonly { l: number; m: number }[], bounds?: readonly number[]) {
+  let maximum = 0;
+  for (let j = 0; j <= 720; j++) {
+    const theta = j * Math.PI / 720;
+    const envelope = terms.reduce((sum, term, k) => sum + Math.abs(angularWave(term.l, term.m, theta, 0).re)
+      * (bounds?.[k] ?? 1 / Math.sqrt(terms.length)), 0);
+    maximum = Math.max(maximum, envelope ** 2);
+  }
+  return maximum * 1.005;
+}
+
 export function polarSuperposition(terms: readonly AtomicTerm[], theta: number, phase: number) {
   const factors = relativeFactors(terms.length, phase);
   const values = terms.map(term => angularWave(term.l, term.m, theta, 0));

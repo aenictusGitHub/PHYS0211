@@ -19,7 +19,7 @@ const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
 function harness(file, exported, lab, initialProps = {}) {
   const cache = new Map(), slots = [], callbacks = new Map(), timers = new Map(), workers = [];
   let cursor = 0, effects = [], dirty = false, nextId = 0, now = 0, props = { active: true, command: null, ...initialProps };
-  let buttons = [], sliders = [], fields = [], plots = [], settings = [], elements = [], switches = [], html = '';
+  let buttons = [], sliders = [], fields = [], plots = [], settings = [], elements = [], switches = [], surfaces = [], html = '';
   const hooks = {
     ...React,
     useState(initial) {
@@ -63,14 +63,14 @@ function harness(file, exported, lab, initialProps = {}) {
     '@/components/ui/button': { Button }, '@/components/ui/slider': { Slider }, '@/components/ui/input': { Input },
     '@/components/ui/switch': { Switch(props) { switches.push(props); return React.createElement('button', { role: 'switch', 'aria-checked': props.checked, id: props.id }); } },
     '@/components/scientific-plot': { ScientificPlot: Plot },
-    '@/components/angular-surface': { AngularSurface: () => null, PhaseLegend: () => null },
+    '@/components/angular-surface': { AngularSurface(props) { surfaces.push(props); return null; }, PhaseLegend: () => null },
     '@/components/bloch-sphere': { BlochSphere: () => null },
     '@/components/hydrogen-slice': { HydrogenSlice: () => null },
   };
   function load(path) {
     if (cache.has(path)) return cache.get(path).exports;
     const mod = { exports: {} }; cache.set(path, mod);
-    const useHooks = /(?:lab|use-lab-playback|atomic-clock|coherent-state-editor)\.tsx?$/.test(path);
+    const useHooks = /(?:lab|use-lab-playback|atomic-clock|coherent-state-editor|angular-surface)\.tsx?$/.test(path);
     new Function('exports', 'require', 'module', compile(readFileSync(path, 'utf8')))(mod.exports, name => {
       if (name === 'react' && useHooks) return hooks;
       if (name in mocks) return mocks[name];
@@ -91,7 +91,7 @@ function harness(file, exported, lab, initialProps = {}) {
     globalThis.window = { requestAnimationFrame(fn) { callbacks.set(++nextId, fn); return nextId; }, cancelAnimationFrame(id) { callbacks.delete(id); },
       setTimeout(fn) { timers.set(++nextId, fn); return nextId; }, clearTimeout(id) { timers.delete(id); } };
     for (let attempt = 0; attempt < 12; attempt++) {
-      dirty = false; cursor = 0; effects = []; buttons = []; sliders = []; fields = []; plots = []; settings = []; elements = []; switches = [];
+      dirty = false; cursor = 0; effects = []; buttons = []; sliders = []; fields = []; plots = []; settings = []; elements = []; switches = []; surfaces = [];
       const element = Component(props);
       const visit = value => { if (Array.isArray(value)) value.forEach(visit); else if (React.isValidElement(value)) { if (typeof value.type === 'string') elements.push(value); visit(value.props.children); } };
       visit(element);
@@ -103,7 +103,8 @@ function harness(file, exported, lab, initialProps = {}) {
   }
   render();
   return {
-    render, html: () => html, plots: () => plots, fields: () => fields, elements: () => elements,
+    render, html: () => html, plots: () => plots, fields: () => fields, elements: () => elements, surfaces: () => surfaces,
+    step(id, direction) { const button = buttons.find(b => b['aria-describedby'] === `${id}-label` && b['aria-label'] === (direction > 0 ? 'Augmenter' : 'Diminuer')); assert.ok(button && !button.disabled); button.onClick(); render(); },
     toggle(id, enabled) { const control = switches.find(s => s.id === id); assert.ok(control, `Missing ${id}`); control.onCheckedChange(enabled); render(); },
     setProps(patch) { props = { ...props, ...patch }; render(); },
     command(command) { this.setProps({ command: { lab, id: ++nextId, ...command } }); },
@@ -141,8 +142,10 @@ const labs = [
 ];
 for (const [file, component, lab, unit] of labs) {
   const h = harness(file, component, lab);
+  const displaySuffix = lab === 'rotor' ? 'resolution' : 'scale';
+  const displayValue = lab === 'rotor' ? 80 : 7.5;
   h.command({ mode: 'evolution' });
-  for (const suffix of ['playback-speed', 'scale', 'final-time']) assert.equal(h.fields().filter(f => f.id === `${lab}-${suffix}`).length, 1, `${lab}: unique ${suffix}`);
+  for (const suffix of ['playback-speed', displaySuffix, 'final-time']) assert.equal(h.fields().filter(f => f.id === `${lab}-${suffix}`).length, 1, `${lab}: unique ${suffix}`);
   const sidebar = h.html().split('</aside>')[0];
   assert.doesNotMatch(sidebar, /role="spinbutton"/, 'Playback settings are not physical parameters');
   near(h.clock().playbackSpeed, 1);
@@ -157,9 +160,10 @@ for (const [file, component, lab, unit] of labs) {
   h.enter(`${lab}-playback-speed`, 2); h.tick();
   near(h.clock().time, increment * 3); // ×2 takes effect without restarting the animation.
   const oldTime = h.clock().time;
-  h.enter(`${lab}-scale`, 7.5);
+  h.enter(`${lab}-${displaySuffix}`, displayValue);
   near(h.clock().time, oldTime);
-  assert.equal(h.fields().find(f => f.id === `${lab}-scale`)['aria-valuenow'], 7.5);
+  assert.equal(h.clock().playing, true, 'Display edits do not interrupt playback');
+  assert.equal(h.fields().find(f => f.id === `${lab}-${displaySuffix}`)['aria-valuenow'], displayValue);
   h.enter(`${lab}-final-time`, 3);
   near(h.clock().finalTime, 3 * unit); near(h.clock().time, oldTime);
   assert.equal(h.clock().playing, false, 'Changing final time pauses');
@@ -176,16 +180,16 @@ for (const [file, component, lab, unit] of labs) {
   h.slider(`${lab}-time`, unit - .001);
   h.click('Animer'); h.tick(); h.tick();
   near(h.clock().time, unit); assert.equal(h.clock().playing, false, 'Exact endpoint and automatic stop');
-  h.command({ mode: 'evolution', finalTime: 12, playbackSpeed: .5, scale: 4, time: 8 });
+  h.command({ mode: 'evolution', finalTime: 12, playbackSpeed: .5, ...(lab === 'rotor' ? { resolution: 72 } : { scale: 4 }), time: 8 });
   near(h.clock().finalTime, 12); near(h.clock().playbackSpeed, .5); near(h.clock().time, 8);
   if (lab === 'well' || lab === 'spin' || lab === 'oscillator') assert.ok(h.plots().some(p => Math.abs(p.xDomain[1] - 12 / unit) < 1e-9), 'History follows final time');
   if (lab !== 'spin') {
     h.command({ mode: 'stationary' });
-    assert.equal(h.fields().filter(f => /-scale$/.test(f.id)).length, 1, 'Stationary scale remains available');
+    assert.equal(h.fields().filter(f => f.id.endsWith(`-${displaySuffix}`)).length, 1, 'Stationary display setting remains available');
     assert.equal(h.fields().filter(f => /-final-time$|-playback-speed$/.test(f.id)).length, 0, 'Stationary mode hides time controls');
   }
   h.dispose();
-  console.log(`${lab}: shared steppers, defaults, speed changes, endpoint, replay, pause, commands and stationary scale pass.`);
+  console.log(`${lab}: shared steppers, defaults, speed changes, endpoint, replay, pause, commands and stationary display setting pass.`);
 }
 
 const oscillator = harness('components/harmonic-lab.tsx', 'HarmonicLab', 'oscillator');
@@ -239,6 +243,17 @@ oscillator.dispose();
 const rotor = harness('components/rotor-lab.tsx', 'RotorLab', 'rotor');
 const rotorLevels = () => rotor.plots().filter(p => p.ariaLabel.startsWith('Spectre du rotateur'));
 const freeLevels = rotorLevels()[0].horizontalLines.map(g => g.value);
+assert.equal(rotor.fields().find(f => f.id === 'rotor-resolution')['aria-valuenow'], 64);
+assert.equal(rotor.surfaces()[0].resolution, 64);
+assert.doesNotMatch(rotor.html(), /Facteur d’affichage|rotor-scale/);
+assert.equal(rotor.plots()[0].yLabel, String.raw`$p(\theta)$`);
+const unscaledPolar = rotor.plots()[0].series[0].values;
+rotor.step('rotor-resolution', 1); assert.equal(rotor.surfaces()[0].resolution, 72);
+rotor.step('rotor-resolution', -1); assert.equal(rotor.surfaces()[0].resolution, 64);
+for (const [input, expected] of [[10000, 96], [-1, 24], [55, 56], ['not-a-number', 56], [64, 64]]) {
+  rotor.enter('rotor-resolution', input); assert.equal(rotor.surfaces()[0].resolution, expected);
+  assert.deepEqual(rotor.plots()[0].series[0].values, unscaledPolar, 'Resolution never scales or changes the polar density');
+}
 assert.equal(rotor.sliderProps('rotor-lambda'), undefined, 'Field disabled initially');
 rotor.toggle('rotor-field-enabled', true);
 assert.equal(rotor.sliderProps('rotor-lambda').max, 10);
@@ -253,6 +268,15 @@ rotor.slider('rotor-m', 3);
 rotor.slider('rotor-l', 1);
 assert.equal(rotor.sliderProps('rotor-m').value[0], 1, 'm remains valid when changing l0');
 rotor.command({ mode: 'evolution', time: 1 });
+const oldWave = rotor.surfaces()[0].waveCoefficients, oldPolar = rotor.plots()[0].series[0].values;
+const oldReference = rotor.surfaces()[0].coefficientBounds;
+rotor.enter('rotor-resolution', 96);
+assert.equal(rotor.surfaces()[0].resolution, 96);
+near(rotor.clock().time, 1);
+assert.equal(rotor.surfaces()[0].waveCoefficients, oldWave, 'Resolution leaves the evolving state untouched');
+assert.equal(rotor.surfaces()[0].coefficientBounds, oldReference, 'The density reference remains independent of mesh resolution');
+assert.deepEqual(rotor.plots()[0].series[0].values, oldPolar);
+assert.doesNotMatch(rotor.html(), /Facteur d’affichage|rotor-scale/);
 assert.match(rotor.html(), /n’est généralement plus périodique/);
 assert.doesNotMatch(rotor.html(), /Évolution de la superposition/);
 const fieldPolar = rotor.plots()[0].series[0].values;
@@ -266,7 +290,20 @@ rotor.toggle('rotor-field-enabled', false); near(rotor.clock().time, 0);
 assert.deepEqual(rotorLevels()[0].horizontalLines.map(g => g.value), freeLevels);
 assert.match(rotor.html(), /Évolution de la superposition/);
 rotor.dispose();
-console.log('Rotor field: optional switch, intensity, shifted levels, quantum-number bounds, coherent evolution, time reset, controls and free-rotor recovery pass.');
+console.log('Rotor: resolution stepper, limits, unchanged physical state/density/time, optional field, shifted levels and free-rotor recovery pass.');
+
+const meshView = harness('components/angular-surface.tsx', 'AngularSurface', 'mesh', { l: 3, m: 1, active: false, phaseColors: true, resolution: 24 });
+const canvasProps = () => meshView.elements().find(element => element.type === 'canvas').props;
+const axes = () => meshView.elements().filter(element => element.props.className === 'surface-axis').map(element => element.props.style);
+assert.equal(canvasProps()['data-faces'], 2 * 24 ** 2);
+canvasProps().onKeyDown({ key: 'ArrowLeft', preventDefault() {} }); meshView.render();
+const rotatedAxes = axes();
+meshView.setProps({ resolution: 96 });
+assert.equal(canvasProps()['data-resolution'], 96);
+assert.equal(canvasProps()['data-faces'], 2 * 96 ** 2, 'Resolution reaches the actual rendered mesh, not just its label');
+assert.deepEqual(axes(), rotatedAxes, 'Refining the mesh preserves the camera orientation');
+assert.match(canvasProps()['aria-label'], /96 subdivisions polaires/);
+meshView.dispose();
 
 let applied;
 const editor = harness('components/coherent-state-editor.tsx', 'CoherentStateEditor', 'editor', {

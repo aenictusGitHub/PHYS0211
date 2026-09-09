@@ -13,6 +13,8 @@ import { ROTOR_PRESETS, polarSuperposition } from '@/lib/atomic-dynamics';
 import { AtomicClock, useAtomicClock } from '@/components/atomic-clock';
 import { EnergyLevels } from '@/components/energy-levels';
 import { DisplayControls, PlaybackControls } from '@/components/playback-controls';
+import { CompactStepper } from '@/components/compact-stepper';
+import { ROTOR_RESOLUTION_DEFAULT, ROTOR_RESOLUTION_MIN, ROTOR_RESOLUTION_MAX, ROTOR_RESOLUTION_STEP } from '@/lib/rotor-resolution';
 import { ROTOR_FIELD_MAX, solveRotorField, rotorFieldEigenstate, prepareRotorField, evolveRotorField, rotorMoments, rotorPolarDensity } from '@/lib/rotor-field';
 
 const fixed = (value: number) => (Math.abs(value) < .0005 ? 0 : value).toFixed(3);
@@ -27,7 +29,7 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
   const evolving = mode === 'evolution';
   const [inertia, setInertia] = useState(1);
   const [phaseColors, setPhaseColors] = useState(false);
-  const [scale, setScale] = useState(1);
+  const [resolution, setResolution] = useState(ROTOR_RESOLUTION_DEFAULT);
   const [fieldEnabled, setFieldEnabled] = useState(false);
   const [fieldStrength, setFieldStrength] = useState(2);
   const strength = fieldEnabled ? fieldStrength : 0;
@@ -52,7 +54,7 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
       return { l, m: Math.max(-l, Math.min(l, command.magnetic ?? current.m)) };
     });
     if (command.inertia !== undefined) setInertia(command.inertia);
-    if (command.scale !== undefined) setScale(command.scale);
+    if (command.resolution !== undefined) setResolution(command.resolution);
   }, [command, setPhase, setPlaying]);
   const polar = useMemo(() => Array.from({ length: 361 }, (_, j) => {
     const theta = j * Math.PI / 360;
@@ -60,6 +62,9 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
   }), [l, m, evolving, preset, clock.phase, perturbed, wave]);
   const meanL2 = perturbed ? moments.angularMomentum2 : evolving ? preset.terms.reduce((sum, term) => sum + term.l * (term.l + 1), 0) / 2 : l * (l + 1);
   const meanM = perturbed ? moments.magnetic : evolving ? preset.terms.reduce((sum, term) => sum + term.m, 0) / 2 : m;
+  const resolutionControl = <CompactStepper id="rotor-resolution" label="Résolution" value={resolution}
+    min={ROTOR_RESOLUTION_MIN} max={ROTOR_RESOLUTION_MAX} step={ROTOR_RESOLUTION_STEP} onChange={setResolution}
+    description="Finesse du maillage 3D : de 24 à 96 subdivisions polaires, et deux fois plus autour de l’axe. Par défaut : 64. Une résolution élevée demande plus de calcul pour l’affichage, sans changer l’état quantique." />;
 
   return <section className="workspace" aria-labelledby="rotor-title">
     <aside className="control-panel">
@@ -109,22 +114,21 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
         ? String.raw`$\left\lvert\,\psi(\theta,\,\varphi,\,t)\,\right\rvert^{2}$`
         : perturbed ? String.raw`$\left\lvert\,\Phi_{${l},${m}}\,(\theta,\,\varphi)\,\right\rvert^{2}$`
           : String.raw`$\left\lvert\,Y_{${l}}^{${m}}\,(\theta,\,\varphi)\,\right\rvert^{2}$`}</Formula></h2></div><span className="figure-tag">Surface angulaire · 3D</span></div>
-      <AngularSurface l={l} m={m} active={active} phaseColors={phaseColors} evolutionTerms={evolving ? preset.terms : undefined} phase={evolving ? clock.phase : 0}
+      <AngularSurface l={l} m={m} active={active} phaseColors={phaseColors} resolution={resolution} evolutionTerms={evolving ? preset.terms : undefined} phase={evolving ? clock.phase : 0}
         waveBasis={perturbed ? prepared.basis : undefined} waveCoefficients={perturbed ? wave : undefined} coefficientBounds={perturbed ? prepared.bounds : undefined} />
-      {evolving ? perturbed ? <PlaybackControls id="rotor" clock={clock} scale={scale} onScaleChange={setScale} timeUnit={2 * Math.PI} timeSymbol="$t/T_0$" finalSymbol="$t_f/T_0$"
-        scaleDescription="Le facteur s multiplie uniquement la distribution polaire, sans modifier l’état ni la surface 3D."
+      {evolving ? perturbed ? <PlaybackControls id="rotor" clock={clock} displayControl={resolutionControl} timeUnit={2 * Math.PI} timeSymbol="$t/T_0$" finalSymbol="$t_f/T_0$"
         note={<><Formula>{String.raw`$T_0=\pi\hbar/B=${(Math.PI * inertia).toFixed(3)}\,\hbar/E_\star$`}</Formula> est la période de référence sans champ. Sous champ, plusieurs fréquences interviennent : l’évolution n’est généralement plus périodique. À vitesse ×1, une durée <Formula>{'$T_0$'}</Formula> prend 12 secondes à l’écran.</>} />
-        : <AtomicClock id="rotor" clock={clock} scale={scale} onScaleChange={setScale} scaleDescription="Le facteur s multiplie la distribution polaire affichée ; la surface d’orientation et l’état restent inchangés." period={String.raw`$T=2\pi\hbar/\Delta E=${(Math.PI * inertia).toFixed(3)}\,\hbar/E_\star$`} />
-        : <DisplayControls id="rotor" stationary scale={scale} onScaleChange={setScale} />}
+        : <AtomicClock id="rotor" clock={clock} displayControl={resolutionControl} period={String.raw`$T=2\pi\hbar/\Delta E=${(Math.PI * inertia).toFixed(3)}\,\hbar/E_\star$`} />
+        : <DisplayControls id="rotor" stationary displayControl={resolutionControl} />}
       {phaseColors ? <PhaseLegend /> : null}
-      <p className="scale-note">Le rayon dessiné est proportionnel à la densité angulaire, avec une référence fixe pendant l’animation. Cette surface représente une probabilité d’orientation, pas une trajectoire ni une distance variable. « Tourner la vue » agit uniquement sur la caméra.</p>
+      <p className="scale-note">La résolution règle la finesse du maillage 3D, sans modifier les probabilités ni le zoom. Le rayon dessiné est proportionnel à la densité angulaire, avec une référence fixe pendant l’animation. Cette surface représente une probabilité d’orientation, pas une trajectoire ni une distance variable. « Tourner la vue » agit uniquement sur la caméra.</p>
       <div className="insight-row atomic-insight"><span className="insight-index"><Formula>{perturbed ? String.raw`$\lambda$` : String.raw`$\ell$`}</Formula></span><p>{perturbed ? evolving ? 'Le champ couple les harmoniques sphériques de même m. Les populations des états propres du Hamiltonien restent constantes, tandis que l’orientation et le moment total moyen peuvent varier.' : 'Le champ brise la symétrie entre les deux pôles. Les états propres mélangent plusieurs valeurs de ℓ, tout en gardant une projection m bien définie.' : evolving ? preset.description : l === 0 ? 'L’état fondamental est isotrope : aucune direction n’est privilégiée.' : <>Les états <Formula>{'$m$'}</Formula> et <Formula>{'$-m$'}</Formula> ont la même densité, mais des projections opposées du moment cinétique. Leur phase est différente.</>}</p></div>
       <details className="theory-notes atomic-profile" open>
         <summary>Distribution de l’angle polaire</summary>
-        <div className="plot-shell"><ScientificPlot ariaLabel={evolving ? 'Distribution polaire de la superposition' : `Distribution de theta pour ${perturbed ? 'ell initial' : 'ell'} ${l}, m ${m}`} xDomain={[0, Math.PI]} yDomain={[0, (perturbed ? 4 : 2) * Math.max(1, scale)]}
-          xLabel={String.raw`$\theta\;\text{(rad)}$`} yLabel={String.raw`$s\,p(\theta)$`} xTicks={[0, Math.PI / 2, Math.PI]}
-          series={[{ values: polar.map(point => ({ x: point.x, y: scale * point.y })), tone: 'accent', fillTo: 0, fillOpacity: .24 }]} /></div>
-        <p><Formula>{String.raw`$p(\theta,t)=\sin\theta\int_0^{2\pi}|\psi(\theta,\varphi,t)|^2\,d\varphi$`}</Formula>. La distribution physique a une aire de 1 ; la courbe affichée a une aire de <Formula>$s$</Formula>. Le facteur ne modifie pas la surface 3D. L’échelle verticale est commune à tous les états à <Formula>$s$</Formula> fixé.</p>
+        <div className="plot-shell"><ScientificPlot ariaLabel={evolving ? 'Distribution polaire de la superposition' : `Distribution de theta pour ${perturbed ? 'ell initial' : 'ell'} ${l}, m ${m}`} xDomain={[0, Math.PI]} yDomain={[0, perturbed ? 4 : 2]}
+          xLabel={String.raw`$\theta\;\text{(rad)}$`} yLabel={String.raw`$p(\theta)$`} xTicks={[0, Math.PI / 2, Math.PI]}
+          series={[{ values: polar, tone: 'accent', fillTo: 0, fillOpacity: .24 }]} /></div>
+        <p><Formula>{String.raw`$p(\theta,t)=\sin\theta\int_0^{2\pi}|\psi(\theta,\varphi,t)|^2\,d\varphi$`}</Formula>. L’aire sous la courbe vaut 1. La résolution du maillage 3D ne modifie pas cette distribution. L’échelle verticale est commune aux états de chaque régime, avec ou sans champ.</p>
       </details>
       {perturbed ? prepared.sectors.map(({ m: sectorM, block, projected }) => <div key={sectorM}>
         <p className="scale-note">Secteur <Formula>{`$m=${sectorM}$`}</Formula> · niveaux issus de <Formula>{String.raw`$\ell_0=|m|,\ldots,5$`}</Formula>.</p>

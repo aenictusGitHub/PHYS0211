@@ -1,11 +1,12 @@
 import type { ExperimentCommand } from '../components/lab-types';
 import { LAB_FINAL_TIME_MAX, parsePlaybackSettings } from './playback';
+import { validRotorResolution } from './rotor-resolution';
 
 export function parseAtomicExperiment(data: Record<string, unknown>): Omit<ExperimentCommand, 'id'> {
   if (data.lab !== 'rotor' && data.lab !== 'hydrogen') throw new Error('Laboratoire atomique inconnu.');
   const allowed = data.lab === 'rotor' ? ['lab', 'angular', 'magnetic', 'inertia', 'mode', 'preset', 'time']
     : ['lab', 'principal', 'angular', 'magnetic', 'basis', 'atomicView', 'plane', 'mode', 'preset', 'time'];
-  allowed.push('scale', 'playbackSpeed', 'finalTime');
+  allowed.push(data.lab === 'rotor' ? 'resolution' : 'scale', 'playbackSpeed', 'finalTime');
   const playback = parsePlaybackSettings(data, data.lab === 'hydrogen' ? 100 : 20);
   for (const key of Object.keys(data)) if (!allowed.includes(key)) throw new Error(`${key} n’est pas utilisé dans ce laboratoire.`);
   if (data.mode !== undefined && data.mode !== 'stationary' && data.mode !== 'evolution') throw new Error('mode doit valoir stationary ou evolution.');
@@ -25,7 +26,8 @@ export function parseAtomicExperiment(data: Record<string, unknown>): Omit<Exper
     const l = integer('angular', 1, 0, 5), m = integer('magnetic', 0, -l, l);
     const inertia = data.inertia ?? 1;
     if (typeof inertia !== 'number' || !Number.isFinite(inertia) || inertia < .5 || inertia > 5) throw new Error('inertia doit être compris entre 0.5 et 5.');
-    return { lab: 'rotor', angular: l, magnetic: m, inertia, ...dynamics };
+    if (data.resolution !== undefined && !validRotorResolution(data.resolution)) throw new Error('resolution doit aller de 24 à 96, par pas de 8.');
+    return { lab: 'rotor', angular: l, magnetic: m, inertia, ...dynamics, resolution: data.resolution as number | undefined };
   }
   const n = integer('principal', 1, 1, 40), l = integer('angular', n >= 10 ? n - 1 : 0, 0, n - 1), m = integer('magnetic', n >= 10 ? l : 0, -l, l);
   if (n > 5 && (n < 10 || l !== n - 1 || Math.abs(m) !== l || (data.basis !== undefined && data.basis !== 'complex'))) throw new Error('Pour n de 10 à 40, choisir un état circulaire : ell=n−1, |m|=ell, base complex.');

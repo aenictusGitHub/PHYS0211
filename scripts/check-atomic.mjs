@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { sphericalHarmonic, angularWave, angularDensity, hydrogenRadial, hydrogenWave, radialDistribution, radialMean, radialExtent, phaseRgb, sliceCoordinates } from '../lib/atomic.ts';
 import { registerHooks } from 'node:module';
-registerHooks({ resolve(specifier, context, nextResolve) { return nextResolve(specifier === './playback' ? './playback.ts' : specifier, context); } });
+registerHooks({ resolve(specifier, context, nextResolve) { return nextResolve(['./playback', './rotor-resolution'].includes(specifier) ? `${specifier}.ts` : specifier, context); } });
 const { parseAtomicExperiment } = await import('../lib/atomic-command.ts');
 
 const close = (a, b, tolerance, name) => assert.ok(Math.abs(a - b) < tolerance, `${name}: ${a} versus ${b}`);

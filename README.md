@@ -20,6 +20,8 @@ L’oscillateur affiche les moyennes de position et d’impulsion au cours du te
 y compris avec la perturbation anharmonique. Le rotateur propose un champ
 orientant optionnel, de potentiel `V(θ) = −λ B cos(θ)`, avec `B = ℏ²/(2I)` et
 `0 ≤ λ ≤ 10`, pour les états propres et l’évolution des superpositions.
+Son réglage « Résolution » ajuste le maillage 3D de 24 à 96 subdivisions
+polaires (64 par défaut), sans modifier l’état, les probabilités ou le zoom.
 
 ## Développement local
 

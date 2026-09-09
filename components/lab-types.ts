@@ -6,6 +6,7 @@ export type ExperimentCommand = {
   preset?: string;
   time?: number;
   scale?: number;
+  resolution?: number;
   potential?: 'free' | 'gravity' | 'barrier' | 'gaussian' | 'well';
   height?: number;
   width?: number;

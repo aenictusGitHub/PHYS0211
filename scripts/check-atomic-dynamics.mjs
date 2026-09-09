@@ -6,7 +6,7 @@ import { solveDoubleWell } from '../lib/double-well.ts';
 import { eigenstateDomain, energyGuides } from '../lib/energy-display.ts';
 
 registerHooks({ resolve(specifier, context, nextResolve) {
-  return nextResolve(specifier === './playback' ? './playback.ts' : specifier === './atomic' && context.parentURL?.endsWith('/atomic-dynamics.ts') ? './atomic.ts' : specifier, context);
+  return nextResolve(['./playback', './rotor-resolution'].includes(specifier) ? `${specifier}.ts` : specifier === './atomic' && context.parentURL?.endsWith('/atomic-dynamics.ts') ? './atomic.ts' : specifier, context);
 } });
 const { parseAtomicExperiment } = await import('../lib/atomic-command.ts');
 const { ROTOR_PRESETS, HYDROGEN_PRESETS, relativeFactors, evolveSamples, basisDensityCeiling, polarSuperposition, radialSuperposition } = await import('../lib/atomic-dynamics.ts');
