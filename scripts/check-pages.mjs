@@ -36,6 +36,21 @@ for (const file of assets.filter(name => name.endsWith('.css'))) {
     'Display equations share one font size instead of caption styling');
   assert.match(css, /\.katex \.sizing\.reset-size6\.size3\{font-size:\.7em\}/,
     'KaTeX subscript/superscript sizing is preserved');
+  // Keep the Safari zoom fix in the published (optimized) stylesheet. Native
+  // layout is only enabled for display equations in MathML-capable engines.
+  assert.match(css, /@supports \(math-style:normal\)\{\.math-display \.katex-mathml\{/,
+    'Native display math is feature-gated, leaving an HTML fallback');
+  const nativeMathRule = css.match(/\.math-display \.katex-mathml\{([^}]+)\}/)?.[1];
+  assert.ok(nativeMathRule, 'Missing native mathematical layout');
+  for (const declaration of ['clip-path:none', 'width:auto', 'height:auto', 'position:static', 'overflow:visible']) {
+    assert.ok(nativeMathRule.includes(declaration), `Native math must reset ${declaration}`);
+  }
+  assert.ok(css.indexOf('.math-display .katex-mathml{') > css.indexOf('.katex .katex-mathml{'),
+    'Native visibility overrides KaTeX accessibility-only positioning');
+  assert.match(css, /\.math-display \.katex-html\{display:none\}/,
+    'Native block equations do not render a duplicate HTML equation');
+  assert.match(css, /\.math-display math\{[^}]*font-family:["']?Atelier Latin Modern Math/,
+    'Native formulas retain the local LaTeX math font');
 }
 assert.ok(assets.some(name => /^scattering\.worker-.*\.js$/.test(name)), 'Missing numerical worker');
 for (const file of assets.filter(name => name.endsWith('.js'))) {

@@ -30,6 +30,9 @@ export const Math = memo(function Math({
     () =>
       katex.renderToString(unwrapMathDelimiters(children), {
         displayMode: display,
+        // Keep both representations: native MathML avoids Safari's low-zoom
+        // HTML table positioning bug; HTML remains the compatibility fallback.
+        output: 'htmlAndMathml',
         throwOnError: false,
         strict: 'ignore',
         trust: false,
@@ -39,7 +42,7 @@ export const Math = memo(function Math({
 
   return (
     <span
-      className={`math-formula ${className}`}
+      className={`math-formula${display ? ' math-display' : ''} ${className}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
