@@ -248,7 +248,7 @@ export function InfiniteWellLab({
           </div>
           <p id="well-perturbation-help" className="scale-note">{perturbationEnabled ? 'Potentiel incliné entre deux parois infinies.' : 'Incliner le fond du puits avec un potentiel linéaire.'}</p>
           {perturbationEnabled ? <div className="control-stack">
-            <div className="equation-card">
+            <div className="perturbation-equations">
               <Formula display>{String.raw`$V(x)=\lambda E_{\mathrm{ref}}\!\left(\frac{x}{a}-\frac12\right)$`}</Formula>
               <Formula display>{String.raw`$E_{\mathrm{ref}}=\frac{\pi^2\hbar^2}{2ma^2}$`}</Formula>
             </div>

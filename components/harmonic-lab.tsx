@@ -266,7 +266,9 @@ export function HarmonicLab({
           </div>
           <p id="oscillator-anharmonic-help" className="scale-note">Ajoute un terme quartique positif au potentiel.</p>
           {anharmonicEnabled ? <div className="control-stack">
-            <Formula display>{String.raw`$\frac{V(\xi)}{\hbar\omega}=\frac{\xi^2}{2}+\lambda\xi^4$`}</Formula>
+            <div className="perturbation-equations">
+              <Formula display>{String.raw`$\frac{V(\xi)}{\hbar\omega}=\frac{\xi^2}{2}+\lambda\xi^4$`}</Formula>
+            </div>
             <QuantumParameter id="oscillator-lambda" label="Intensité" symbol={String.raw`$\lambda$`} value={anharmonicStrength}
               min={0} max={ANHARMONIC_LIMIT} step={.01} onChange={value => { setAnharmonicStrength(value); restart(); }} />
           </div> : null}

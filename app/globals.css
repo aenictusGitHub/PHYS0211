@@ -690,24 +690,25 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .well-workspace .equation-card .katex-display > .katex { font-size: clamp(1rem, .9rem + .2vw, 1.125rem); }
 .well-perturbation { min-width: 0; padding: 16px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--lab-tint); }
 .well-perturbation-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--text-body); }
-.well-perturbation-heading label { cursor: pointer; }
+.well-perturbation-heading label { min-width: 0; cursor: pointer; }
 .well-perturbation [data-slot='switch'] { box-sizing: border-box; width: 2.625rem; min-width: 2.625rem; height: 1.5rem; padding: 0; border: 0; background: var(--muted-foreground); }
 .well-perturbation [data-slot='switch'][data-checked] { background: var(--lab-tone); }
-/* Cancel the primitive's individual translate property as well as its transform:
-   combining both translations previously pushed the thumb outside the track. */
-.well-perturbation [data-slot='switch-thumb'] { position: absolute; left: .25rem; top: 50%; width: 1rem; height: 1rem; translate: none; transform: translateY(-50%); transition: left 150ms ease; background: #fff; }
+/* Reset the primitive's translation variables too: production CSS optimization
+   can fold translate:none into transform, leaving its utility translate active. */
+.well-perturbation [data-slot='switch-thumb'] { --tw-translate-x: 0px; --tw-translate-y: 0px; position: absolute; left: .25rem; top: .25rem; width: 1rem; height: 1rem; translate: none; transform: none; transition: left 150ms ease; background: #fff; }
 .well-perturbation [data-slot='switch-thumb'][data-checked] { left: calc(100% - 1.25rem); }
 @media (prefers-reduced-motion: reduce) {
   .well-perturbation [data-slot='switch-thumb'] { transition: none; }
 }
 .well-perturbation > .scale-note { margin: 12px 0 0; }
 .well-perturbation .control-stack { margin-top: 16px; gap: 14px; }
-.well-perturbation .equation-card { padding: 12px 4px; }
-.well-perturbation .equation-card > .math-formula { color: var(--foreground); }
+.perturbation-equations { display: grid; gap: 14px; min-width: 0; padding: 14px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-size: clamp(1rem, .95rem + .15vw, 1.125rem); }
+.perturbation-equations > .math-formula { display: block; min-width: 0; padding: 4px 0; overflow-x: auto; }
+.perturbation-equations .katex-display { margin: 0; text-align: left; }
+.perturbation-equations .katex-display > .katex { font-size: 1em; text-align: left; }
 .well-perturbation .scale-note:last-child { margin-bottom: 0; }
 .well-workspace .control-panel > .well-perturbation { grid-column: 1 / -1; }
 .oscillator-workspace .control-panel > .well-perturbation { grid-column: 1 / -1; }
-.oscillator-workspace .well-perturbation .math-formula { display: block; overflow-x: auto; }
 @media (min-width: 461px) and (max-width: 780px) {
   .well-workspace .control-panel > .mode-switch, .well-workspace .control-panel > .equation-card { grid-column: 1 / -1; }
   .oscillator-workspace .control-panel > .mode-switch, .oscillator-workspace .control-panel > .equation-card { grid-column: 1 / -1; }
