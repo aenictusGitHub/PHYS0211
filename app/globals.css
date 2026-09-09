@@ -563,16 +563,11 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
 .katex { font-size: 1.04em; }
 .plot-axis-label .katex { font-size: 1em; }
 .math-formula { max-width: 100%; }
-/* Safari 17+ can offset KaTeX's nested HTML tables at small page zooms.
-   Let MathML lay out display equations as one mathematical expression instead.
-   The semantic MathML is already present; older engines retain the HTML view.
-   Do not change page zoom or impose a minimum size on individual math glyphs. */
-@supports (math-style: normal) {
-  .math-display .katex-mathml { position: static; clip-path: none; width: auto; height: auto; overflow: visible; display: block; }
-  .math-display .katex-html { display: none; }
-  .math-display math { font-family: 'Atelier Latin Modern Math'; font-size: 1em; math-style: normal; }
-  .math-display math[display='block'] { margin: 0; text-align: inherit; }
-}
+/* A single native mathematical layout at every zoom, including inline labels.
+   Size only the expression root: the math font handles fractions and indices.
+   There is no HTML copy to hide or expose through competing CSS rules. */
+.math-formula math { font-family: 'Atelier Latin Modern Math'; font-size: 1em; }
+.math-display math[display='block'] { margin: 0; text-align: inherit; }
 .control-panel > *, .figure-heading > * { min-width: 0; }
 .transport-controls button:disabled { opacity: .55; cursor: wait; }
 button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--lab-tone, var(--teal)); outline-offset: 4px; }

@@ -27,6 +27,10 @@ const expressions = [
   String.raw`E_\ell=\frac{\hbar^2\ell(\ell+1)}{2I}`,
   String.raw`\psi_{n\ell m}(r,\theta,\varphi)=R_{n\ell}(r)Y_\ell^m(\theta,\varphi)`,
   String.raw`|\psi\rangle=\cos\frac\theta2|+\rangle+e^{i\varphi}\sin\frac\theta2|-\rangle`,
+  String.raw`\phi_n(x)=\sqrt{\frac2a}\sin\!\left(n\pi x/a\right)`,
+  String.raw`\langle E\rangle=2.01`,
+  String.raw`x_i=-24`,
+  String.raw`\hbar=m=1`,
 ];
 
 for (const expression of expressions) {
@@ -36,8 +40,12 @@ for (const expression of expressions) {
     assert.equal(html.includes('math-display'), display, 'Inline labels keep their existing layout');
     assert.equal((html.match(/<math\b/g) ?? []).length, 1, 'One accessible mathematical expression');
     assert.ok(html.includes('<annotation encoding="application/x-tex">'), 'TeX source remains accessible');
-    assert.ok(html.includes('class="katex-html" aria-hidden="true"'), 'Non-duplicated HTML fallback');
+    assert.doesNotMatch(html, /katex-html|katex-mathml|aria-hidden|class="vlist/,
+      'Only the first (native) rendition exists; no second copy can become visible');
+    assert.equal(html.includes('class="katex-display"'), display,
+      'Keep the existing block typography wrapper without changing inline flow');
     if (display) assert.match(html, /<math[^>]*display="block"/);
+    else assert.doesNotMatch(html, /<math[^>]*display="block"/);
   }
 }
 const cases = renderToStaticMarkup(createElement(Formula, { display: true }, expressions[0]));
@@ -45,4 +53,11 @@ assert.match(cases, /<mtable\b/);
 assert.equal((cases.match(/<mtr\b/g) ?? []).length, 2, 'Potential has two mathematical rows');
 assert.match(cases, /<mo[^>]*>\{<\/mo>/, 'Brace belongs to the same native expression');
 assert.match(cases, /<msub>/, 'Potential index is a semantic subscript');
-console.log('Display math: native cases, fractions, delimiters, limits and indices; inline HTML fallback and accessibility pass.');
+const inline = renderToStaticMarkup(createElement(Formula, null, String.raw`x_i=-24`));
+assert.match(inline, /<msub><mi>x<\/mi><mi>i<\/mi><\/msub>/,
+  'Inline indices use native math layout too, including the reported initial position');
+const eigenfunction = renderToStaticMarkup(createElement(Formula, { display: true }, expressions[10]));
+assert.match(eigenfunction, /<msqrt><mfrac>/, 'The radical and fraction form one native layout');
+assert.doesNotMatch(eigenfunction, /style="[^"]*(?:top|left|vertical-align):/,
+  'No manually positioned HTML pieces at low zoom');
+console.log('Math: one native rendition per block/inline formula; cases, roots, fractions, indices, responsive wrappers and accessibility pass.');

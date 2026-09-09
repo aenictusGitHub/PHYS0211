@@ -26,19 +26,21 @@ export const Math = memo(function Math({
   display = false,
   className = '',
 }: MathProps) {
-  const html = useMemo(
-    () =>
-      katex.renderToString(unwrapMathDelimiters(children), {
-        displayMode: display,
-        // Keep both representations: native MathML avoids Safari's low-zoom
-        // HTML table positioning bug; HTML remains the compatibility fallback.
-        output: 'htmlAndMathml',
-        throwOnError: false,
-        strict: 'ignore',
-        trust: false,
-      }),
-    [children, display],
-  );
+  const html = useMemo(() => {
+    const mathml = katex.renderToString(unwrapMathDelimiters(children), {
+      displayMode: display,
+      // Emit only the native version, for both block and inline formulas.
+      // Keeping an HTML copy made display equations appear twice and retained
+      // the low-zoom positioning bug in inline subscripts and fractions.
+      output: 'mathml',
+      throwOnError: false,
+      strict: 'ignore',
+      trust: false,
+    });
+    // MathML-only output omits KaTeX's display wrapper. Retain it explicitly
+    // so the existing card, theory and responsive typography still applies.
+    return display ? `<span class="katex-display">${mathml}</span>` : mathml;
+  }, [children, display]);
 
   return (
     <span
