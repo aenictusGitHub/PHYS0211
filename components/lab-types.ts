@@ -1,6 +1,6 @@
 export type ExperimentCommand = {
   id: number;
-  lab: 'well' | 'oscillator' | 'scattering' | 'double-well' | 'rotor' | 'hydrogen' | 'spin';
+  lab: 'well' | 'oscillator' | 'scattering' | 'double-well' | 'rotor' | 'hydrogen' | 'spin' | 'stern-gerlach';
   mode?: 'stationary' | 'evolution';
   quantumNumber?: number;
   preset?: string;
@@ -33,4 +33,14 @@ export type ExperimentCommand = {
   wellModes?: Array<{ n: number; amplitude: number; phase: number }>;
   wellWidth?: number;
   wellLinear?: number;
+  sgJ?: number;
+  sgGradient?: number;
+  sgVelocity?: number;
+  sgLength?: number;
+  sgDistance?: number;
+  sgAngle?: number;
+  sgG?: number;
+  sgMass?: number;
+  sgBeam?: 'mixed' | 'z-plus' | 'z-minus' | 'x-plus' | 'x-minus' | 'y-plus' | 'y-minus';
+  sgModel?: 'quantum' | 'classical';
 };

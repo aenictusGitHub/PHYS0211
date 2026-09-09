@@ -6,10 +6,10 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://atelier-quantique.jmartin741572.chatgpt.site'),
   title: 'Mécanique quantique — PHYS0211-3',
   description:
-    'Sept laboratoires interactifs de mécanique quantique : puits infini, oscillateur harmonique, diffusion, double puits, rotateur rigide, atome d’hydrogène et spin-1/2.',
+    'Huit laboratoires interactifs de mécanique quantique : diffusion, puits infini, oscillateur harmonique, double puits, rotateur rigide, atome d’hydrogène, spin-1/2 et Stern–Gerlach.',
   openGraph: {
     title: 'Mécanique quantique',
-    description: 'Six laboratoires : du puits infini aux orbitales de l’hydrogène.',
+    description: 'Huit laboratoires : de la diffusion de paquets à l’expérience de Stern–Gerlach.',
     type: 'website',
     locale: 'fr_BE',
     images: [
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Mécanique quantique',
-    description: 'Six laboratoires : du puits infini aux orbitales de l’hydrogène.',
+    description: 'Huit laboratoires : de la diffusion de paquets à l’expérience de Stern–Gerlach.',
     images: ['/og.png'],
   },
 };

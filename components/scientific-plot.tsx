@@ -6,6 +6,7 @@ import { Math as Formula } from '@/components/math';
 import { revealFraction } from '@/lib/plot-geometry';
 
 export type PlotPoint = { x: number; y: number };
+export type PlotMarker = PlotPoint & { tone?: 'accent' | 'teal' | 'ink' | 'muted'; radius?: number };
 
 export type PlotSeries = {
   values: PlotPoint[];
@@ -53,6 +54,7 @@ type ScientificPlotProps = {
   xTicks?: number[];
   yTicks?: number[];
   progressX?: number;
+  markers?: PlotMarker[];
 };
 
 const WIDTH = 780;
@@ -76,6 +78,7 @@ export function ScientificPlot({
   xTicks,
   yTicks,
   progressX,
+  markers = [],
 }: ScientificPlotProps) {
   const clipId = `plot-${useId().replaceAll(':', '')}`;
   const frameRef = useRef<HTMLDivElement>(null);
@@ -287,6 +290,8 @@ export function ScientificPlot({
             </g>
           );
         })}
+        {markers.map((point, index) => <circle key={`marker-${index}`} cx={mapX(point.x)} cy={mapY(point.y)}
+          r={(point.radius ?? 3) * textScale} fill={toneColor[point.tone ?? 'accent']} />)}
       </g>
 
       <g className="axis-layer" aria-hidden="true" style={{ '--plot-tick-scale': textScale } as React.CSSProperties}>

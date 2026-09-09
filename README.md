@@ -11,6 +11,7 @@ Laboratoires interactifs pour le cours PHYS0211-3, année 2026–2027.
 5. Rotateur rigide
 6. Atome d’hydrogène
 7. Spin-1/2
+8. Stern–Gerlach
 
 Exploration des états propres et de leur évolution, superpositions initiales,
 perturbations, diffusion, effet tunnel et observables. Les formules sont rendues
@@ -22,6 +23,13 @@ orientant optionnel, de potentiel `V(θ) = −λ B cos(θ)`, avec `B = ℏ²/(2I
 `0 ≤ λ ≤ 10`, pour les états propres et l’évolution des superpositions.
 Son réglage « Résolution » ajuste le maillage 3D de 24 à 192 subdivisions
 polaires (64 par défaut), sans modifier l’état, les probabilités ou le zoom.
+
+Stern–Gerlach reprend le chapitre VII du cours : faisceau collimaté, gradient
+magnétique, déviation et écran de détection. Le laboratoire compare la
+prédiction classique isotrope aux `2j+1` canaux quantiques, avec un faisceau
+non polarisé ou un spin 1/2 préparé et un axe de mesure orientable. Les centres
+des faisceaux suivent le modèle paraxial à force constante ; les impacts sont
+échantillonnés suivant la règle de Born. La structure hyperfine est négligée.
 
 ## Développement local
 
