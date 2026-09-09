@@ -1,17 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Pause, Play, RotateCcw } from 'lucide-react';
+import { PlaybackControls, DisplayControls } from '@/components/playback-controls';
+import { useLabPlayback } from '@/components/use-lab-playback';
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Math as Formula } from '@/components/math';
 import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { eigenstateDomain, energyGuides } from '@/lib/energy-display';
-import { DISPLAY_SCALE_MAX, DISPLAY_SCALE_MIN, TAU_MAX, sliderValue } from '@/lib/quantum';
+import { clipEnergyGuides } from '@/lib/plot-geometry';
+import { TAU_MAX, sliderValue } from '@/lib/quantum';
 import {
   DOUBLE_WELL_DEFAULT, DOUBLE_WELL_LIMITS, DOUBLE_WELL_STATES, DOUBLE_WELL_EXTENT, DOUBLE_WELL_INTERVALS,
-  doubleWellFrame, solveDoubleWell, type DoubleWellConfig, type DoubleWellSide,
+  doubleWellFrame, doubleWellLeftPhase, solveDoubleWell, type DoubleWellConfig, type DoubleWellInitialState,
 } from '@/lib/double-well';
 
 function numberTex(value: number) {
@@ -42,21 +44,23 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
   const [mode, setMode] = useState<'stationary' | 'evolution'>('evolution');
   const [display, setDisplay] = useState<'wave' | 'density'>('wave');
   const [n, setN] = useState(0);
-  const [side, setSide] = useState<DoubleWellSide>('left');
+  const [initial, setInitial] = useState<DoubleWellInitialState>({ lower: 0, upperWeight: .5, relativePhase: 0 });
   const [scale, setScale] = useState(3);
   const [phase, setPhase] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const clock = useLabPlayback({ active, enabled: mode === 'evolution', time: phase, setTime: setPhase, playing, setPlaying, defaultFinalTime: TAU_MAX, rate: TAU_MAX / 12, command: command?.lab === 'double-well' ? command : null });
   const spectrum = useMemo(() => solveDoubleWell(config), [config]);
-  const gap = spectrum.energies[1] - spectrum.energies[0];
+  const lower = mode === 'stationary' ? 0 : initial.lower;
+  const gap = spectrum.energies[lower + 1] - spectrum.energies[lower];
   const period = TAU_MAX / gap;
-  const meanEnergy = (spectrum.energies[0] + spectrum.energies[1]) / 2;
-  const frame = useMemo(() => doubleWellFrame(spectrum, phase, side), [spectrum, phase, side]);
+  const frame = useMemo(() => doubleWellFrame(spectrum, phase, initial), [spectrum, phase, initial]);
+  const meanEnergy = frame.meanEnergy;
 
   useEffect(() => {
     if (command?.lab !== 'double-well') return;
     if (command.mode) setMode(command.mode);
     if (command.quantumNumber !== undefined) setN(command.quantumNumber);
-    if (command.preset === 'left' || command.preset === 'right') setSide(command.preset);
+    if (command.preset === 'left' || command.preset === 'right') setInitial({ lower: 0, upperWeight: .5, relativePhase: command.preset === 'left' ? 0 : Math.PI });
     setConfig(current => ({
       barrier: command.barrier ?? current.barrier,
       separation: command.separation ?? current.separation,
@@ -66,26 +70,23 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
     setPlaying(false);
   }, [command]);
 
-  useEffect(() => {
-    if (!active || mode !== 'evolution' || !playing) return;
-    let handle = 0, previous: number | undefined;
-    const animate = (now: number) => {
-      if (previous !== undefined) {
-        const elapsed = Math.min(now - previous, 60) / 1000;
-        setPhase(current => (current + elapsed * TAU_MAX / 12) % TAU_MAX);
-      }
-      previous = now;
-      handle = window.requestAnimationFrame(animate);
-    };
-    handle = window.requestAnimationFrame(animate);
-    return () => window.cancelAnimationFrame(handle);
-  }, [active, mode, playing]);
 
   const update = (patch: Partial<DoubleWellConfig>) => {
     setPlaying(false);
     setPhase(0);
     setConfig(current => ({ ...current, ...patch }));
   };
+  const prepare = (patch: Partial<DoubleWellInitialState>) => {
+    setPlaying(false); setPhase(0); setInitial(current => ({ ...current, ...patch }));
+  };
+  const leftPhase = doubleWellLeftPhase(spectrum, initial.lower);
+  const preparations = [
+    { label: 'À gauche', weight: .5, phase: leftPhase },
+    { label: 'À droite', weight: .5, phase: leftPhase === 0 ? Math.PI : 0 },
+    { label: 'En quadrature', weight: .5, phase: Math.PI / 2 },
+    { label: `État n = ${initial.lower}`, quantumNumber: initial.lower, weight: 0, phase: 0 },
+    { label: `État n = ${initial.lower + 1}`, quantumNumber: initial.lower + 1, weight: 1, phase: 0 },
+  ];
   const baseline = mode === 'stationary' ? spectrum.energies[n] : meanEnergy;
   const values = useMemo(() => Array.from(spectrum.x, (x, j) => ({ x, y: baseline + scale * (
     mode === 'evolution' ? frame.density[j]
@@ -100,14 +101,14 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
       upper = Math.max(config.barrier * 1.3, meanEnergy + 1); lower = 0;
       for (let j = 0; j < spectrum.x.length; j++) {
         // A phase-independent bound keeps axes still during the animation.
-        const amplitude = (Math.abs(spectrum.states[0][j]) + Math.abs(spectrum.states[1][j])) ** 2 / 2;
+        const amplitude = (Math.sqrt(1 - initial.upperWeight) * Math.abs(spectrum.states[initial.lower][j]) + Math.sqrt(initial.upperWeight) * Math.abs(spectrum.states[initial.lower + 1][j])) ** 2;
         upper = Math.max(upper, meanEnergy + scale * amplitude + 0.35);
         lower = Math.min(lower, meanEnergy + scale * amplitude - 0.2);
       }
     }
     const extent = Math.min(DOUBLE_WELL_EXTENT, Math.max(2.4, config.separation * Math.sqrt(1 + Math.sqrt(upper / config.barrier)) * 1.06));
     return { x: [-extent, extent] as [number, number], y: [lower, upper] as [number, number] };
-  }, [config, meanEnergy, mode, scale, spectrum]);
+  }, [config, meanEnergy, mode, scale, spectrum, initial]);
   const pct = (value: number) => `${(value * 100).toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
   const densityMode = mode === 'evolution' || display === 'density';
 
@@ -141,18 +142,32 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
             <Button variant="outline" className={display === 'density' ? 'is-selected' : ''} onClick={() => setDisplay('density')} aria-pressed={display === 'density'}><Formula>{String.raw`$|\phi_n(x)|^2$`}</Formula></Button>
           </div>
         </> : <>
-          <div className="display-switch" role="group" aria-label="Localisation initiale du double puits">
-            {(['left', 'right'] as const).map(value => <Button key={value} variant="outline"
-              className={side === value ? 'is-selected' : ''} aria-pressed={side === value}
-              onClick={() => { setSide(value); setPhase(0); setPlaying(false); }}>{value === 'left' ? 'À gauche' : 'À droite'}</Button>)}
+          <div className="control-block">
+            <p className="control-heading">États du doublet</p>
+            <div className="preset-grid preset-grid-four" role="group" aria-label="Doublet de la superposition initiale">
+              {[0, 2, 4, 6].map(value => <Button key={value} variant="outline" className={initial.lower === value ? 'is-selected' : ''}
+                aria-pressed={initial.lower === value} onClick={() => prepare({ lower: value })}>
+                <Formula>{`$${value} + ${value + 1}$`}</Formula>
+              </Button>)}
+            </div>
+          </div>
+          <div className="preset-grid preset-grid-four" role="group" aria-label="État initial du double puits">
+            {preparations.map(item => {
+              const selected = initial.upperWeight === item.weight && (item.weight === 0 || item.weight === 1 || Math.abs(initial.relativePhase - item.phase) < 1e-10);
+              return <Button key={item.label} variant="outline" className={selected ? 'is-selected' : ''} aria-pressed={selected} aria-label={item.label}
+                onClick={() => prepare({ upperWeight: item.weight, relativePhase: item.phase })}>{item.quantumNumber !== undefined ? <>État <Formula>{`$n=${item.quantumNumber}$`}</Formula></> : item.label}</Button>;
+            })}
           </div>
           <div className="equation-card"><span>Superposition initiale</span>
-            <Formula display>{String.raw`$\psi(x,0)=\frac{\phi_0(x)${side === 'left' ? '+' : '-'}\phi_1(x)}{\sqrt{2}}$`}</Formula>
+            <Formula display>{String.raw`$\begin{aligned}\psi(x,0)&=\sqrt{1-p}\,\phi_{${initial.lower}}(x)\\&\quad+e^{i\delta}\sqrt{p}\,\phi_{${initial.lower + 1}}(x).\end{aligned}$`}</Formula>
           </div>
+          <Parameter id="double-well-population" label={`Population du niveau ${initial.lower + 1}`} symbol="$p$" value={initial.upperWeight}
+            min={0} max={1} step={.05} onChange={upperWeight => prepare({ upperWeight })} />
+          <Parameter id="double-well-relative-phase" label="Phase relative (°)" symbol={String.raw`$\delta$`} value={initial.relativePhase * 180 / Math.PI}
+            min={-180} max={180} step={5} onChange={degrees => prepare({ relativePhase: degrees * Math.PI / 180 })} />
+          <p className="scale-note">Les populations valent <Formula>{'$1-p$'}</Formula> et <Formula>{'$p$'}</Formula>. La normalisation reste égale à 1. Toute nouvelle préparation remet le temps à zéro.</p>
         </>}
-        <Parameter id="double-well-scale" label="Facteur d’affichage" symbol="$s$" value={scale}
-          min={DISPLAY_SCALE_MIN} max={DISPLAY_SCALE_MAX} step={0.1} onChange={setScale} />
-        <p className="scale-note">Le facteur <Formula>{'$s$'}</Formula> modifie uniquement la hauteur de la courbe, pas les probabilités ni les énergies.</p>
+
       </div>
       <dl className="measurements">
         {mode === 'stationary' ? <>
@@ -183,23 +198,16 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
             { values: potentialValues, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
             { values, tone: 'accent', width: 2.8, fillTo: baseline, fillOpacity: 0.27 },
           ]}
-          horizontalLines={mode === 'stationary' ? energyGuides(spectrum.energies, n) : [{ value: baseline, label: String.raw`$\langle E\rangle$`, tone: 'teal', dashed: true }]}
+          horizontalLines={mode === 'stationary' ? clipEnergyGuides(energyGuides(spectrum.energies, n), potentialValues) : [{ value: baseline, label: String.raw`$\langle E\rangle$`, tone: 'teal', dashed: true, labelOutside: true }]}
           verticalLines={[{ value: 0, tone: 'muted', dashed: true }]} />
       </div>
+      {mode === 'stationary' ? <DisplayControls id="double-well" stationary scale={scale} onScaleChange={setScale} /> : null}
       {mode === 'stationary' ? <p className="scale-note">Échelles communes aux neuf états à potentiel et facteur <Formula>{'$s$'}</Formula> fixés. Tous les niveaux sont en pointillés ; le niveau sélectionné est en vert. Les doublets très proches peuvent se confondre à cette échelle.</p> : null}
       {mode === 'evolution' ? <>
-        <div className="scattering-timeline">
-          <div className="transport-controls">
-            <Button onClick={() => setPlaying(current => !current)}>{playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}{playing ? 'Pause' : 'Animer'}</Button>
-            <Button variant="outline" size="icon" aria-label="Réinitialiser le double puits" onClick={() => { setPhase(0); setPlaying(false); }}><RotateCcw aria-hidden="true" /></Button>
-          </div>
-          <div className="control-block">
-            <div className="control-heading"><label htmlFor="double-well-time">Temps <Formula>{'$t/T$'}</Formula></label><output>{(phase / TAU_MAX).toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: 2, maximumFractionDigits: 2 })}</output></div>
-            <Slider id="double-well-time" min={0} max={TAU_MAX} step={TAU_MAX / 200} value={[phase]} aria-label="Temps du double puits, fraction de la période" onValueChange={next => { setPhase(sliderValue(next, 0)); setPlaying(false); }} />
-            <div className="range-labels" aria-hidden="true"><span>0</span><span><Formula>{'$T/2$'}</Formula></span><span><Formula>{'$T$'}</Formula></span></div>
-          </div>
-        </div>
-        <p className="scale-note double-well-clock">Une période est parcourue en 12 secondes à l’écran. Sa durée physique <Formula>{'$T$'}</Formula> est affichée avec les paramètres, en unités réduites.</p>
+        <PlaybackControls id="double-well" clock={clock} scale={scale} onScaleChange={setScale}
+          timeSymbol="$t/T$" finalSymbol="$t_f/T$" timeUnit={TAU_MAX}
+          note={<>À vitesse ×1, une période est parcourue en 12 secondes à l’écran. La période physique <Formula>$T$</Formula> est indiquée avec les paramètres.</>} />
+
         <dl className="probability-cards double-well-probabilities">
           <div className="probability-card"><dt>Puits gauche</dt><dd>{pct(frame.left)}</dd><small><Formula>{'$x<0$'}</Formula></small></div>
           <div className="probability-card is-right"><dt>Puits droit</dt><dd>{pct(frame.right)}</dd><small><Formula>{'$x>0$'}</Formula></small></div>
@@ -210,19 +218,21 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
       </> : null}
       <div className="insight-row double-well-insight"><span className="insight-index"><Formula>{mode === 'stationary' ? `$n=${n}$` : String.raw`$\Delta E$`}</Formula></span><p>
         {mode === 'stationary' ? <>L’état <Formula>{`$n=${n}$`}</Formula> est {n % 2 === 0 ? 'pair' : 'impair'} et possède {n} nœud{n > 1 ? 's' : ''}. Sa densité de probabilité est symétrique.</>
+          : initial.upperWeight === 0 || initial.upperWeight === 1
+            ? <>Un seul état propre est occupé : sa densité reste constante. Seule la phase globale évolue. La période indiquée est celle du doublet choisi.</>
           : meanEnergy < config.barrier
-            ? <>L’énergie moyenne est sous la barrière. La superposition évolue d’un puits vers l’autre ; un petit écart <Formula>{String.raw`$\Delta E=E_1-E_0$`}</Formula> correspond à une longue période.</>
+            ? <>L’énergie moyenne est sous la barrière. Les interférences transfèrent de la probabilité entre les puits ; un petit écart <Formula>{String.raw`$\Delta E=E_{${initial.lower + 1}}-E_{${initial.lower}}$`}</Formula> correspond à une longue période.</>
             : <>La barrière est basse devant l’énergie moyenne : les deux états s’étendent sur les deux puits et la localisation initiale est moins marquée.</>}
       </p></div>
       <details className="theory-notes">
         <summary>Repères théoriques</summary>
         <div className="theory-grid">
           <div><span>Équation stationnaire</span><Formula display>{String.raw`$\begin{aligned}\hat H\phi_n&=E_n\phi_n,\\\hat H&=-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}+V(x).\end{aligned}$`}</Formula></div>
-          <div><span>Doublet fondamental</span><Formula display>{String.raw`$\begin{aligned}\phi_0(-x)&=\phi_0(x),\\\phi_1(-x)&=-\phi_1(x),\\\Delta E&=E_1-E_0.\end{aligned}$`}</Formula></div>
-          <div><span>Évolution de la superposition</span><Formula display>{String.raw`$\begin{aligned}\psi(x,t)&=\frac{1}{\sqrt2}\bigl[\phi_0(x)e^{-iE_0t/\hbar}\\&\qquad\pm\phi_1(x)e^{-iE_1t/\hbar}\bigr],\\T&=\frac{2\pi\hbar}{\Delta E}.\end{aligned}$`}</Formula></div>
+          <div><span>Doublet choisi</span><Formula display>{String.raw`$\begin{aligned}n_a&=2j,\quad n_b=2j+1,\\\Delta E&=E_{n_b}-E_{n_a},\\T&=\frac{2\pi\hbar}{\Delta E}.\end{aligned}$`}</Formula></div>
+          <div><span>Évolution de la superposition</span><Formula display>{String.raw`$\begin{aligned}\psi(x,t)&=\sqrt{1-p}\,\phi_{n_a}(x)e^{-iE_{n_a}t/\hbar}\\&\quad+e^{i\delta}\sqrt{p}\,\phi_{n_b}(x)e^{-iE_{n_b}t/\hbar},\\\langle E\rangle&=(1-p)E_{n_a}+pE_{n_b}.\end{aligned}$`}</Formula></div>
         </div>
-        <p>Le signe choisit le côté initial. Après une demi-période, la densité devient son image miroir ; après une période, elle se reforme. Pour une barrière basse, le paquet n’est pas entièrement localisé dans un seul puits. Les probabilités affichées sont les intégrales de la densité sur chaque demi-axe.</p>
-        <p>États propres calculés par différences finies sur <Formula>{`$[-${DOUBLE_WELL_EXTENT},${DOUBLE_WELL_EXTENT}]$`}</Formula> avec {DOUBLE_WELL_INTERVALS.toLocaleString('en-US', { useGrouping: false })} intervalles et des bords où la fonction s’annule. Le potentiel est quartique ; seuls les deux premiers états entrent dans cette évolution. <a href="https://doi.org/10.1039/D0RA07292C" target="_blank" rel="noreferrer">Doublets et effet tunnel · RSC Advances</a>.</p>
+        <p>Le poids et la phase relative règlent les interférences. Après une demi-période, la densité devient son image miroir ; après une période, elle se reforme. « À gauche » et « À droite » maximisent la localisation dans le doublet choisi, sans garantir une localisation complète, en particulier au-dessus de la barrière. Les probabilités affichées sont les intégrales de la densité sur chaque demi-axe.</p>
+        <p>États propres calculés par différences finies sur <Formula>{`$[-${DOUBLE_WELL_EXTENT},${DOUBLE_WELL_EXTENT}]$`}</Formula> avec {DOUBLE_WELL_INTERVALS.toLocaleString('en-US', { useGrouping: false })} intervalles et des bords où la fonction s’annule. Le potentiel est quartique ; l’évolution utilise les deux états du doublet sélectionné.</p>
       </details>
     </div>
   </section>;

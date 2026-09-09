@@ -6,12 +6,15 @@ export type ExperimentCommand = {
   preset?: string;
   time?: number;
   scale?: number;
-  potential?: 'barrier' | 'gaussian' | 'well';
+  potential?: 'free' | 'gravity' | 'barrier' | 'gaussian' | 'well';
   height?: number;
   width?: number;
+  gravity?: number;
   momentum?: number;
   sigma?: number;
   progress?: number;
+  playbackSpeed?: number;
+  finalTime?: number;
   barrier?: number;
   separation?: number;
   principal?: number;
@@ -26,4 +29,7 @@ export type ExperimentCommand = {
   spinOmega?: number;
   spinField?: 'x' | 'y' | 'z' | 'tilted';
   spinMeasure?: 'x' | 'y' | 'z';
+  wellModes?: Array<{ n: number; amplitude: number; phase: number }>;
+  wellWidth?: number;
+  wellLinear?: number;
 };

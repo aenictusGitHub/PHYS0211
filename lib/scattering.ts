@@ -1,24 +1,55 @@
 /** One-dimensional Schrödinger evolution in units hbar = m = 1.
  * Strang splitting: exp(-i V dt/2) FFT^-1 exp(-i k² dt/2) FFT exp(-i V dt/2).
- * The distant periodic boundaries are outside the propagation window used here.
+ * Free / uniform-gravity packets use the exact Gaussian solution on the line.
+ * Localized potentials use distant periodic boundaries outside the time window.
  */
-export type PotentialKind = 'barrier' | 'gaussian' | 'well';
+export type PotentialKind = 'free' | 'gravity' | 'barrier' | 'gaussian' | 'well';
+export const SCATTERING_POTENTIALS: readonly PotentialKind[] = ['free', 'gravity', 'barrier', 'gaussian', 'well'];
 export type ScatteringConfig = {
   potential: PotentialKind;
   height: number;
   width: number;
   momentum: number;
   sigma: number;
+  /** Reduced gravitational acceleration, with z increasing upwards. */
+  gravity?: number;
 };
 
+export const GRAVITY_DEFAULT = 0.15;
+export const GRAVITY_MAX = 0.5;
+export const SCATTERING_MOMENTUM_MIN = 0.75;
+export const SCATTERING_MOMENTUM_MAX = 4;
+export const SCATTERING_MOMENTUM_STEP = 0.00001;
 export const SCATTERING_DEFAULT: ScatteringConfig = {
-  potential: 'barrier', height: 2.5, width: 1, momentum: 2, sigma: 3,
+  potential: 'barrier', height: 2.5, width: 1, momentum: 2, sigma: 3, gravity: GRAVITY_DEFAULT,
 };
 export const SCATTERING_PRESETS = {
-  tunnel: { potential: 'barrier', height: 2.5, width: 1, momentum: 2, sigma: 3 },
-  transmission: { potential: 'barrier', height: 1.5, width: 2, momentum: 2.8, sigma: 3 },
-  reflection: { potential: 'barrier', height: 6, width: 3, momentum: 2, sigma: 3 },
+  tunnel: { potential: 'barrier', height: 2.5, width: 1, momentum: 2, sigma: 3, gravity: GRAVITY_DEFAULT },
+  transmission: { potential: 'barrier', height: 1.5, width: 2, momentum: 2.8, sigma: 3, gravity: GRAVITY_DEFAULT },
+  reflection: { potential: 'barrier', height: 6, width: 3, momentum: 2, sigma: 3, gravity: GRAVITY_DEFAULT },
 } satisfies Record<string, ScatteringConfig>;
+
+export const PROPAGATION_PRESETS = {
+  free: { ...SCATTERING_DEFAULT, potential: 'free' },
+  gravity: { ...SCATTERING_DEFAULT, potential: 'gravity' },
+} satisfies Record<string, ScatteringConfig>;
+
+export const ALL_SCATTERING_PRESETS = { ...SCATTERING_PRESETS, ...PROPAGATION_PRESETS };
+
+export function isUniformField(config: ScatteringConfig) {
+  return config.potential === 'free' || config.potential === 'gravity';
+}
+
+export function gravitationalAcceleration(config: ScatteringConfig) {
+  return config.potential === 'gravity' ? config.gravity ?? GRAVITY_DEFAULT : 0;
+}
+
+/** Stable across property order, including configurations received as commands. */
+export function scatteringConfigKey(config: ScatteringConfig) {
+  return JSON.stringify([config.potential, isUniformField(config) ? 0 : config.height,
+    isUniformField(config) ? 0 : config.width, gravitationalAcceleration(config),
+    config.momentum, config.sigma]);
+}
 
 export const PACKET_CENTER = -24;
 export const GRID_SIZE = 4096;
@@ -34,8 +65,30 @@ export const SAMPLE_COUNT = GRID_SIZE / 4;
 export const SAMPLE_X = Float64Array.from({ length: SAMPLE_COUNT }, (_, j) =>
   -DOMAIN_LENGTH / 2 + (SAMPLE_START + j * SAMPLE_STRIDE + 0.5) * DX,
 );
+export const SCATTERING_FINAL_TIME_MIN = 1;
+export const SCATTERING_FINAL_TIME_MAX = 120;
+
+/** Conservative outgoing-packet envelope before periodic numerical boundaries.
+ * Use four initial spatial/momentum standard deviations; uniform fields are
+ * evaluated on the entire line and have no periodic-boundary restriction.
+ */
+export function scatteringFinalTimeMax(config: ScatteringConfig) {
+  if (isUniformField(config)) return SCATTERING_FINAL_TIME_MAX;
+  const distance = DOMAIN_LENGTH / 2 - PACKET_CENTER - 4 * config.sigma;
+  const speed = config.momentum + 2 / config.sigma;
+  return Math.max(SCATTERING_FINAL_TIME_MIN, Math.min(SCATTERING_FINAL_TIME_MAX, Math.floor(distance / speed)));
+}
+
+/** Editable endpoint, distinct from the physical potential and playback rate. */
+export function scatteringFinalTime(config: ScatteringConfig, requested?: number | null) {
+  const value = requested === undefined || requested === null || !Number.isFinite(requested)
+    ? Math.round(scatteringDuration(config)) : requested;
+  return Math.max(SCATTERING_FINAL_TIME_MIN, Math.min(scatteringFinalTimeMax(config), value));
+}
 
 export function potentialAt(x: number, config: ScatteringConfig) {
+  if (config.potential === 'free') return 0;
+  if (config.potential === 'gravity') return gravitationalAcceleration(config) * x;
   if (config.potential === 'gaussian') {
     return config.height * Math.exp(-2 * (x / config.width) ** 2);
   }
@@ -45,15 +98,67 @@ export function potentialAt(x: number, config: ScatteringConfig) {
 }
 
 export function interactionEdge(config: ScatteringConfig) {
+  if (isUniformField(config)) return 0;
   return config.width * (config.potential === 'gaussian' ? 1.5 : 0.5);
 }
 
+/** Exact step geometry for display; uses the same edges as the propagator. */
+export function scatteringPotentialProfile(config: ScatteringConfig) {
+  if (config.potential === 'gaussian') return Array.from(SAMPLE_X, x => ({ x, y: potentialAt(x, config) }));
+  if (isUniformField(config)) return [{ x: -64, y: potentialAt(-64, config) }, { x: 64, y: potentialAt(64, config) }];
+  const edge = interactionEdge(config), height = config.height * (config.potential === 'well' ? -1 : 1);
+  return [{ x: -64, y: 0 }, { x: -edge, y: 0 }, { x: -edge, y: height },
+    { x: edge, y: height }, { x: edge, y: 0 }, { x: 64, y: 0 }];
+}
+
 export function scatteringDuration(config: ScatteringConfig) {
-  return 56 / config.momentum;
+  const freeDuration = 56 / config.momentum, g = gravitationalAcceleration(config);
+  // End the downward flight when its center reaches z=-40, leaving room for
+  // the Gaussian tails in the fixed view. This is a time window, not a wall.
+  return g > 0 ? Math.min(freeDuration, (config.momentum + Math.sqrt(config.momentum ** 2 + 32 * g)) / g) : freeDuration;
 }
 
 export function incidentEnergy(config: ScatteringConfig) {
   return config.momentum ** 2 / 2 + 1 / (8 * config.sigma ** 2);
+}
+
+/** Include the initial potential contribution; the zero of mgz is z=0. */
+export function initialPotentialEnergy(config: ScatteringConfig) {
+  if (isUniformField(config)) return gravitationalAcceleration(config) * PACKET_CENTER;
+  let energy = 0;
+  const normalization = 1 / (Math.sqrt(2 * Math.PI) * config.sigma);
+  for (let j = 0; j < GRID_SIZE; j++) {
+    const x = -DOMAIN_LENGTH / 2 + (j + .5) * DX;
+    energy += potentialAt(x, config) * normalization * Math.exp(-((x - PACKET_CENTER) ** 2) / (2 * config.sigma ** 2)) * DX;
+  }
+  return energy;
+}
+
+export function uniformFieldMoments(config: ScatteringConfig, time: number) {
+  const g = gravitationalAcceleration(config);
+  return {
+    position: PACKET_CENTER + config.momentum * time - g * time * time / 2,
+    momentum: config.momentum - g * time,
+    sigma: Math.sqrt(config.sigma ** 2 + time * time / (4 * config.sigma ** 2)),
+  };
+}
+
+/** Exact complex Gaussian for V(z)=gz (hbar=m=1), not a periodic ramp.
+ * psi_g(z,t)=exp[-i(g t z + g²t³/6)] psi_free(z+g t²/2,t).
+ */
+export function uniformFieldWavefunction(config: ScatteringConfig, time: number) {
+  const g = gravitationalAcceleration(config), sigma2 = config.sigma ** 2;
+  const spreading = time / (2 * sigma2), denominator = 1 + spreading * spreading;
+  const amplitude = (2 * Math.PI * sigma2 * denominator) ** -.25;
+  const center = uniformFieldMoments(config, time).position;
+  const phaseOffset = -.5 * Math.atan(spreading) - config.momentum ** 2 * time / 2
+    + config.momentum * g * time * time / 2 - g * g * time ** 3 / 6;
+  return (z: number) => {
+    const scaledDistance = (z - center) ** 2 / (4 * sigma2 * denominator);
+    const envelope = amplitude * Math.exp(-scaledDistance);
+    const phase = (config.momentum - g * time) * z + spreading * scaledDistance + phaseOffset;
+    return { re: envelope * Math.cos(phase), im: envelope * Math.sin(phase) };
+  };
 }
 
 export type ScatteringSnapshot = {
@@ -72,6 +177,12 @@ export type ScatteringTimeline = {
   duration: number;
   maxDensity: number;
   maxAmplitude: number;
+  /** Uniform fields can be evaluated exactly at every animation time. */
+  analyticalConfig?: ScatteringConfig;
+  /** Selected after checking the full safe numerical trajectory. */
+  automaticFinalTime?: number;
+  /** Undefined for free propagation/uniform gravity, where there is no collision. */
+  scatteringComplete?: boolean;
 };
 
 /** In-place radix-two FFT, with unit inverse normalization. */
@@ -137,6 +248,7 @@ export class ScatteringSolver {
   readonly im = new Float64Array(GRID_SIZE);
   readonly config: ScatteringConfig;
   readonly dt: number;
+  private time = 0;
   private fft = new FourierTransform();
   private potentialCos = new Float64Array(GRID_SIZE);
   private potentialSin = new Float64Array(GRID_SIZE);
@@ -170,6 +282,16 @@ export class ScatteringSolver {
   }
 
   step(count = 1) {
+    if (isUniformField(this.config)) {
+      this.time += count * this.dt;
+      const evaluate = uniformFieldWavefunction(this.config, this.time);
+      for (let j = 0; j < GRID_SIZE; j++) {
+        const value = evaluate(-DOMAIN_LENGTH / 2 + (j + .5) * DX);
+        this.re[j] = value.re;
+        this.im[j] = value.im;
+      }
+      return;
+    }
     for (let i = 0; i < count; i++) {
       this.phase(this.potentialCos, this.potentialSin);
       this.fft.apply(this.re, this.im);
@@ -204,8 +326,15 @@ export class ScatteringSolver {
 export function computeScatteringTimeline(
   config: ScatteringConfig,
   onProgress?: (progress: number) => void,
+  finalTime?: number,
 ): ScatteringTimeline {
-  const duration = scatteringDuration(config);
+  const duration = finalTime === undefined ? scatteringDuration(config) : scatteringFinalTime(config, finalTime);
+  if (isUniformField(config)) {
+    const maxDensity = 1 / (Math.sqrt(2 * Math.PI) * config.sigma);
+    onProgress?.(1);
+    return { real: new Float32Array(0), imaginary: new Float32Array(0), probabilities: new Float64Array(0),
+      duration, maxDensity, maxAmplitude: Math.sqrt(maxDensity), analyticalConfig: { ...config } };
+  }
   const frameDt = duration / (FRAME_COUNT - 1);
   const stepsPerFrame = Math.ceil(frameDt / SCATTERING_DT);
   const solver = new ScatteringSolver(config, frameDt / stepsPerFrame);
@@ -227,8 +356,69 @@ export function computeScatteringTimeline(
   return { real, imaginary, probabilities, duration, maxDensity, maxAmplitude: Math.sqrt(maxDensity) };
 }
 
+export const SCATTERING_RESIDUAL_TOLERANCE = .005;
+export const SCATTERING_STABILITY_TOLERANCE = .001;
+
+/** Choose a post-collision endpoint from measured probabilities, not merely
+ * flight time. Require <0.5% in the interaction region and <0.1 percentage
+ * point change in either outgoing fraction over several packet transit times.
+ * Starting after the incident center reaches the far edge avoids mistaking
+ * the initial, pre-collision plateau for completed scattering.
+ */
+export function automaticScatteringEndpoint(config: ScatteringConfig, timeline: ScatteringTimeline) {
+  if (isUniformField(config)) return { time: scatteringFinalTime(config), complete: undefined };
+  const minimum = (-PACKET_CENTER + interactionEdge(config)) / config.momentum;
+  const settling = Math.max(2, 2 * config.sigma / config.momentum);
+  const after = Math.max(1, config.sigma / config.momentum);
+  const limit = Math.floor(Math.min(timeline.duration, scatteringFinalTimeMax(config)));
+  for (let time = Math.ceil(minimum + settling + after); time <= limit; time++) {
+    const begin = Math.max(0, Math.floor((time - settling - after) / timeline.duration * (FRAME_COUNT - 1)));
+    const end = Math.min(FRAME_COUNT - 1, Math.ceil(time / timeline.duration * (FRAME_COUNT - 1)));
+    let minLeft = Infinity, maxLeft = -Infinity, minRight = Infinity, maxRight = -Infinity, center = 0;
+    for (let frame = begin; frame <= end; frame++) {
+      const [left, middle, right] = timeline.probabilities.subarray(frame * 3, frame * 3 + 3);
+      minLeft = Math.min(minLeft, left); maxLeft = Math.max(maxLeft, left);
+      minRight = Math.min(minRight, right); maxRight = Math.max(maxRight, right);
+      center = Math.max(center, middle);
+    }
+    if (center <= SCATTERING_RESIDUAL_TOLERANCE
+      && maxLeft - minLeft <= SCATTERING_STABILITY_TOLERANCE
+      && maxRight - minRight <= SCATTERING_STABILITY_TOLERANCE) return { time, complete: true };
+  }
+  return { time: limit, complete: false };
+}
+
+/** Keep the safe full history for seeking/manual extension; choose the visible
+ * endpoint separately, after the outgoing packets have actually separated.
+ */
+export function computeAutomaticScatteringTimeline(config: ScatteringConfig, onProgress?: (progress: number) => void): ScatteringTimeline {
+  const timeline = computeScatteringTimeline(config, onProgress,
+    isUniformField(config) ? scatteringFinalTime(config) : scatteringFinalTimeMax(config));
+  const endpoint = automaticScatteringEndpoint(config, timeline);
+  return { ...timeline, automaticFinalTime: endpoint.time, scatteringComplete: endpoint.complete };
+}
+
 /** Interpolate densities (not complex amplitudes) to preserve probability. */
 export function sampleTimeline(timeline: ScatteringTimeline, time: number) {
+  if (timeline.analyticalConfig) {
+    const config = timeline.analyticalConfig;
+    const evaluate = uniformFieldWavefunction(config, Math.max(0, Math.min(timeline.duration, time)));
+    const re = new Float32Array(SAMPLE_COUNT), im = new Float32Array(SAMPLE_COUNT), density = new Float32Array(SAMPLE_COUNT);
+    for (let j = 0; j < SAMPLE_COUNT; j++) {
+      const value = evaluate(SAMPLE_X[j]);
+      re[j] = value.re; im[j] = value.im;
+      density[j] = value.re ** 2 + value.im ** 2;
+    }
+    // Probability partition at the origin, only for numerical consistency;
+    // the UI shows moments instead of scattering fractions for uniform fields.
+    let left = 0, right = 0;
+    for (let j = 0; j < GRID_SIZE; j++) {
+      const z = -DOMAIN_LENGTH / 2 + (j + .5) * DX, value = evaluate(z);
+      const probability = (value.re ** 2 + value.im ** 2) * DX;
+      if (z < 0) left += probability; else right += probability;
+    }
+    return { density, re, im, left, center: 0, right };
+  }
   const position = Math.max(0, Math.min(FRAME_COUNT - 1, time / timeline.duration * (FRAME_COUNT - 1)));
   const a = Math.floor(position);
   const b = Math.min(FRAME_COUNT - 1, a + 1);

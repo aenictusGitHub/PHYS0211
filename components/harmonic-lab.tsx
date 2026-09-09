@@ -1,33 +1,37 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Pause, Play, RotateCcw } from 'lucide-react';
+import { PlaybackControls, DisplayControls } from '@/components/playback-controls';
+import { useLabPlayback } from '@/components/use-lab-playback';
 
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Math as Formula } from '@/components/math';
 import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { eigenstateDomain, energyGuides } from '@/lib/energy-display';
+import { Switch } from '@/components/ui/switch';
+import { QuantumParameter } from '@/components/quantum-parameter';
+import { CoherentStateEditor } from '@/components/coherent-state-editor';
 import {
-  DISPLAY_SCALE_MAX,
-  DISPLAY_SCALE_MIN,
+  ANHARMONIC_LIMIT, coherentSuperposition, oscillatorBasis,
+  solveAnharmonicOscillator, projectOscillatorState, evolveAnharmonicState,
+  oscillatorMeanPosition, type CoherentPacket,
+} from '@/lib/anharmonic-oscillator';
+import { eigenstateDomain, energyGuides } from '@/lib/energy-display';
+import { clipEnergyGuides } from '@/lib/plot-geometry';
+import {
   TAU_MAX,
-  clamp,
-  expectationEnergy,
-  harmonicEigenfunction,
-  numericalExpectationX,
   oscillatorCoefficients,
   sliderValue,
-  type Coefficient,
   type OscillatorPreset,
 } from '@/lib/quantum';
 
 type OscillatorMode = 'stationary' | 'evolution';
 type StateDisplay = 'wave' | 'density';
+type InitialPreset = OscillatorPreset | 'custom-coherent';
 
 const PRESETS: Array<{
-  value: OscillatorPreset;
+  value: InitialPreset;
   label: string;
   short: string;
 }> = [
@@ -35,34 +39,14 @@ const PRESETS: Array<{
   { value: 'coherent', label: 'État cohérent', short: 'Cohérent' },
   { value: 'opposite', label: 'Deux états cohérents opposés', short: 'Chat opposé' },
   { value: 'quadrature', label: 'Deux états cohérents en quadrature', short: 'Quadrature' },
+  { value: 'custom-coherent', label: 'Composer une superposition d’états cohérents', short: 'Composer…' },
 ];
 
-const POTENTIAL_STATIONARY = Array.from({ length: 401 }, (_, index) => {
-  const x = -4 + (8 * index) / 400;
-  return { x, y: (x * x) / 2 };
-});
-const STATIONARY_ENERGIES = Array.from({ length: 9 }, (_, n) => n + .5);
-const STATIONARY_STATES = STATIONARY_ENERGIES.map((_, n) => POTENTIAL_STATIONARY.map(point => harmonicEigenfunction(n, point.x)));
-
-const POTENTIAL_EVOLUTION = Array.from({ length: 401 }, (_, index) => {
-  const x = -5 + (10 * index) / 400;
-  return { x, y: (x * x) / 2 };
-});
-
-function evolveOscillatorCoefficients(
-  coefficients: Coefficient[],
-  time: number,
-) {
-  return coefficients.map((coefficient) => {
-    const angle = (coefficient.n + 0.5) * time;
-    const cosine = Math.cos(angle);
-    const sine = Math.sin(angle);
-    return {
-      re: coefficient.re * cosine + coefficient.im * sine,
-      im: coefficient.im * cosine - coefficient.re * sine,
-    };
-  });
-}
+const OSCILLATOR_COORDINATES = Array.from({ length: 601 }, (_, index) => -6 + index / 50);
+const INITIAL_PACKETS: CoherentPacket[] = [
+  { re: 2, im: 0, amplitude: 1, phase: 0 },
+  { re: -2, im: 0, amplitude: 1, phase: 0 },
+];
 
 function probabilityFromBasis(
   basis: number[],
@@ -77,7 +61,8 @@ function probabilityFromBasis(
   return re * re + im * im;
 }
 
-function presetFormula(preset: OscillatorPreset) {
+function presetFormula(preset: InitialPreset) {
+  if (preset === 'custom-coherent') return String.raw`$|\psi(0)\rangle=\mathcal N\sum_{j=1}^{M} A_j e^{i\theta_j}|\alpha_j\rangle$`;
   if (preset === 'mixture') {
     return String.raw`$|\psi(0)\rangle=\frac{|0\rangle+2|1\rangle+2|2\rangle}{3}$`;
   }
@@ -86,7 +71,8 @@ function presetFormula(preset: OscillatorPreset) {
   return String.raw`$|\psi(0)\rangle\propto|2i\rangle+2|2\rangle$`;
 }
 
-function presetInsight(preset: OscillatorPreset) {
+function presetInsight(preset: InitialPreset) {
+  if (preset === 'custom-coherent') return 'Les états cohérents interfèrent : leurs amplitudes complexes s’additionnent avant le calcul de la densité de probabilité.';
   if (preset === 'mixture') {
     return 'Trois phases propres se combinent : le profil change, puis se reforme après une période.';
   }
@@ -110,12 +96,17 @@ export function HarmonicLab({
   const [n, setN] = useState(0);
   const [display, setDisplay] = useState<StateDisplay>('wave');
   const [stationaryScale, setStationaryScale] = useState(1);
-  const [preset, setPreset] = useState<OscillatorPreset>('mixture');
+  const [preset, setPreset] = useState<InitialPreset>('mixture');
+  const [packets, setPackets] = useState<CoherentPacket[]>(INITIAL_PACKETS);
+  const [anharmonicEnabled, setAnharmonicEnabled] = useState(false);
+  const [anharmonicStrength, setAnharmonicStrength] = useState(.02);
+  const strength = anharmonicEnabled ? anharmonicStrength : 0;
   const [alphaMagnitude, setAlphaMagnitude] = useState(2);
   const [alphaPhase, setAlphaPhase] = useState(Math.PI / 2);
   const [time, setTime] = useState(0);
   const [psiScale, setPsiScale] = useState(2);
   const [playing, setPlaying] = useState(false);
+  const clock = useLabPlayback({ active, enabled: mode === 'evolution', time, setTime, playing, setPlaying, defaultFinalTime: TAU_MAX, rate: 1, command: command?.lab === 'oscillator' ? command : null });
 
   useEffect(() => {
     if (!command || command.lab !== 'oscillator') return;
@@ -125,7 +116,8 @@ export function HarmonicLab({
       command.preset === 'mixture' ||
       command.preset === 'coherent' ||
       command.preset === 'opposite' ||
-      command.preset === 'quadrature'
+      command.preset === 'quadrature' ||
+      command.preset === 'custom-coherent'
     ) {
       setPreset(command.preset);
       setPsiScale(
@@ -150,28 +142,6 @@ export function HarmonicLab({
     setPlaying(false);
   }, [command]);
 
-  useEffect(() => {
-    if (!active || !playing) return;
-    let animationFrame = 0;
-    let previousTime: number | null = null;
-    let accumulatedMilliseconds = 0;
-    const frameDuration = 1000 / 60;
-    const animate = (timestamp: number) => {
-      if (previousTime !== null) {
-        accumulatedMilliseconds += Math.min(timestamp - previousTime, 100);
-        const elapsedFrames = Math.floor(accumulatedMilliseconds / frameDuration);
-        if (elapsedFrames > 0) {
-          accumulatedMilliseconds -= elapsedFrames * frameDuration;
-          const elapsed = (elapsedFrames * frameDuration) / 1000;
-          setTime((current) => (current + elapsed) % TAU_MAX);
-        }
-      }
-      previousTime = timestamp;
-      animationFrame = window.requestAnimationFrame(animate);
-    };
-    animationFrame = window.requestAnimationFrame(animate);
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [active, playing]);
 
   const alpha = useMemo(
     () => ({
@@ -181,15 +151,22 @@ export function HarmonicLab({
     [alphaMagnitude, alphaPhase],
   );
   const coefficients = useMemo(
-    () => oscillatorCoefficients(preset, alpha),
-    [alpha, preset],
+    () => preset === 'custom-coherent' ? coherentSuperposition(packets) : oscillatorCoefficients(preset, alpha),
+    [alpha, preset, packets],
   );
 
+  const spectrum = useMemo(() => solveAnharmonicOscillator(strength), [strength]);
+  const grid = useMemo(() => OSCILLATOR_COORDINATES.map(x => ({ x, basis: oscillatorBasis(x, spectrum.states.length, spectrum.frequency) })), [spectrum]);
+  const potential = useMemo(() => OSCILLATOR_COORDINATES.map(x => ({ x, y: x * x / 2 + strength * x ** 4 })), [strength]);
+  const energies = useMemo(() => spectrum.energies.slice(0, 9), [spectrum]);
+  const spatialStates = useMemo(() => spectrum.states.map(state => grid.map(point =>
+    state.reduce((sum, c, j) => sum + c * point.basis[j], 0))), [spectrum, grid]);
+  const stationaryStates = useMemo(() => spatialStates.slice(0, 9), [spatialStates]);
+
   const stationaryValues = useMemo(() => {
-    const baseline = n + 0.5;
-    return Array.from({ length: 401 }, (_, index) => {
-      const x = -4 + (8 * index) / 400;
-      const phi = STATIONARY_STATES[n][index];
+    const baseline = energies[n];
+    return OSCILLATOR_COORDINATES.map((x, index) => {
+      const phi = stationaryStates[n][index];
       return {
         x,
         y:
@@ -197,37 +174,24 @@ export function HarmonicLab({
           stationaryScale * (display === 'wave' ? phi : phi * phi),
       };
     });
-  }, [display, n, stationaryScale]);
-
-  const probabilityGrid = useMemo(
-    () =>
-      Array.from({ length: 401 }, (_, index) => {
-        const x = -7 + (14 * index) / 400;
-        return {
-          x,
-          basis: coefficients.map((coefficient) =>
-            harmonicEigenfunction(coefficient.n, x),
-          ),
-        };
-      }),
-    [coefficients],
-  );
+  }, [display, n, stationaryScale, energies, stationaryStates]);
+  const projected = useMemo(() => projectOscillatorState(spectrum, coefficients), [spectrum, coefficients]);
   const evolvedCoefficients = useMemo(
-    () => evolveOscillatorCoefficients(coefficients, time),
-    [coefficients, time],
+    () => evolveAnharmonicState(spectrum, projected, time),
+    [spectrum, projected, time],
   );
   const probabilityValues = useMemo(
     () =>
-      probabilityGrid.map((point) => ({
+      grid.map((point) => ({
         x: point.x,
         density: probabilityFromBasis(point.basis, evolvedCoefficients),
       })),
-    [evolvedCoefficients, probabilityGrid],
+    [evolvedCoefficients, grid],
   );
 
   const meanEnergy = useMemo(
-    () => expectationEnergy(coefficients),
-    [coefficients],
+    () => projected.reduce((sum, c) => sum + spectrum.energies[c.n] * (c.re ** 2 + c.im ** 2), 0),
+    [projected, spectrum],
   );
   const evolutionValues = useMemo(
     () =>
@@ -237,11 +201,17 @@ export function HarmonicLab({
       })),
     [meanEnergy, probabilityValues, psiScale],
   );
-  const meanX = numericalExpectationX(probabilityValues);
-  const stationaryDomain = useMemo(() => eigenstateDomain(STATIONARY_ENERGIES, STATIONARY_STATES, stationaryScale, 9), [stationaryScale]);
-  const evolutionMaximum = Math.max(13.4, 4.5 + 1.12 * psiScale);
+  const meanX = oscillatorMeanPosition(evolvedCoefficients, spectrum.frequency);
+  const stationaryDomain = useMemo(() => eigenstateDomain(energies, stationaryStates, stationaryScale, 9), [energies, stationaryStates, stationaryScale]);
+  // A time-independent upper envelope avoids clipping interference peaks or a moving vertical scale.
+  const densityBound = useMemo(() => Math.max(...OSCILLATOR_COORDINATES.map((_, index) => {
+    const envelope = spatialStates.reduce((sum, state, j) => sum + Math.hypot(projected[j].re, projected[j].im) * Math.abs(state[index]), 0);
+    return envelope * envelope;
+  })), [spatialStates, projected]);
+  const evolutionMaximum = Math.max(13.4, meanEnergy + 1.08 * psiScale * densityBound);
+  const restart = () => { setTime(0); setPlaying(false); };
 
-  const selectPreset = (nextPreset: OscillatorPreset) => {
+  const selectPreset = (nextPreset: InitialPreset) => {
     setPreset(nextPreset);
     setPsiScale(
       nextPreset === 'coherent' ? 5 : nextPreset === 'mixture' ? 2 : 1.5,
@@ -255,10 +225,10 @@ export function HarmonicLab({
   };
 
   return (
-    <section className="workspace" aria-labelledby="oscillator-title">
+    <section className="workspace oscillator-workspace" aria-labelledby="oscillator-title">
       <aside className="control-panel">
         <div>
-          <p className="eyebrow">02</p>
+          <p className="eyebrow">03</p>
           <h1 id="oscillator-title">Oscillateur harmonique</h1>
           <p className="lede">
             Explorez les modes d’Hermite, l’échelle régulière des énergies et
@@ -288,11 +258,27 @@ export function HarmonicLab({
           </Button>
         </div>
 
+        <section className="well-perturbation" aria-labelledby="oscillator-anharmonic-title">
+          <div className="well-perturbation-heading">
+            <label id="oscillator-anharmonic-title" htmlFor="oscillator-anharmonic-enabled">Perturbation anharmonique</label>
+            <Switch id="oscillator-anharmonic-enabled" checked={anharmonicEnabled}
+              onCheckedChange={enabled => { setAnharmonicEnabled(enabled); restart(); }} aria-describedby="oscillator-anharmonic-help" />
+          </div>
+          <p id="oscillator-anharmonic-help" className="scale-note">Ajoute un terme quartique positif au potentiel.</p>
+          {anharmonicEnabled ? <div className="control-stack">
+            <Formula display>{String.raw`$\frac{V(\xi)}{\hbar\omega}=\frac{\xi^2}{2}+\lambda\xi^4$`}</Formula>
+            <QuantumParameter id="oscillator-lambda" label="Intensité" symbol={String.raw`$\lambda$`} value={anharmonicStrength}
+              min={0} max={ANHARMONIC_LIMIT} step={.01} onChange={value => { setAnharmonicStrength(value); restart(); }} />
+          </div> : null}
+        </section>
+
         <div className="equation-card">
           <span>{mode === 'stationary' ? 'Fonction propre' : 'État initial'}</span>
           <Formula display>
             {mode === 'stationary'
-              ? String.raw`$\phi_n(\xi)=\frac{e^{-\xi^2/2}H_n(\xi)}{\pi^{1/4}\sqrt{2^n n!}}$`
+              ? strength > 0
+                ? String.raw`$\hat H\phi_n=E_n\phi_n$`
+                : String.raw`$\phi_n(\xi)=\frac{e^{-\xi^2/2}H_n(\xi)}{\pi^{1/4}\sqrt{2^n n!}}$`
               : presetFormula(preset)}
           </Formula>
         </div>
@@ -325,23 +311,7 @@ export function HarmonicLab({
               </Button>
             </div>
 
-            <div className="control-block scale-control">
-              <div className="control-heading">
-                <label htmlFor="oscillator-stationary-scale">Facteur d’affichage <Formula>{String.raw`$s$`}</Formula></label>
-                <output><Formula>{`$s=${stationaryScale.toFixed(1)}$`}</Formula></output>
-              </div>
-              <Slider
-                id="oscillator-stationary-scale"
-                min={DISPLAY_SCALE_MIN}
-                max={DISPLAY_SCALE_MAX}
-                step={0.1}
-                value={[stationaryScale]}
-                onValueChange={(value) => setStationaryScale(sliderValue(value, 1))}
-                aria-label={`Facteur d’affichage s de ${display === 'wave' ? 'la fonction propre' : 'la densité de probabilité'}`}
-              />
-              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0.5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
-              <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’amplitude affichée.</p>
-            </div>
+
           </div>
         ) : (
           <div className="control-stack">
@@ -373,7 +343,7 @@ export function HarmonicLab({
                     max={2.5}
                     step={0.1}
                     value={[alphaMagnitude]}
-                    onValueChange={(value) => setAlphaMagnitude(sliderValue(value, 2))}
+                    onValueChange={(value) => { setAlphaMagnitude(sliderValue(value, 2)); restart(); }}
                     aria-label="Module de alpha"
                   />
                 </div>
@@ -388,67 +358,21 @@ export function HarmonicLab({
                     max={Math.PI}
                     step={0.05}
                     value={[alphaPhase]}
-                    onValueChange={(value) => setAlphaPhase(sliderValue(value, Math.PI / 2))}
+                    onValueChange={(value) => { setAlphaPhase(sliderValue(value, Math.PI / 2)); restart(); }}
                     aria-label="Phase de alpha"
                   />
                 </div>
               </div>
             ) : null}
 
-            <div className="control-block time-control">
-              <div className="control-heading">
-                <label htmlFor="oscillator-time">Temps réduit <Formula>{String.raw`$\tau=\omega t$`}</Formula></label>
-                <output>{time.toFixed(2)}</output>
-              </div>
-              <Slider
-                id="oscillator-time"
-                min={0}
-                max={TAU_MAX}
-                step={0.01}
-                value={[time]}
-                onValueChange={(value) => setTime(clamp(sliderValue(value, 0), 0, TAU_MAX))}
-                aria-label="Temps réduit omega t"
-              />
-              <div className="range-labels" aria-hidden="true"><span>0</span><span><Formula>{String.raw`$2\pi$`}</Formula></span></div>
-            </div>
 
-            <div className="control-block scale-control">
-              <div className="control-heading">
-                <label htmlFor="oscillator-scale">Facteur d’affichage <Formula>{String.raw`$s$`}</Formula></label>
-                <output><Formula>{`$s=${psiScale.toFixed(1)}$`}</Formula></output>
-              </div>
-              <Slider
-                id="oscillator-scale"
-                min={DISPLAY_SCALE_MIN}
-                max={DISPLAY_SCALE_MAX}
-                step={0.1}
-                value={[psiScale]}
-                onValueChange={(value) => setPsiScale(sliderValue(value, 2))}
-                aria-label="Facteur d’affichage s de la densité de probabilité"
-              />
-              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0.5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
-              <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’affichage · <Formula>{String.raw`$\int |\psi|^2\,dx=1$`}</Formula></p>
-            </div>
-
-            <div className="transport-controls">
-              <Button onClick={() => setPlaying((current) => !current)}>
-                {playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-                {playing ? 'Pause' : 'Animer'}
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => {
-                setTime(0);
-                setPlaying(false);
-              }} aria-label="Revenir au temps zéro">
-                <RotateCcw aria-hidden="true" />
-              </Button>
-            </div>
           </div>
         )}
 
         <dl className="measurements">
           {mode === 'stationary' ? (
             <>
-              <div><dt>Énergie</dt><dd><Formula>{String.raw`$(n+\frac12)\hbar\omega$`}</Formula></dd></div>
+              <div><dt>Énergie</dt><dd><Formula>{String.raw`$${energies[n].toFixed(3)}\,\hbar\omega$`}</Formula></dd></div>
               <div><dt>Parité</dt><dd>{n % 2 === 0 ? 'paire' : 'impaire'}</dd></div>
               <div><dt>Nœuds</dt><dd>{n}</dd></div>
             </>
@@ -482,11 +406,13 @@ export function HarmonicLab({
           </div>
         </div>
 
+        {mode === 'evolution' && preset === 'custom-coherent' ? <CoherentStateEditor initial={packets} onApply={next => { setPackets(next); restart(); }} /> : null}
+
         <div className="plot-shell">
           {mode === 'stationary' ? (
             <ScientificPlot
               ariaLabel={`Oscillateur harmonique, état n égal à ${n}, ${display === 'wave' ? 'fonction propre' : 'densité de probabilité'}`}
-              xDomain={[-4, 4]}
+              xDomain={[-5, 5]}
               yDomain={stationaryDomain}
               xTicks={[-4, -2, 0, 2, 4]}
               xLabel={String.raw`$\xi=x/x_0$`}
@@ -496,39 +422,42 @@ export function HarmonicLab({
                   : String.raw`$\frac{E}{\hbar\omega}+s\,|\phi_n(\xi)|^2$`
               }
               series={[
-                { values: POTENTIAL_STATIONARY, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
-                { values: stationaryValues, tone: 'accent', width: 2.8, fillTo: n + 0.5, fillOpacity: 0.24 },
+                { values: potential, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
+                { values: stationaryValues, tone: 'accent', width: 2.8, fillTo: energies[n], fillOpacity: 0.24 },
               ]}
-              horizontalLines={energyGuides(STATIONARY_ENERGIES, n)}
+              horizontalLines={clipEnergyGuides(energyGuides(energies, n), potential)}
             />
           ) : (
             <ScientificPlot
               ariaLabel={`Densité de probabilité de l’oscillateur harmonique au temps réduit ${time.toFixed(2)}, facteur s égal à ${psiScale.toFixed(1)}`}
-              xDomain={[-5, 5]}
+              xDomain={[-6, 6]}
               yDomain={[0, evolutionMaximum]}
               xTicks={[-4, -2, 0, 2, 4]}
               xLabel={String.raw`$\xi=x/x_0$`}
               yLabel={String.raw`$\frac{E}{\hbar\omega}+s\,|\psi(\xi,\tau)|^2$`}
               series={[
-                { values: POTENTIAL_EVOLUTION, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
+                { values: potential, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
                 { values: evolutionValues, tone: 'accent', width: 2.8, fillTo: meanEnergy, fillOpacity: 0.3 },
               ]}
-              horizontalLines={[{ value: meanEnergy, label: String.raw`$\langle E\rangle$`, tone: 'teal', dashed: true }]}
+              horizontalLines={[{ value: meanEnergy, label: String.raw`$\langle E\rangle$`, tone: 'teal', dashed: true, labelOutside: true }]}
             />
           )}
         </div>
 
-        {mode === 'stationary' ? <p className="scale-note">Échelle commune aux états <Formula>{'$n=0,\\ldots,8$'}</Formula> à facteur <Formula>{'$s$'}</Formula> fixé. Tous les niveaux sont indiqués en pointillés ; le niveau sélectionné est en vert.</p> : null}
+        {mode === 'evolution' ? <PlaybackControls id="oscillator" clock={clock} scale={psiScale} onScaleChange={setPsiScale}
+          timeSymbol={String.raw`$\tau=\omega t$`} finalSymbol={String.raw`$\tau_f$`} />
+          : <DisplayControls id="oscillator-stationary" stationary scale={stationaryScale} onScaleChange={setStationaryScale} />}
+        {mode === 'stationary' ? <p className="scale-note">Échelle commune aux états <Formula>{'$n=0,\\ldots,8$'}</Formula> à potentiel et facteur <Formula>{'$s$'}</Formula> fixés. Tous les niveaux sont indiqués en pointillés ; le niveau sélectionné est en vert.</p> : null}
         <div className="insight-row">
           <span className="insight-index">{mode === 'stationary' ? String(n).padStart(2, '0') : 'τ'}</span>
           <p>
             {mode === 'stationary'
               ? n === 0
-                ? <>Même dans l’état fondamental, l’énergie ne peut pas être nulle : <Formula>{String.raw`$E_0=\hbar\omega/2$`}</Formula>.</>
+                ? <>Même dans l’état fondamental, l’énergie ne peut pas être nulle : <Formula>{String.raw`$E_0=${energies[0].toFixed(3)}\,\hbar\omega$`}</Formula>.</>
                 : <>L’état <Formula>{String.raw`$n=${n}$`}</Formula> possède {n} nœud{n > 1 ? 's' : ''} et une parité {n % 2 === 0 ? 'paire' : 'impaire'}.</>
-              : presetInsight(preset)}
+              : strength > 0 ? 'L’anharmonicité modifie les phases relatives : même un état initial cohérent peut se déformer au cours du temps.' : presetInsight(preset)}
           </p>
-          <span className="insight-formula"><Formula>{String.raw`$E_n=\hbar\omega(n+1/2)$`}</Formula></span>
+          <span className="insight-formula"><Formula>{strength > 0 ? String.raw`$\lambda=${strength.toFixed(2)}$` : String.raw`$E_n=\hbar\omega(n+1/2)$`}</Formula></span>
         </div>
 
         <details className="theory-notes">
@@ -536,20 +465,25 @@ export function HarmonicLab({
           <div className="theory-grid">
             <div>
               <span>Hamiltonien</span>
-              <Formula display>{String.raw`$\hat H=\frac{\hat p^{\,2}}{2m}+\frac12m\omega^2\hat x^{\,2}$`}</Formula>
+              <Formula display>{String.raw`$\frac{\hat H}{\hbar\omega}=-\frac12\frac{\mathrm d^2}{\mathrm d\xi^2}+\frac{\xi^2}{2}+\lambda\xi^4$`}</Formula>
             </div>
             <div>
-              <span>Polynômes d’Hermite (physiciens)</span>
+              <span>Base harmonique non perturbée</span>
               <Formula display>{String.raw`$\begin{aligned}H_0(\xi)&=1,\qquad H_1(\xi)=2\xi,\\ H_{n+1}(\xi)&=2\xi H_n(\xi)\\ &\quad-2nH_{n-1}(\xi).\end{aligned}$`}</Formula>
             </div>
             <div>
               <span>État cohérent</span>
               <Formula display>{String.raw`$\begin{aligned}\hat a|\alpha\rangle&=\alpha|\alpha\rangle,\\ |\alpha\rangle&=e^{-|\alpha|^2/2}\sum_{n=0}^{\infty}\frac{\alpha^n}{\sqrt{n!}}\,|n\rangle.\end{aligned}$`}</Formula>
             </div>
+            <div>
+              <span>Superposition cohérente normalisée</span>
+              <Formula display>{String.raw`$\begin{aligned}|\psi(0)\rangle&=\mathcal N\sum_{j=1}^{M}w_j|\alpha_j\rangle,\\ w_j&=A_j e^{i\theta_j},\\ \mathcal N^{-2}&=\sum_{j,k}w_j^*w_k\langle\alpha_j|\alpha_k\rangle,\\ \langle\alpha|\beta\rangle&=e^{-(|\alpha|^2+|\beta|^2)/2+\alpha^*\beta}.\end{aligned}$`}</Formula>
+            </div>
           </div>
           <p>
-            On pose <Formula>{String.raw`$x_0=\sqrt{\hbar/(m\omega)}$`}</Formula>, <Formula>{String.raw`$\xi=x/x_0$`}</Formula> et <Formula>{String.raw`$\tau=\omega t$`}</Formula>. Chaque état propre acquiert la phase <Formula>{String.raw`$e^{-iE_nt/\hbar}=e^{-i(n+\frac12)\tau}$`}</Formula>. Le décalage vertical des courbes de <Formula>{String.raw`$E_n/(\hbar\omega)=n+\frac12$`}</Formula> est uniquement graphique.
+            On pose <Formula>{String.raw`$x_0=\sqrt{\hbar/(m\omega)}$`}</Formula>, <Formula>{String.raw`$\xi=x/x_0$`}</Formula> et <Formula>{String.raw`$\tau=\omega t$`}</Formula>. Chaque état propre acquiert la phase <Formula>{String.raw`$e^{-iE_n\tau/(\hbar\omega)}$`}</Formula>. Pour <Formula>{String.raw`$\lambda=0$`}</Formula>, <Formula>{String.raw`$E_n=\hbar\omega(n+\tfrac12)$`}</Formula>. Le décalage vertical des courbes par leur énergie est uniquement graphique.
           </p>
+          <p>Avec la perturbation, le Hamiltonien est diagonalisé dans une base de {spectrum.states.length} fonctions d’Hermite dont la largeur s’adapte au potentiel. Ce réglage numérique ne change ni les unités ni les états cohérents initiaux de l’oscillateur non perturbé ; ces derniers sont projetés sur les états propres du potentiel choisi pour calculer leur évolution.</p>
         </details>
       </div>
     </section>

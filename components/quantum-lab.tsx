@@ -11,10 +11,13 @@ import { RotorLab } from '@/components/rotor-lab';
 import { HydrogenLab } from '@/components/hydrogen-lab';
 import { SpinLab } from '@/components/spin-lab';
 import { parseSpinExperiment, SPIN_TIME_MAX } from '@/lib/spin';
+import { parseWellModes } from '@/lib/well-state';
 import { parseAtomicExperiment } from '@/lib/atomic-command';
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Button } from '@/components/ui/button';
 import { DISPLAY_SCALE_MAX, DISPLAY_SCALE_MIN, TAU_MAX } from '@/lib/quantum';
+import { ALL_SCATTERING_PRESETS, SCATTERING_POTENTIALS, GRAVITY_MAX, SCATTERING_MOMENTUM_MIN, SCATTERING_MOMENTUM_MAX, SCATTERING_FINAL_TIME_MIN, SCATTERING_FINAL_TIME_MAX } from '@/lib/scattering';
+import { PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_MAX, LAB_FINAL_TIME_MIN, LAB_FINAL_TIME_MAX } from '@/lib/playback';
 
 type Lab = ExperimentCommand['lab'];
 
@@ -73,9 +76,9 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
 
   if (
     data.time !== undefined &&
-    (typeof data.time !== 'number' || !Number.isFinite(data.time) || data.time < 0 || data.time > TAU_MAX)
+    (typeof data.time !== 'number' || !Number.isFinite(data.time) || data.time < 0 || data.time > LAB_FINAL_TIME_MAX)
   ) {
-    throw new Error('time doit être compris entre 0 et 2π.');
+    throw new Error('time doit être compris entre 0 et 20π.');
   }
 
   if (
@@ -90,10 +93,10 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
     );
   }
 
-  const wellPresets = ['low-pair', 'high-pair', 'parabola'];
+  const wellPresets = ['low-pair', 'high-pair', 'parabola', 'custom'];
   const oscillatorPresets = ['mixture', 'coherent', 'opposite', 'quadrature'];
   const presets = data.lab === 'well' ? wellPresets : data.lab === 'oscillator' ? oscillatorPresets
-    : data.lab === 'double-well' ? ['left', 'right'] : ['tunnel', 'transmission', 'reflection'];
+    : data.lab === 'double-well' ? ['left', 'right'] : Object.keys(ALL_SCATTERING_PRESETS);
   if (
     data.preset !== undefined &&
     (typeof data.preset !== 'string' || !presets.includes(data.preset))
@@ -101,14 +104,14 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
     throw new Error(`preset inconnu pour le laboratoire ${data.lab}.`);
   }
 
-  const bounds = { height: [0, 8], width: [0.5, 6], momentum: [1, 4], sigma: [2, 5], progress: [0, 1] } as const;
+  const bounds = { height: [0, 8], width: [0.5, 6], gravity: [0, GRAVITY_MAX], momentum: [SCATTERING_MOMENTUM_MIN, SCATTERING_MOMENTUM_MAX], sigma: [2, 5], progress: [0, 1], playbackSpeed: [PLAYBACK_SPEED_MIN, PLAYBACK_SPEED_MAX], finalTime: data.lab === 'scattering' ? [SCATTERING_FINAL_TIME_MIN, SCATTERING_FINAL_TIME_MAX] : [LAB_FINAL_TIME_MIN, LAB_FINAL_TIME_MAX] } as const;
   for (const field of Object.keys(bounds) as Array<keyof typeof bounds>) {
     const value = data[field];
-    if (value !== undefined && (data.lab !== 'scattering' || typeof value !== 'number' || !Number.isFinite(value) || value < bounds[field][0] || value > bounds[field][1])) {
-      throw new Error(`${field} : réservé à la diffusion, entre ${bounds[field][0]} et ${bounds[field][1]}.`);
+    if (value !== undefined && ((!['playbackSpeed', 'finalTime'].includes(field) && data.lab !== 'scattering') || typeof value !== 'number' || !Number.isFinite(value) || value < bounds[field][0] || value > bounds[field][1])) {
+      throw new Error(`${field} : valeur non applicable ou hors de l’intervalle ${bounds[field][0]} à ${bounds[field][1]}.`);
     }
   }
-  if (data.potential !== undefined && (data.lab !== 'scattering' || !['barrier', 'gaussian', 'well'].includes(String(data.potential)))) {
+  if (data.potential !== undefined && (data.lab !== 'scattering' || !SCATTERING_POTENTIALS.includes(data.potential as NonNullable<ExperimentCommand['potential']>))) {
     throw new Error('Potentiel inconnu pour la diffusion.');
   }
 
@@ -121,11 +124,15 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
     }
   }
 
+  if (data.wellModes !== undefined && (data.lab !== 'well' || data.mode === 'stationary')) throw new Error('wellModes est réservé au mode évolution du puits infini.');
+  const wellModes = data.wellModes === undefined ? undefined : parseWellModes(data.wellModes);
+  if (data.wellLinear !== undefined && (data.lab !== 'well' || typeof data.wellLinear !== 'number' || !Number.isFinite(data.wellLinear) || Math.abs(data.wellLinear) > 20)) throw new Error('wellLinear est réservé au puits infini : pente lambda entre -20 et 20, 0 désactive la perturbation.');
+  if (data.wellWidth !== undefined && (data.lab !== 'well' || typeof data.wellWidth !== 'number' || !Number.isFinite(data.wellWidth) || data.wellWidth < .5 || data.wellWidth > 4)) throw new Error('wellWidth est réservé au puits infini et doit être compris entre 0.5 et 4.');
   return {
     lab: data.lab,
     mode:
       (data.mode as ExperimentCommand['mode']) ??
-      (data.preset ? 'evolution' : data.quantumNumber !== undefined ? 'stationary' : undefined),
+      (data.preset || wellModes ? 'evolution' : data.quantumNumber !== undefined ? 'stationary' : undefined),
     quantumNumber: data.quantumNumber as number | undefined,
     preset: data.preset as string | undefined,
     time: data.time as number | undefined,
@@ -133,16 +140,22 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
     potential: data.potential as ExperimentCommand['potential'],
     height: data.height as number | undefined,
     width: data.width as number | undefined,
+    gravity: data.gravity as number | undefined,
     momentum: data.momentum as number | undefined,
     sigma: data.sigma as number | undefined,
     progress: data.progress as number | undefined,
+    playbackSpeed: data.playbackSpeed as number | undefined,
+    finalTime: data.finalTime as number | undefined,
     barrier: data.barrier as number | undefined,
     separation: data.separation as number | undefined,
+    wellModes,
+    wellWidth: data.wellWidth as number | undefined,
+    wellLinear: data.wellLinear as number | undefined,
   };
 }
 
 export function QuantumLab() {
-  const [lab, setLab] = useState<Lab>('well');
+  const [lab, setLab] = useState<Lab>('scattering');
   const [command, setCommand] = useState<ExperimentCommand | null>(null);
 
   useEffect(() => {
@@ -157,19 +170,23 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          'Configure les sept laboratoires. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 2π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 4π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. La lecture reste en pause.',
+          'Configure les sept laboratoires. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 20π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 20π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. Tous les laboratoires acceptent playbackSpeed, scale et finalTime ; ce dernier utilise la même unité interne que time, pas t/T. La lecture reste en pause.',
         inputSchema: {
           type: 'object',
           properties: {
             lab: { type: 'string', enum: ['well', 'oscillator', 'scattering', 'double-well', 'rotor', 'hydrogen', 'spin'] },
             mode: { type: 'string', enum: ['stationary', 'evolution'] },
             quantumNumber: { type: 'integer', minimum: 0, maximum: 8 },
+            wellModes: { type: 'array', minItems: 1, maxItems: 10, description: 'Puits infini, évolution : amplitudes relatives et phases en degrés. Normalisation automatique ; au moins une amplitude non nulle.', items: { type: 'object', properties: { n: { type: 'integer', minimum: 1, maximum: 10 }, amplitude: { type: 'number', minimum: 0, maximum: 1 }, phase: { type: 'number', minimum: -180, maximum: 180 } }, required: ['n', 'amplitude'], additionalProperties: false } },
+            wellWidth: { type: 'number', minimum: .5, maximum: 4, description: 'Largeur a du puits infini. L’abscisse reste x/a.' },
+            wellLinear: { type: 'number', minimum: -20, maximum: 20, description: 'Perturbation du puits infini : V/E_ref = lambda (x/a - 1/2). 0 désactive ; sinon remet le temps à zéro avant d’appliquer le temps demandé. États initiaux définis dans la base non perturbée.' },
             preset: {
               type: 'string',
               enum: [
                 'low-pair',
                 'high-pair',
                 'parabola',
+                'custom',
                 'mixture',
                 'coherent',
                 'opposite',
@@ -177,6 +194,8 @@ export function QuantumLab() {
                 'tunnel',
                 'transmission',
                 'reflection',
+                'free',
+                'gravity',
                 'left',
                 'right',
                 'rotor-polar',
@@ -188,18 +207,21 @@ export function QuantumLab() {
                 'spin-x-plus', 'spin-x-minus', 'spin-y-plus', 'spin-y-minus', 'spin-z-plus', 'spin-z-minus',
               ],
             },
-            time: { type: 'number', minimum: 0, maximum: SPIN_TIME_MAX, description: 'Jusqu’à 4π pour spin ; jusqu’à 2π pour les autres laboratoires.' },
+            time: { type: 'number', minimum: 0, maximum: LAB_FINAL_TIME_MAX, description: 'Temps réduit ou phase interne jusqu’à 20π. Diffusion : utiliser progress.' },
             spinTheta: { type: 'number', minimum: 0, maximum: 180 },
             spinPhi: { type: 'number', minimum: 0, maximum: 360 },
             spinOmega: { type: 'number', minimum: .25, maximum: 3 },
             spinField: { type: 'string', enum: ['x', 'y', 'z', 'tilted'] },
             spinMeasure: { type: 'string', enum: ['x', 'y', 'z'] },
-            potential: { type: 'string', enum: ['barrier', 'gaussian', 'well'] },
+            potential: { type: 'string', enum: SCATTERING_POTENTIALS },
             height: { type: 'number', minimum: 0, maximum: 8 },
             width: { type: 'number', minimum: 0.5, maximum: 6 },
-            momentum: { type: 'number', minimum: 1, maximum: 4 },
+            gravity: { type: 'number', minimum: 0, maximum: GRAVITY_MAX, description: 'Diffusion, gravity : accélération g en unités réduites (hbar=m=1), potentiel mgz sur tout l’axe, z orienté vers le haut, sans sol. free donne V=0. height et width ne s’appliquent pas à ces deux potentiels.' },
+            momentum: { type: 'number', minimum: SCATTERING_MOMENTUM_MIN, maximum: SCATTERING_MOMENTUM_MAX },
             sigma: { type: 'number', minimum: 2, maximum: 5 },
             progress: { type: 'number', minimum: 0, maximum: 1 },
+            playbackSpeed: { type: 'number', minimum: PLAYBACK_SPEED_MIN, maximum: PLAYBACK_SPEED_MAX, description: 'Tous les laboratoires : vitesse relative (1 normale), sans changer l’évolution physique.' },
+            finalTime: { type: 'number', minimum: LAB_FINAL_TIME_MIN, maximum: SCATTERING_FINAL_TIME_MAX, description: 'Fin de lecture : même unité interne que time (phase pour double-well/rotor/hydrogen), jusqu’à 20π. Diffusion : de 1 à 120, borné selon le paquet pour limiter les effets des bords numériques.' },
             barrier: { type: 'number', minimum: 0.5, maximum: 8 },
             separation: { type: 'number', minimum: 0.8, maximum: 2.5 },
             principal: { type: 'integer', minimum: 1, maximum: 40, description: 'Hydrogène : 1 à 5, ou 10 à 40 pour les états circulaires (ell=n−1, |m|=ell).' },
@@ -212,7 +234,8 @@ export function QuantumLab() {
             scale: {
               type: 'number',
               minimum: DISPLAY_SCALE_MIN,
-              maximum: DISPLAY_SCALE_MAX,
+              maximum: 100,
+              description: 'Gain graphique uniquement : jusqu’à 20, ou 100 pour l’hydrogène (coupe et profil radial).',
             },
           },
           required: ['lab'],
@@ -254,6 +277,10 @@ export function QuantumLab() {
             time: parsed.time ?? null,
             scale: parsed.scale ?? null,
             progress: parsed.progress ?? null,
+            playbackSpeed: parsed.playbackSpeed ?? null,
+            finalTime: parsed.finalTime ?? null,
+            potential: parsed.potential ?? null,
+            gravity: parsed.gravity ?? null,
             principal: parsed.principal ?? null,
             angular: parsed.angular ?? null,
             magnetic: parsed.magnetic ?? null,
@@ -262,6 +289,9 @@ export function QuantumLab() {
             spinOmega: parsed.spinOmega ?? null,
             spinField: parsed.spinField ?? null,
             spinMeasure: parsed.spinMeasure ?? null,
+            wellModes: parsed.wellModes ?? null,
+            wellWidth: parsed.wellWidth ?? null,
+            wellLinear: parsed.wellLinear ?? null,
           };
         },
       },
@@ -286,11 +316,19 @@ export function QuantumLab() {
         <nav aria-label="Choisir un laboratoire">
           <Button
             variant="ghost"
+            className={lab === 'scattering' ? 'lab-tab lab-tab-scattering is-active' : 'lab-tab lab-tab-scattering'}
+            onClick={() => setLab('scattering')}
+            aria-pressed={lab === 'scattering'}
+          >
+            <span>01</span> Diffusion paquets d’ondes
+          </Button>
+          <Button
+            variant="ghost"
             className={lab === 'well' ? 'lab-tab lab-tab-well is-active' : 'lab-tab lab-tab-well'}
             onClick={() => setLab('well')}
             aria-pressed={lab === 'well'}
           >
-            <span>01</span> Puits infini
+            <span>02</span> Puits infini
           </Button>
           <Button
             variant="ghost"
@@ -298,15 +336,7 @@ export function QuantumLab() {
             onClick={() => setLab('oscillator')}
             aria-pressed={lab === 'oscillator'}
           >
-            <span>02</span> Oscillateur harmonique
-          </Button>
-          <Button
-            variant="ghost"
-            className={lab === 'scattering' ? 'lab-tab lab-tab-scattering is-active' : 'lab-tab lab-tab-scattering'}
-            onClick={() => setLab('scattering')}
-            aria-pressed={lab === 'scattering'}
-          >
-            <span>03</span> Diffusion de paquets
+            <span>03</span> Oscillateur harmonique
           </Button>
           <Button
             variant="ghost"
@@ -327,14 +357,14 @@ export function QuantumLab() {
       </header>
 
       <div id="laboratory" tabIndex={-1}>
+        <div hidden={lab !== 'scattering'}>
+          <ScatteringLab active={lab === 'scattering'} command={command} />
+        </div>
         <div hidden={lab !== 'well'}>
           <InfiniteWellLab active={lab === 'well'} command={command} />
         </div>
         <div hidden={lab !== 'oscillator'}>
           <HarmonicLab active={lab === 'oscillator'} command={command} />
-        </div>
-        <div hidden={lab !== 'scattering'}>
-          <ScatteringLab active={lab === 'scattering'} command={command} />
         </div>
         <div hidden={lab !== 'double-well'}>
           <DoubleWellLab active={lab === 'double-well'} command={command} />

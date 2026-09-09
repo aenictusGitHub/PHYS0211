@@ -1,18 +1,21 @@
 import type { ExperimentCommand } from '../components/lab-types';
+import { LAB_FINAL_TIME_MAX, parsePlaybackSettings } from './playback';
 
 export function parseAtomicExperiment(data: Record<string, unknown>): Omit<ExperimentCommand, 'id'> {
   if (data.lab !== 'rotor' && data.lab !== 'hydrogen') throw new Error('Laboratoire atomique inconnu.');
   const allowed = data.lab === 'rotor' ? ['lab', 'angular', 'magnetic', 'inertia', 'mode', 'preset', 'time']
     : ['lab', 'principal', 'angular', 'magnetic', 'basis', 'atomicView', 'plane', 'mode', 'preset', 'time'];
+  allowed.push('scale', 'playbackSpeed', 'finalTime');
+  const playback = parsePlaybackSettings(data, data.lab === 'hydrogen' ? 100 : 20);
   for (const key of Object.keys(data)) if (!allowed.includes(key)) throw new Error(`${key} n’est pas utilisé dans ce laboratoire.`);
   if (data.mode !== undefined && data.mode !== 'stationary' && data.mode !== 'evolution') throw new Error('mode doit valoir stationary ou evolution.');
   const presets = data.lab === 'rotor' ? ['rotor-polar', 'rotor-rotation'] : ['hydrogen-breathing', 'hydrogen-dipole', 'hydrogen-rotation', 'hydrogen-rydberg'];
   if (data.preset !== undefined && (typeof data.preset !== 'string' || !presets.includes(data.preset))) throw new Error('Superposition inconnue pour ce laboratoire.');
   const mode: 'stationary' | 'evolution' = data.mode ?? (data.preset ? 'evolution' : 'stationary');
   const time = data.time ?? 0;
-  if (typeof time !== 'number' || !Number.isFinite(time) || time < 0 || time > 2 * Math.PI) throw new Error('time doit être compris entre 0 et 2π.');
+  if (typeof time !== 'number' || !Number.isFinite(time) || time < 0 || time > LAB_FINAL_TIME_MAX) throw new Error('time doit être compris entre 0 et 20π.');
   if (mode === 'stationary' && (data.preset !== undefined || data.time !== undefined)) throw new Error('preset et time demandent le mode evolution.');
-  const dynamics = { mode, time, preset: (data.preset ?? presets[0]) as string };
+  const dynamics = { mode, time, preset: (data.preset ?? presets[0]) as string, ...playback };
   const integer = (key: string, fallback: number, min: number, max: number) => {
     const value = data[key] ?? fallback;
     if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) throw new Error(`${key} doit être un entier entre ${min} et ${max}.`);

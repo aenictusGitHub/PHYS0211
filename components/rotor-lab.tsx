@@ -11,17 +11,19 @@ import { ROTOR_L_MAX, angularDensity } from '@/lib/atomic';
 import { ROTOR_PRESETS, polarSuperposition } from '@/lib/atomic-dynamics';
 import { AtomicClock, useAtomicClock } from '@/components/atomic-clock';
 import { EnergyLevels } from '@/components/energy-levels';
+import { DisplayControls } from '@/components/playback-controls';
 
 export function RotorLab({ active, command }: { active: boolean; command: ExperimentCommand | null }) {
   const [state, setState] = useState({ l: 1, m: 0 });
   const [mode, setMode] = useState<'stationary' | 'evolution'>('stationary');
   const [presetId, setPresetId] = useState(ROTOR_PRESETS[0].id);
-  const clock = useAtomicClock(active, mode === 'evolution');
+  const clock = useAtomicClock(active, mode === 'evolution', command?.lab === 'rotor' ? command : null);
   const { setPhase, setPlaying } = clock;
   const preset = ROTOR_PRESETS.find(item => item.id === presetId) ?? ROTOR_PRESETS[0];
   const evolving = mode === 'evolution';
   const [inertia, setInertia] = useState(1);
   const [phaseColors, setPhaseColors] = useState(false);
+  const [scale, setScale] = useState(1);
   const { l, m } = state;
   useEffect(() => {
     if (command?.lab !== 'rotor') return;
@@ -33,6 +35,7 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
       return { l, m: Math.max(-l, Math.min(l, command.magnetic ?? current.m)) };
     });
     if (command.inertia !== undefined) setInertia(command.inertia);
+    if (command.scale !== undefined) setScale(command.scale);
   }, [command, setPhase, setPlaying]);
   const polar = useMemo(() => Array.from({ length: 361 }, (_, j) => {
     const theta = j * Math.PI / 360;
@@ -74,23 +77,24 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
     <div className="figure-panel">
       <div className="figure-heading"><div><p className="eyebrow">{evolving ? 'Dynamique d’orientation' : 'Probabilité d’orientation'}</p><h2><Formula>{evolving ? String.raw`$|\psi(\theta,\varphi,t)|^2$` : String.raw`$|Y_{${l}}^{${m}}(\theta,\varphi)|^2$`}</Formula></h2></div><span className="figure-tag">Surface angulaire · 3D</span></div>
       <AngularSurface l={l} m={m} active={active} phaseColors={phaseColors} evolutionTerms={evolving ? preset.terms : undefined} phase={evolving ? clock.phase : 0} />
-      {evolving ? <AtomicClock id="rotor-time" clock={clock} period={String.raw`$T=2\pi\hbar/\Delta E=${(Math.PI * inertia).toFixed(3)}\,\hbar/E_\star$`} /> : null}
+      {evolving ? <AtomicClock id="rotor" clock={clock} scale={scale} onScaleChange={setScale} scaleDescription="Le facteur s multiplie la distribution polaire affichée ; la surface d’orientation et l’état restent inchangés." period={String.raw`$T=2\pi\hbar/\Delta E=${(Math.PI * inertia).toFixed(3)}\,\hbar/E_\star$`} />
+        : <DisplayControls id="rotor" stationary scale={scale} onScaleChange={setScale} />}
       {phaseColors ? <PhaseLegend /> : null}
       <p className="scale-note">Le rayon dessiné est proportionnel à la densité angulaire, avec une référence fixe pendant l’animation. Cette surface représente une probabilité d’orientation, pas une trajectoire ni une distance variable. « Tourner la vue » agit uniquement sur la caméra.</p>
       <div className="insight-row atomic-insight"><span className="insight-index"><Formula>{String.raw`$\ell$`}</Formula></span><p>{evolving ? preset.description : l === 0 ? 'L’état fondamental est isotrope : aucune direction n’est privilégiée.' : <>Les états <Formula>{'$m$'}</Formula> et <Formula>{'$-m$'}</Formula> ont la même densité, mais des projections opposées du moment cinétique. Leur phase est différente.</>}</p></div>
       <details className="theory-notes atomic-profile" open>
         <summary>Distribution de l’angle polaire</summary>
-        <div className="plot-shell"><ScientificPlot ariaLabel={evolving ? 'Distribution polaire de la superposition' : `Distribution de theta pour ell ${l}, m ${m}`} xDomain={[0, Math.PI]} yDomain={[0, 2]}
-          xLabel={String.raw`$\theta\;\text{(rad)}$`} yLabel={String.raw`$p(\theta)$`} xTicks={[0, Math.PI / 2, Math.PI]}
-          series={[{ values: polar, tone: 'accent', fillTo: 0, fillOpacity: .24 }]} /></div>
-        <p><Formula>{String.raw`$p(\theta,t)=\sin\theta\int_0^{2\pi}|\psi(\theta,\varphi,t)|^2\,d\varphi$`}</Formula>. L’aire sous la courbe vaut 1. L’échelle verticale est commune à tous les états proposés.</p>
+        <div className="plot-shell"><ScientificPlot ariaLabel={evolving ? 'Distribution polaire de la superposition' : `Distribution de theta pour ell ${l}, m ${m}`} xDomain={[0, Math.PI]} yDomain={[0, Math.max(2, 2 * scale)]}
+          xLabel={String.raw`$\theta\;\text{(rad)}$`} yLabel={String.raw`$s\,p(\theta)$`} xTicks={[0, Math.PI / 2, Math.PI]}
+          series={[{ values: polar.map(point => ({ x: point.x, y: scale * point.y })), tone: 'accent', fillTo: 0, fillOpacity: .24 }]} /></div>
+        <p><Formula>{String.raw`$p(\theta,t)=\sin\theta\int_0^{2\pi}|\psi(\theta,\varphi,t)|^2\,d\varphi$`}</Formula>. La distribution physique a une aire de 1 ; la courbe affichée a une aire de <Formula>$s$</Formula>. Le facteur ne modifie pas la surface 3D. L’échelle verticale est commune à tous les états à <Formula>$s$</Formula> fixé.</p>
       </details>
       <EnergyLevels energies={Array.from({ length: ROTOR_L_MAX + 1 }, (_, ell) => ell * (ell + 1) / inertia)} selected={evolving ? [0, 1] : l} indexSymbol={String.raw`\ell`} unit={String.raw`$E/E_\star$`} label="Spectre du rotateur rigide" />
       <details className="theory-notes"><summary>Repères théoriques</summary><div className="theory-grid">
         <div><span>États propres</span><Formula display>{String.raw`$\begin{aligned}\hat L^2Y_\ell^m&=\hbar^2\ell(\ell+1)Y_\ell^m,\\\hat L_zY_\ell^m&=m\hbar Y_\ell^m.\end{aligned}$`}</Formula></div>
         <div><span>Niveaux de rotation</span><Formula display>{String.raw`$\begin{aligned}E_\ell&=\frac{\hbar^2}{2I}\ell(\ell+1),\\m&=-\ell,\ldots,\ell.\end{aligned}$`}</Formula></div>
         <div><span>Harmoniques sphériques normalisées</span><Formula display>{String.raw`$\begin{aligned}Y_\ell^m(\theta,\varphi)&=N_{\ell m}P_\ell^m(\cos\theta)e^{im\varphi},\\N_{\ell m}&=\sqrt{\frac{2\ell+1}{4\pi}\frac{(\ell-m)!}{(\ell+m)!}}.\end{aligned}$`}</Formula></div>
-      </div><p>Convention de Condon–Shortley. La densité d’un état propre reste stationnaire ; sa phase globale évolue comme <Formula>{String.raw`$e^{-iE_\ell t/\hbar}$`}</Formula>. Cette phase globale est omise ; en superposition, les couleurs suivent la phase relative. <a href="https://dlmf.nist.gov/14.30" target="_blank" rel="noreferrer">Harmoniques sphériques · NIST DLMF</a>.</p></details>
+      </div><p>Convention de Condon–Shortley. La densité d’un état propre reste stationnaire ; sa phase globale évolue comme <Formula>{String.raw`$e^{-iE_\ell t/\hbar}$`}</Formula>. Cette phase globale est omise ; en superposition, les couleurs suivent la phase relative.</p></details>
     </div>
   </section>;
 }

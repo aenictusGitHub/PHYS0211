@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { SPIN_PRESETS, SPIN_TIME_MAX, blochVector, evolveSpin, fieldVector, parseSpinExperiment, probabilityPlus } from '../lib/spin.ts';
+import { registerHooks } from 'node:module';
+registerHooks({ resolve(specifier, context, nextResolve) { return nextResolve(specifier === './playback' ? './playback.ts' : specifier, context); } });
+const { SPIN_PRESETS, SPIN_TIME_MAX, blochVector, evolveSpin, fieldVector, parseSpinExperiment, probabilityPlus } = await import('../lib/spin.ts');
 
 const close = (actual, expected, label) => assert.ok(Math.abs(actual - expected) < 1e-12, `${label}: ${actual} versus ${expected}`);
 const dot = (a, b) => a.reduce((sum, value, i) => sum + value * b[i], 0);
@@ -39,5 +41,5 @@ for (let t = 0; t <= SPIN_TIME_MAX; t += .013) {
   close(r[1], Math.sin(t), 'Positive precession');
 }
 assert.equal(parseSpinExperiment({ lab: 'spin', preset: 'spin-z-minus', spinOmega: 3, time: SPIN_TIME_MAX }).mode, 'evolution');
-for (const config of [{ spinTheta: 181 }, { spinPhi: -1 }, { spinOmega: Infinity }, { spinOmega: 0 }, { time: 13 }, { spinField: 'q' }, { spinMeasure: 'tilted' }, { preset: 'other' }, { mode: 'stationary' }]) assert.throws(() => parseSpinExperiment({ lab: 'spin', ...config }));
+for (const config of [{ spinTheta: 181 }, { spinPhi: -1 }, { spinOmega: Infinity }, { spinOmega: 0 }, { time: 64 }, { spinField: 'q' }, { spinMeasure: 'tilted' }, { preset: 'other' }, { mode: 'stationary' }]) assert.throws(() => parseSpinExperiment({ lab: 'spin', ...config }));
 console.log('Spin: normalization, Born probabilities, all eigenstates, energy conservation, precession sign, 2π/4π spinor phases and command bounds pass.');

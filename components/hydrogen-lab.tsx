@@ -11,6 +11,7 @@ import { type ExperimentCommand } from '@/components/lab-types';
 import { HYDROGEN_PRESETS, radialSuperposition } from '@/lib/atomic-dynamics';
 import { AtomicClock, useAtomicClock } from '@/components/atomic-clock';
 import { EnergyLevels } from '@/components/energy-levels';
+import { DisplayControls } from '@/components/playback-controls';
 import { HYDROGEN_N_MAX, RYDBERG_N_MIN, RYDBERG_N_MAX, hydrogenEnergy, radialDistribution, radialMean, radialExtent, type AtomicState, type HarmonicBasis, type OrbitalPlane } from '@/lib/atomic';
 
 const PRESETS = [
@@ -23,7 +24,7 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
   const [state, setState] = useState<AtomicState>({ n: 1, l: 0, m: 0 });
   const [mode, setMode] = useState<'stationary' | 'evolution'>('stationary');
   const [presetId, setPresetId] = useState(HYDROGEN_PRESETS[0].id);
-  const clock = useAtomicClock(active, mode === 'evolution');
+  const clock = useAtomicClock(active, mode === 'evolution', command?.lab === 'hydrogen' ? command : null);
   const { setPhase, setPlaying } = clock;
   const preset = HYDROGEN_PRESETS.find(item => item.id === presetId) ?? HYDROGEN_PRESETS[0];
   const evolving = mode === 'evolution';
@@ -56,6 +57,7 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
     setPhase(command.time ?? 0); setPlaying(false);
     if ((command.principal ?? 1) >= RYDBERG_N_MIN || command.preset === 'hydrogen-rydberg') { setZoom(1.5); setRadialScale(20); setPlane('xy'); }
     else setRadialScale(1);
+    if (command.scale !== undefined) setRadialScale(command.scale);
     setState(current => {
       const n = command.principal ?? current.n;
       const l = Math.min(n - 1, command.angular ?? current.l);
@@ -111,8 +113,7 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
           <p className="scale-note"><Formula>{String.raw`$\ell=n-1,\quad |m|=\ell$`}</Formula>. Densité en anneau dans le plan équatorial, sans nœud radial. Les deux signes donnent la même densité mais des courants de probabilité opposés.</p>
         </>}
         </>}
-        {view === 'slice' ? <QuantumParameter id="hydrogen-zoom" label="Grossissement de la coupe" symbol="$g$" value={zoom} min={.5} max={2} step={.1} onChange={setZoom} />
-          : <QuantumParameter id="hydrogen-radial-scale" label="Facteur d’affichage radial" symbol="$s$" value={radialScale} min={.5} max={100} step={.5} onChange={setRadialScale} />}
+        {view === 'slice' ? <QuantumParameter id="hydrogen-zoom" label="Grossissement de la coupe" symbol="$g$" value={zoom} min={.5} max={2} step={.1} onChange={setZoom} /> : null}
       </div>
       <dl className="measurements">
         <div><dt>{evolving ? 'Énergie moyenne' : 'Énergie'}</dt><dd><Formula>{String.raw`$${evolving ? String.raw`\langle E\rangle` : `E_${n}`}\simeq${energy.toFixed(rydberg ? 6 : 3)}\,\mathrm{eV}$`}</Formula></dd></div>
@@ -141,7 +142,7 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
             <Button variant="outline" className={phaseColors ? 'is-selected' : ''} aria-pressed={phaseColors} onClick={() => setPhaseColors(true)}>Phase</Button>
           </div>
         </div>
-        <HydrogenSlice state={state} basis={basis} plane={plane} extent={extent} phaseColors={phaseColors} active={active} evolutionTerms={evolving ? preset.terms : undefined} phase={evolving ? clock.phase : 0} />
+        <HydrogenSlice state={state} basis={basis} plane={plane} extent={extent} phaseColors={phaseColors} active={active} densityScale={radialScale} evolutionTerms={evolving ? preset.terms : undefined} phase={evolving ? clock.phase : 0} />
         {phaseColors ? <PhaseLegend /> : <div className="density-key"><span>Faible densité</span><i aria-hidden="true" /><span>Forte densité</span></div>}
       </> : <>
         <div className="plot-shell"><ScientificPlot ariaLabel={evolving ? `Distribution radiale évolutive : ${preset.label}` : `Distribution radiale de l’hydrogène n ${n}, ell ${l}`}
@@ -150,17 +151,20 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
           verticalLines={[{ value: mean, tone: 'teal', dashed: true, label: String.raw`$\langle r\rangle$` }]} /></div>
         <p className="probability-note">Probabilité intégrée dans le cadre radial : {(100 * capturedProbability).toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 2 })} %. Échelle verticale commune à la famille, à facteur <Formula>{'$s$'}</Formula> fixé. Le facteur agit seulement sur l’affichage.{!evolving ? <> La courbe ne dépend pas de <Formula>{'$m$'}</Formula> ni du choix d’une base réelle ou complexe.</> : null}</p>
       </>}
-      {evolving ? <AtomicClock id="hydrogen-time" clock={clock} period={String.raw`$T=2\pi\hbar/\Delta E=${periodFs.toFixed(3)}\,\mathrm{fs}$`} /> : null}
+      {evolving ? <AtomicClock id="hydrogen" clock={clock} scale={radialScale} onScaleChange={setRadialScale} scaleMax={100}
+        scaleDescription="Le facteur s agit sur le contraste de la coupe ou la hauteur de la courbe radiale, sans modifier l’orbitale ni sa normalisation."
+        period={String.raw`$T=2\pi\hbar/\Delta E=${periodFs.toFixed(3)}\,\mathrm{fs}$`} />
+        : <DisplayControls id="hydrogen" stationary scale={radialScale} onScaleChange={setRadialScale} scaleMax={100} />}
       <EnergyLevels energies={Array.from({ length: lastLevel - firstLevel + 1 }, (_, index) => hydrogenEnergy(index + firstLevel))} selected={evolving ? preset.terms.map(term => term.n - firstLevel) : n - firstLevel} firstIndex={firstLevel} unit={String.raw`$E\;\mathrm{(eV)}$`} label="Niveaux liés de l’hydrogène" />
       <div className="insight-row atomic-insight"><span className="insight-index"><Formula>{'$r$'}</Formula></span><p>{evolving ? preset.description : rydberg ? <>État circulaire <Formula>{String.raw`$n=${n},\;\ell=${l},\;m=${m}$`}</Formula> : le maximum de la probabilité radiale est à <Formula>{`$r=n^2a_0=${n * n}a_0$`}</Formula>. La densité d’un état propre reste stationnaire ; l’anneau n’est pas une trajectoire.</> : n === 1
         ? <>Dans l’état <Formula>{'$1s$'}</Formula>, la densité volumique est maximale au noyau, mais la probabilité radiale est maximale à <Formula>{'$r=a_0$'}</Formula>.</>
         : <>La fonction radiale possède {n - l - 1} nœud{n - l - 1 > 1 ? 's' : ''}. Le facteur <Formula>{'$r^2$'}</Formula> tient compte du volume des couches sphériques.</>}</p></div>
-      {rydberg ? <p className="scale-note">Les états circulaires maximisent le moment orbital et sa projection pour un <Formula>{'$n$'}</Formula> fixé. <a href="https://arxiv.org/abs/1305.1149" target="_blank" rel="noreferrer">États hydrogénoïdes de Rydberg · López-Rosa et al.</a></p> : null}
+      {rydberg ? <p className="scale-note">Les états circulaires maximisent le moment orbital et sa projection pour un <Formula>{'$n$'}</Formula> fixé.</p> : null}
       <details className="theory-notes"><summary>Repères théoriques</summary><div className="theory-grid">
         <div><span>Potentiel et niveaux liés</span><Formula display>{String.raw`$\begin{aligned}V(r)&=-\frac{e^2}{4\pi\varepsilon_0r},\\E_n&\simeq-\frac{13.606\,\mathrm{eV}}{n^2}.\end{aligned}$`}</Formula></div>
         <div><span>Probabilité radiale</span><Formula display>{String.raw`$\begin{aligned}P_{n\ell}(r)&=r^2|R_{n\ell}(r)|^2,\\\int_0^\infty P_{n\ell}(r)\,dr&=1,\\\langle r\rangle&=\frac{a_0}{2}[3n^2-\ell(\ell+1)].\end{aligned}$`}</Formula></div>
         <div><span>Fonction radiale normalisée</span><Formula display>{String.raw`$\begin{aligned}R_{n\ell}(r)&=N_{n\ell}e^{-\rho/2}\rho^\ell L_{n-\ell-1}^{2\ell+1}(\rho),\\\rho&=\frac{2r}{na_0},\\N_{n\ell}&=\left(\frac{2}{na_0}\right)^{3/2}\sqrt{\frac{(n-\ell-1)!}{2n(n+\ell)!}}.\end{aligned}$`}</Formula></div>
-      </div><p><Formula>{String.raw`$L_k^\alpha$`}</Formula> désigne un polynôme de Laguerre généralisé. Les orbitales réelles utilisent, pour <Formula>{'$k>0$'}</Formula>, <Formula>{String.raw`$\mathcal Y_{\ell,k}=\sqrt2(-1)^k\Re Y_\ell^k$`}</Formula> et <Formula>{String.raw`$\mathcal Y_{\ell,-k}=\sqrt2(-1)^k\Im Y_\ell^k$`}</Formula>. Le modèle néglige le spin, la structure fine et le mouvement du proton ; les densités des états propres sont stationnaires. <a href="https://farside.ph.utexas.edu/teaching/qmech/Quantum/node82.html" target="_blank" rel="noreferrer">Hydrogène · R. Fitzpatrick, UT Austin</a>.</p></details>
+      </div><p><Formula>{String.raw`$L_k^\alpha$`}</Formula> désigne un polynôme de Laguerre généralisé. Les orbitales réelles utilisent, pour <Formula>{'$k>0$'}</Formula>, <Formula>{String.raw`$\mathcal Y_{\ell,k}=\sqrt2(-1)^k\Re Y_\ell^k$`}</Formula> et <Formula>{String.raw`$\mathcal Y_{\ell,-k}=\sqrt2(-1)^k\Im Y_\ell^k$`}</Formula>. Le modèle néglige le spin, la structure fine et le mouvement du proton ; les densités des états propres sont stationnaires.</p></details>
     </div>
   </section>;
 }

@@ -1,6 +1,7 @@
 /** Symmetric quartic double well, in units hbar = m = 1. */
 export type DoubleWellConfig = { barrier: number; separation: number };
 export type DoubleWellSide = 'left' | 'right';
+export type DoubleWellInitialState = { lower: number; upperWeight: number; relativePhase: number };
 export type DoubleWellSpectrum = {
   x: Float64Array;
   potential: Float64Array;
@@ -105,15 +106,30 @@ export function solveDoubleWell(config: DoubleWellConfig, intervals = DOUBLE_WEL
   return { x, potential, energies, states, dx };
 }
 
-/** phase = (E1 - E0)t/hbar. A global phase cancels from the density. */
-export function doubleWellFrame(spectrum: DoubleWellSpectrum, phase: number, side: DoubleWellSide) {
-  const sign = side === 'left' ? 1 : -1;
-  const cosine = Math.cos(phase), sine = Math.sin(phase);
+/** Relative phase giving constructive interference in the left half-space. */
+export function doubleWellLeftPhase(spectrum: DoubleWellSpectrum, lower: number) {
+  let overlap = 0;
+  for (let j = 0; j < (spectrum.x.length - 1) / 2; j++) overlap += spectrum.states[lower][j] * spectrum.states[lower + 1][j];
+  return overlap < 0 ? Math.PI : 0;
+}
+
+/** phase = (E_b - E_a)t/hbar. A global phase cancels from the density.
+ * psi(0) = sqrt(1-p) phi_a + exp(i delta) sqrt(p) phi_b.
+ */
+export function doubleWellFrame(spectrum: DoubleWellSpectrum, phase: number, initial: DoubleWellSide | DoubleWellInitialState) {
+  const { lower, upperWeight, relativePhase } = typeof initial === 'string'
+    ? { lower: 0, upperWeight: .5, relativePhase: initial === 'left' ? 0 : Math.PI } : initial;
+  if (!Number.isInteger(lower) || lower < 0 || lower % 2 !== 0 || lower + 1 >= spectrum.states.length
+    || !Number.isFinite(upperWeight) || upperWeight < 0 || upperWeight > 1 || !Number.isFinite(relativePhase) || !Number.isFinite(phase)) {
+    throw new Error('État initial du double puits invalide.');
+  }
+  const a = Math.sqrt(1 - upperWeight), b = Math.sqrt(upperWeight);
+  const cosine = Math.cos(relativePhase - phase), sine = Math.sin(relativePhase - phase);
   const density = new Float64Array(spectrum.x.length);
   let left = 0, right = 0, meanX = 0;
   for (let j = 0; j < density.length; j++) {
-    const re = (spectrum.states[0][j] + sign * spectrum.states[1][j] * cosine) / Math.SQRT2;
-    const im = -sign * spectrum.states[1][j] * sine / Math.SQRT2;
+    const re = a * spectrum.states[lower][j] + b * spectrum.states[lower + 1][j] * cosine;
+    const im = b * spectrum.states[lower + 1][j] * sine;
     density[j] = re * re + im * im;
     const probability = density[j] * spectrum.dx;
     // Divide the sample exactly at the symmetry plane equally between halves.
@@ -122,5 +138,6 @@ export function doubleWellFrame(spectrum: DoubleWellSpectrum, phase: number, sid
     else { left += probability / 2; right += probability / 2; }
     meanX += spectrum.x[j] * probability;
   }
-  return { density, left, right, meanX };
+  const meanEnergy = (1 - upperWeight) * spectrum.energies[lower] + upperWeight * spectrum.energies[lower + 1];
+  return { density, left, right, meanX, meanEnergy };
 }

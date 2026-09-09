@@ -1,4 +1,5 @@
 import type { ExperimentCommand } from '../components/lab-types';
+import { LAB_FINAL_TIME_MAX, parsePlaybackSettings } from './playback';
 
 export type SpinAxis = 'x' | 'y' | 'z';
 export type SpinField = SpinAxis | 'tilted';
@@ -37,7 +38,8 @@ export function probabilityPlus(vector: Vector3, axis: SpinAxis): number {
 }
 
 export function parseSpinExperiment(data: Record<string, unknown>): Omit<ExperimentCommand, 'id'> {
-  const bounds = { spinTheta: [0, 180], spinPhi: [0, 360], spinOmega: [.25, 3], time: [0, SPIN_TIME_MAX] } as const;
+  const playback = parsePlaybackSettings(data);
+  const bounds = { spinTheta: [0, 180], spinPhi: [0, 360], spinOmega: [.25, 3], time: [0, LAB_FINAL_TIME_MAX] } as const;
   for (const key of Object.keys(bounds) as Array<keyof typeof bounds>) {
     const v = data[key];
     if (v !== undefined && (typeof v !== 'number' || !Number.isFinite(v) || v < bounds[key][0] || v > bounds[key][1])) throw new Error(`${key} doit être compris entre ${bounds[key][0]} et ${bounds[key][1]}.`);
@@ -48,5 +50,5 @@ export function parseSpinExperiment(data: Record<string, unknown>): Omit<Experim
   if (data.mode !== undefined && data.mode !== 'evolution') throw new Error('Le spin utilise le mode evolution ; les états propres se préparent avec les directions ±x, ±y, ±z.');
   return { lab: 'spin', mode: 'evolution', spinTheta: data.spinTheta as number | undefined, spinPhi: data.spinPhi as number | undefined,
     spinOmega: data.spinOmega as number | undefined, spinField: data.spinField as SpinField | undefined, spinMeasure: data.spinMeasure as SpinAxis | undefined,
-    preset: data.preset as string | undefined, time: data.time as number | undefined };
+    preset: data.preset as string | undefined, time: data.time as number | undefined, ...playback };
 }

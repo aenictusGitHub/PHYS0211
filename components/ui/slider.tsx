@@ -25,7 +25,9 @@ function Slider({
       value={value}
       min={min}
       max={max}
-      thumbAlignment="edge"
+      // Center alignment positions the thumb from its value alone. Edge alignment
+      // hides it until layout is measured, including in initially hidden labs.
+      thumbAlignment="center"
       aria-label={ariaLabel}
       {...props}
     >

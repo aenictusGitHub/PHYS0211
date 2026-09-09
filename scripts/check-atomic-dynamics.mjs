@@ -4,11 +4,11 @@ import { angularWave, hydrogenWave, radialDistribution, angularDensity, radialEx
 import { harmonicEigenfunction } from '../lib/quantum.ts';
 import { solveDoubleWell } from '../lib/double-well.ts';
 import { eigenstateDomain, energyGuides } from '../lib/energy-display.ts';
-import { parseAtomicExperiment } from '../lib/atomic-command.ts';
 
 registerHooks({ resolve(specifier, context, nextResolve) {
-  return nextResolve(specifier === './atomic' && context.parentURL?.endsWith('/atomic-dynamics.ts') ? './atomic.ts' : specifier, context);
+  return nextResolve(specifier === './playback' ? './playback.ts' : specifier === './atomic' && context.parentURL?.endsWith('/atomic-dynamics.ts') ? './atomic.ts' : specifier, context);
 } });
+const { parseAtomicExperiment } = await import('../lib/atomic-command.ts');
 const { ROTOR_PRESETS, HYDROGEN_PRESETS, relativeFactors, evolveSamples, basisDensityCeiling, polarSuperposition, radialSuperposition } = await import('../lib/atomic-dynamics.ts');
 const close = (a, b, eps, name) => assert.ok(Math.abs(a - b) < eps, `${name}: ${a} versus ${b}`);
 function integral(f, upper, intervals = 4000) {

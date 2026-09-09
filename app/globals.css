@@ -355,6 +355,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .measurements dd .katex { font-size: 1em; }
 
 .figure-panel {
+  container-type: inline-size;
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -372,7 +373,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .figure-heading h2 .katex { font-size: 1em; }
 .figure-tag { border: 1px solid var(--line); padding: 8px 12px; color: var(--muted-foreground); font-size: var(--text-small); }
 .plot-shell { display: grid; min-width: 0; place-items: center; margin: 28px 0; }
-.scientific-plot-frame { position: relative; width: 100%; aspect-ratio: 780 / 440; }
+.scientific-plot-frame { position: relative; width: 100%; aspect-ratio: 780 / 440; font-size: clamp(1rem, .875rem + .8cqi, 1.375rem); }
 .plot-shell .scientific-plot { display: block; width: 100%; height: 100%; max-height: none; overflow: visible; }
 .plot-grid line { stroke: var(--grid); stroke-width: 1; }
 .axis { stroke: var(--foreground); stroke-width: 1.2; }
@@ -381,7 +382,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .wave { fill: none; stroke: var(--accent); stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
 .plot-labels { fill: var(--muted-foreground); font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts'; font-size: var(--text-small); }
 
-.plot-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px 18px; padding-top: 6px; color: var(--muted-foreground); font-size: var(--text-body); line-height: 1.3; }
+.plot-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px 18px; padding-top: 6px; color: var(--muted-foreground); font-size: clamp(1rem, .875rem + .7cqi, 1.25rem); line-height: 1.4; }
 .plot-legend span { display: inline-flex; align-items: center; gap: 8px; }
 .legend-swatch { display: inline-flex; flex: 0 0 24px; width: 24px; height: 1em; align-items: center; background: none; }
 .legend-swatch::before { display: block; width: 100%; height: 4px; background: var(--accent); content: ''; }
@@ -407,7 +408,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .scientific-plot .guide-labels text {
   fill: var(--muted-foreground);
   font-family: 'Atelier Latin Modern', 'Atelier Latin Modern Math', 'Atelier LaTeX Subscripts';
-  font-size: calc(var(--text-small) * var(--plot-tick-scale, 1));
+  font-size: calc(var(--plot-tick-size, 1rem) * var(--plot-tick-scale, 1));
 }
 .scientific-plot .axis-layer .axis-label { fill: var(--foreground); font-size: var(--text-ui); }
 .scientific-plot .guide-labels text { fill: var(--teal); font-size: var(--text-small); }
@@ -437,7 +438,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
   align-items: center;
   justify-content: center;
   color: var(--foreground);
-  font-size: var(--text-body);
+  font-size: 1em;
   line-height: 1;
   pointer-events: none;
   transform-origin: center;
@@ -445,18 +446,48 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 }
 .plot-axis-label.is-x { transform: translate(-50%, -50%); }
 .plot-axis-label.is-y { transform: translate(-50%, -50%) rotate(-90deg); }
-.plot-guide-label { position: absolute; padding: 4px 7px; color: var(--teal); font-size: var(--text-ui); line-height: 1; pointer-events: none; white-space: nowrap; }
+.plot-guide-label { position: absolute; padding: 4px 7px; color: var(--teal); font-size: .95em; line-height: 1; pointer-events: none; white-space: nowrap; }
+.plot-axis-label .katex { font-size: 1em; }
 .plot-guide-label .katex { font-size: 1em; }
 .plot-guide-label.is-end { transform: translateX(-100%); }
+.plot-guide-label.is-above { transform: translateY(-100%); }
+.plot-guide-label.is-above.is-end { transform: translate(-100%, -100%); }
 .plot-guide-label.is-horizontal { transform: translateY(-100%); }
+.plot-guide-label.is-horizontal.is-outside { transform: translateY(-50%); padding: 3px 0 3px 10px; }
 
-.scale-note { margin: 10px 0 0; color: var(--muted-foreground); font-size: var(--text-small); line-height: 1.5; }
+.scale-note { margin: 10px 0 0; color: var(--muted-foreground); font-size: clamp(1rem, .94rem + .15vw, 1.125rem); line-height: 1.6; }
 .scale-control .control-heading output { min-width: 66px; padding: 0 6px; }
 
 .insight-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; border: 1px solid var(--line); border-left: 3px solid var(--lab-tone); border-radius: 8px; padding: 16px 18px; background: var(--lab-tint); }
 .insight-index { color: var(--accent); font-size: var(--text-small); }
 .insight-row p { margin: 0; font-size: var(--text-body); line-height: 1.5; }
-.insight-formula { grid-column: 2; color: var(--teal); font-size: var(--text-small); white-space: nowrap; }
+.insight-formula { grid-column: 2; color: var(--teal); font-size: var(--text-body); white-space: nowrap; }
+
+.coherent-editor { container-type: inline-size; margin: 18px 0; padding: clamp(12px, 2vw, 24px); border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.coherent-editor-heading h3 { margin: 0 0 8px; font-size: var(--text-emphasis); }
+.coherent-editor-heading p { margin: 0 0 16px; color: var(--muted-foreground); font-size: var(--text-ui); line-height: 1.5; }
+.coherent-editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.coherent-plane { min-width: 0; max-width: 360px; width: 100%; margin-inline: auto; }
+.coherent-plane-svg { display: block; width: 100%; height: auto; aspect-ratio: 1; touch-action: none; cursor: crosshair; overflow: visible; }
+.coherent-plane-svg text { font-family: inherit; font-size: 15px; fill: var(--muted-foreground); }
+.coherent-plane-bound { fill: var(--lab-tint); stroke: var(--line); stroke-dasharray: 4 4; }
+.coherent-plane-grid { fill: none; stroke: var(--line); stroke-width: .6; }
+.coherent-plane-axis { fill: none; stroke: var(--muted-foreground); stroke-width: 1.2; }
+.coherent-point { stroke: var(--card); stroke-width: 2; cursor: grab; }
+.coherent-plane-svg .coherent-point-number { fill: white; font-weight: 700; pointer-events: none; }
+.coherent-plane-svg [role='button']:focus-visible { outline: none; }
+.coherent-plane-svg [role='button']:focus-visible circle { stroke: var(--foreground); stroke-width: 3; }
+.coherent-axis-top, .coherent-axis-bottom { text-align: center; font-size: var(--text-ui); }
+.coherent-packet-controls { display: grid; gap: 12px; min-width: 0; }
+.coherent-packet-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.coherent-packet-tabs button { padding: 6px 10px; height: auto; min-height: 36px; }
+.coherent-packet-tabs .is-selected { color: var(--lab-tone); border-color: var(--lab-tone); background: var(--lab-tint); }
+.coherent-number-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.coherent-number-grid .compact-stepper { width: 100%; min-width: 0; max-width: none; }
+.coherent-number-grid .compact-stepper-field { max-width: 9rem; }
+.coherent-packet-controls > button { height: auto; min-height: 36px; white-space: normal; }
+.coherent-error { color: var(--accent); font-size: var(--text-ui); }
+@container (max-width: 540px) { .coherent-editor-grid { grid-template-columns: minmax(0, 1fr); } }
 
 .theory-notes { margin-top: 22px; border-top: 1px solid var(--line); }
 .theory-notes summary { cursor: pointer; padding: 18px 0 4px; color: var(--teal); font-size: var(--text-small); letter-spacing: 0.08em; list-style-position: inside; text-transform: uppercase; }
@@ -466,7 +497,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .theory-grid > div > span:first-child { display: block; margin-bottom: 12px; color: var(--muted-foreground); font-size: var(--text-small); }
 .theory-grid .katex-display { margin: 0; text-align: left; }
 .theory-grid .katex-display > .katex { text-align: left; font-size: var(--text-emphasis); }
-.theory-notes > p { max-width: 780px; margin: 14px 0 0; color: var(--muted-foreground); font-size: var(--text-small); line-height: 1.6; }
+.theory-notes > p { max-width: 780px; margin: 14px 0 0; color: var(--muted-foreground); font-size: var(--text-body); line-height: 1.6; }
 
 .empty-figure { justify-content: center; }
 .empty-figure > div { max-width: 620px; }
@@ -537,8 +568,8 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
 button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--lab-tone, var(--teal)); outline-offset: 4px; }
 .scattering-controls .control-block { padding: 0; }
 .scattering-controls .control-heading { margin-bottom: 12px; }
-.potential-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.potential-choices button { display: flex; flex-direction: column; gap: 6px; height: 70px; padding: 8px 4px; border-radius: 7px; border: 1px solid var(--line); background: var(--card); font-size: var(--text-small); }
+.potential-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.potential-choices button { display: flex; flex-direction: column; gap: 6px; height: auto; min-height: 76px; padding: 8px 4px; border-radius: 7px; border: 1px solid var(--line); background: var(--card); font-size: var(--text-small); white-space: normal; line-height: 1.25; }
 .potential-choices button.is-selected { color: var(--violet); background: var(--lab-tint); border-color: var(--violet); }
 .potential-choices svg { width: 44px; height: 22px; }
 .scattering-presets { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -548,9 +579,28 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .simulation-status::before { width: 7px; height: 7px; content: ''; background: var(--teal); border-radius: 50%; }
 .simulation-status.is-computing::before { background: var(--violet); }
 .scattering-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: center; margin-top: 18px; }
+.scattering-gravity-potential { margin: 0 0 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.scattering-gravity-potential .plot-shell { margin: 12px 0 0; }
+.scattering-gravity-potential .scientific-plot-frame { height: 260px; aspect-ratio: auto; }
 .scattering-timeline { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 24px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); margin: 6px 0 20px; }
 .scattering-timeline .control-heading { margin-bottom: 10px; }
 .scattering-timeline .control-heading output { background: var(--card); }
+.scattering-display-controls { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(4px, 1vw, 12px); width: 100%; max-width: 28rem; min-width: 0; border-top: 1px solid var(--line); padding-top: 10px; }
+.compact-stepper { display: grid; grid-template-rows: 1fr auto; justify-items: start; gap: 4px; min-width: 0; max-width: 100%; font-size: var(--text-small); }
+.compact-stepper > label { color: var(--muted-foreground); }
+.scattering-display-controls.is-stationary { grid-template-columns: minmax(0, 10rem); margin: 12px 0; }
+.scattering-timeline > .playback-note, .scattering-timeline > .theory-notes { grid-column: 1 / -1; margin: 0; }
+.scattering-timeline .restore-auto-time { height: auto; padding: 0 0 0 4px; font: inherit; color: var(--lab-tone); white-space: normal; }
+.compact-stepper-field { display: flex; align-items: center; width: 4.75rem; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--foreground); }
+.compact-stepper-field:focus-within { border-color: var(--lab-tone); }
+.compact-stepper-prefix { padding-left: 4px; }
+.compact-stepper-field input { flex: 1; min-width: 0; width: 0; height: 32px; padding: 4px 3px; border: 0; border-radius: 4px; background: transparent; box-shadow: none; font-size: var(--text-small); text-align: center; font-variant-numeric: tabular-nums; }
+.compact-stepper-field input:focus-visible { outline: 2px solid var(--lab-tone); outline-offset: -2px; }
+.compact-stepper-arrows { display: grid; border-left: 1px solid var(--line); }
+.compact-stepper-arrows button { width: 24px; height: 24px; min-height: 24px; padding: 0; border: 0; border-radius: 3px; color: var(--muted-foreground); background: transparent; }
+.compact-stepper-arrows button:hover:not(:disabled) { color: var(--lab-tone); background: var(--lab-tint); }
+.compact-stepper-arrows button:disabled { opacity: .35; }
+.compact-stepper-arrows button svg { width: 12px; height: 12px; }
 .probability-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
 .probability-card { min-width: 0; border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 8px; padding: 14px 16px; }
 .probability-card.is-center { border-top-color: var(--violet); }
@@ -585,7 +635,7 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .phase-key .range-labels { margin-top: 6px; }
 .atomic-insight { margin-top: 22px; }
 .energy-levels { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 20px; }
-.energy-levels .scientific-plot-frame { height: 250px; aspect-ratio: auto; }
+.energy-levels .scientific-plot-frame { height: clamp(300px, 38vw, 400px); aspect-ratio: auto; }
 .atomic-profile .scientific-plot-frame { aspect-ratio: 780 / 340; }
 .atomic-presets { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .atomic-dynamic-presets { grid-template-columns: 1fr; }
@@ -614,7 +664,6 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
   .lab-tab:nth-child(5) { border-left: 1px solid var(--line); }
 }
 @media (min-width: 781px) and (max-width: 1100px) {
-  .plot-axis-label { font-size: var(--text-ui); }
   .figure-panel { padding: 20px 14px; }
   .scattering-timeline { grid-template-columns: 1fr; gap: 16px; }
   .probability-card { padding: 12px 8px; }
@@ -624,10 +673,59 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
   .scattering-timeline { grid-template-columns: 1fr; gap: 16px; }
   .probability-card { padding: 12px 8px; }
   .figure-heading h2 { font-size: var(--text-heading); }
-  .plot-axis-label { font-size: var(--text-small); }
 }
 
 .spin-workspace .figure-panel { position: static; }
+.well-state-editor { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.well-state-editor > .scale-note:first-child { margin-top: 0; }
+.well-state-editor table { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 16px 0; }
+.well-state-editor th { font-weight: 400; font-size: var(--text-small); color: var(--muted-foreground); }
+.well-state-editor th:first-child { width: 30px; }
+.well-state-editor thead th { padding-bottom: 10px; vertical-align: bottom; }
+.well-state-editor th .katex { font-size: 1em; }
+.well-state-editor td { padding: 4px 3px; }
+.well-state-editor input { min-height: 40px; padding: 6px; background: var(--card); font-size: 1rem; font-variant-numeric: tabular-nums; }
+.well-state-editor .well-state-apply { width: 100%; height: auto; min-height: 44px; white-space: normal; background: var(--lab-tone); color: white; font-size: var(--text-body); }
+.well-state-error { color: var(--accent); font-size: var(--text-body); margin: 0 0 12px; }
+.well-workspace .equation-card .katex-display > .katex { font-size: clamp(1rem, .9rem + .2vw, 1.125rem); }
+.well-perturbation { min-width: 0; padding: 16px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--lab-tint); }
+.well-perturbation-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: var(--text-body); }
+.well-perturbation-heading label { cursor: pointer; }
+.well-perturbation [data-slot='switch'] { box-sizing: border-box; width: 2.625rem; min-width: 2.625rem; height: 1.5rem; padding: 0; border: 0; background: var(--muted-foreground); }
+.well-perturbation [data-slot='switch'][data-checked] { background: var(--lab-tone); }
+/* Cancel the primitive's individual translate property as well as its transform:
+   combining both translations previously pushed the thumb outside the track. */
+.well-perturbation [data-slot='switch-thumb'] { position: absolute; left: .25rem; top: 50%; width: 1rem; height: 1rem; translate: none; transform: translateY(-50%); transition: left 150ms ease; background: #fff; }
+.well-perturbation [data-slot='switch-thumb'][data-checked] { left: calc(100% - 1.25rem); }
+@media (prefers-reduced-motion: reduce) {
+  .well-perturbation [data-slot='switch-thumb'] { transition: none; }
+}
+.well-perturbation > .scale-note { margin: 12px 0 0; }
+.well-perturbation .control-stack { margin-top: 16px; gap: 14px; }
+.well-perturbation .equation-card { padding: 12px 4px; }
+.well-perturbation .equation-card > .math-formula { color: var(--foreground); }
+.well-perturbation .scale-note:last-child { margin-bottom: 0; }
+.well-workspace .control-panel > .well-perturbation { grid-column: 1 / -1; }
+.oscillator-workspace .control-panel > .well-perturbation { grid-column: 1 / -1; }
+.oscillator-workspace .well-perturbation .math-formula { display: block; overflow-x: auto; }
+@media (min-width: 461px) and (max-width: 780px) {
+  .well-workspace .control-panel > .mode-switch, .well-workspace .control-panel > .equation-card { grid-column: 1 / -1; }
+  .oscillator-workspace .control-panel > .mode-switch, .oscillator-workspace .control-panel > .equation-card { grid-column: 1 / -1; }
+}
+.well-potential-profile { margin: 24px 0; padding-top: 22px; border-top: 1px solid var(--line); }
+.well-potential-profile .scientific-plot-frame { height: 240px; aspect-ratio: auto; }
+.well-potential-heading .eyebrow { margin-bottom: 0; }
+.well-potential-heading output { display: inline-flex; align-items: center; gap: 8px; color: var(--teal); }
+.well-observables { min-width: 0; margin: 24px 0; padding-top: 22px; border-top: 1px solid var(--line); }
+.well-observables > h3 { font-weight: 400; }
+.well-moment-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.well-moment-panel { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 16px 12px 8px; }
+.well-moment-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: var(--text-body); }
+.well-moment-heading > span { display: inline-flex; align-items: center; gap: 8px; }
+.well-moment-heading output { font-size: var(--text-body); font-variant-numeric: tabular-nums; }
+.well-moment-heading .katex { font-size: 1em; }
+.well-moment-panel .plot-shell { margin: 16px 0 8px; }
+.well-moment-panel .scientific-plot-frame { height: 260px; aspect-ratio: auto; }
 .spin-workspace .control-caption { margin: 0 0 12px; font-size: var(--text-ui); }
 .spin-presets, .spin-fields, .spin-measure-axis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .spin-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }

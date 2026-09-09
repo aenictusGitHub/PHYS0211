@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { solveDoubleWell, doubleWellFrame, doubleWellPotential, DOUBLE_WELL_DEFAULT, DOUBLE_WELL_INTERVALS } from '../lib/double-well.ts';
+import { solveDoubleWell, doubleWellFrame, doubleWellLeftPhase, doubleWellPotential, DOUBLE_WELL_DEFAULT, DOUBLE_WELL_INTERVALS } from '../lib/double-well.ts';
 
 const close = (actual, expected, tolerance, message) => assert.ok(
   Math.abs(actual - expected) < tolerance, `${message}: ${actual} versus ${expected}`,
@@ -54,8 +54,30 @@ for (const config of configs) {
     assert.ok(frame.density.every(value => value >= 0 && Number.isFinite(value)), 'Finite nonnegative density');
   }
   close(doubleWellFrame(spectrum, Math.PI / 2, 'left').left, .5, 1e-10, 'Quarter-period balance');
+  for (const lower of [0, 2, 4, 6]) {
+    const localized = { lower, upperWeight: .5, relativePhase: doubleWellLeftPhase(spectrum, lower) };
+    assert.ok(doubleWellFrame(spectrum, 0, localized).left > .5, 'Left preparation for each doublet');
+    for (const upperWeight of [0, .15, .5, .85, 1]) for (const relativePhase of [-Math.PI, -.7, 0, Math.PI / 2, Math.PI]) {
+      const initialState = { lower, upperWeight, relativePhase };
+      const initialFrame = doubleWellFrame(spectrum, 0, initialState);
+      for (const phase of [0, .31, Math.PI, 2 * Math.PI, 12 * Math.PI]) {
+        const frame = doubleWellFrame(spectrum, phase, initialState);
+        close(frame.left + frame.right, 1, 1e-10, 'Custom state norm');
+        close(frame.meanEnergy, (1 - upperWeight) * energies[lower] + upperWeight * energies[lower + 1], 1e-12, 'Weighted mean energy');
+        if (upperWeight === 0 || upperWeight === 1) {
+          frame.density.forEach((value, j) => close(value, initialFrame.density[j], 1e-12, 'Pure eigenstate is stationary'));
+        }
+        if (phase === Math.PI) close(frame.left, initialFrame.right, 1e-10, 'Custom half-period mirror');
+        if (phase === 2 * Math.PI) close(frame.left, initialFrame.left, 1e-10, 'Custom full-period revival');
+      }
+    }
+  }
   console.log(`Vb=${config.barrier}, a=${config.separation}: E0=${energies[0].toFixed(6)}, gap=${gap.toExponential(5)}, initial left=${initial.left.toFixed(6)} (${Math.round(performance.now() - started)} ms)`);
 }
 assert.throws(() => solveDoubleWell({ barrier: -1, separation: 1 }));
 assert.throws(() => solveDoubleWell({ barrier: 1, separation: Number.NaN }));
+const spectrum = solveDoubleWell(DOUBLE_WELL_DEFAULT);
+for (const patch of [{ lower: 1 }, { lower: 8 }, { upperWeight: -1 }, { upperWeight: 1.1 }, { relativePhase: NaN }]) {
+  assert.throws(() => doubleWellFrame(spectrum, 0, { lower: 0, upperWeight: .5, relativePhase: 0, ...patch }));
+}
 console.log('Normalization, parity, orthogonality, residuals, grid convergence and tunneling dynamics pass.');

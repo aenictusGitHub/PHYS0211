@@ -1,19 +1,24 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Pause, Play, RotateCcw } from 'lucide-react';
+import { PlaybackControls, DisplayControls } from '@/components/playback-controls';
+import { useLabPlayback } from '@/components/use-lab-playback';
 
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Math as Formula } from '@/components/math';
 import { ScientificPlot } from '@/components/scientific-plot';
 import { EnergyLevels } from '@/components/energy-levels';
+import { WellObservables } from '@/components/well-observables';
+import { WellStateEditor } from '@/components/well-state-editor';
+import { QuantumParameter } from '@/components/quantum-parameter';
+import { customWellCoefficients, wellDensityCeiling } from '@/lib/well-state';
+import { clipEnergyGuides, potentialEnergyDomain } from '@/lib/plot-geometry';
+import { evolveWellState, linearWellEigenfunction, prepareLinearWellMoments, projectWellState, solveLinearWell, WELL_BASIS_SIZE, WELL_LINEAR_LIMIT } from '@/lib/well-linear';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import {
-  DISPLAY_SCALE_MAX,
-  DISPLAY_SCALE_MIN,
   TAU_MAX,
-  clamp,
   sliderValue,
   wellCoefficients,
   wellEigenfunction,
@@ -22,6 +27,7 @@ import {
 } from '@/lib/quantum';
 
 type WellMode = 'stationary' | 'evolution';
+type InitialState = WellPreset | 'custom';
 
 const PRESETS: Array<{
   value: WellPreset;
@@ -33,21 +39,6 @@ const PRESETS: Array<{
   { value: 'high-pair', label: 'Modes 9 + 10', short: '9 + 10', width: 4 },
   { value: 'parabola', label: 'Parabole', short: 'Parabole', width: 4 },
 ];
-
-function evolveWellCoefficients(
-  coefficients: Coefficient[],
-  time: number,
-) {
-  return coefficients.map((coefficient) => {
-    const angle = coefficient.n ** 2 * time;
-    const cosine = Math.cos(angle);
-    const sine = Math.sin(angle);
-    return {
-      re: coefficient.re * cosine + coefficient.im * sine,
-      im: coefficient.im * cosine - coefficient.re * sine,
-    };
-  });
-}
 
 function probabilityFromBasis(
   basis: number[],
@@ -62,7 +53,8 @@ function probabilityFromBasis(
   return re * re + im * im;
 }
 
-function presetFormula(preset: WellPreset) {
+function presetFormula(preset: InitialState) {
+  if (preset === 'custom') return String.raw`$\begin{aligned}\psi(x,0)&=\displaystyle\sum\limits_{n=1}^{10}c_n\phi_n(x),\\[.7em]c_n&=\frac{A_n}{N}e^{i\theta_n},\\[.7em]N^2&=\displaystyle\sum\limits_{k=1}^{10}A_k^2.\end{aligned}$`;
   if (preset === 'low-pair') {
     return String.raw`$\psi(x,0)=\frac{\phi_1(x)+\phi_2(x)}{\sqrt{2}}$`;
   }
@@ -72,7 +64,8 @@ function presetFormula(preset: WellPreset) {
   return String.raw`$\psi(x,0)=\frac{\sqrt{30}}{a^{5/2}}x(a-x)$`;
 }
 
-function presetInsight(preset: WellPreset) {
+function presetInsight(preset: InitialState) {
+  if (preset === 'custom') return 'Les amplitudes fixent les populations des niveaux ; les phases relatives modifient les interférences. Changer l’état initial remet le temps à zéro.';
   if (preset === 'low-pair') {
     return <>La différence d’énergie <Formula>{String.raw`$\Delta E=3E_1$`}</Formula> fait osciller la densité de gauche à droite.</>;
   }
@@ -92,10 +85,18 @@ export function InfiniteWellLab({
   const [mode, setMode] = useState<WellMode>('stationary');
   const [n, setN] = useState(1);
   const [width, setWidth] = useState(1);
-  const [preset, setPreset] = useState<WellPreset>('low-pair');
+  const [preset, setPreset] = useState<InitialState>('low-pair');
+  const [customCoefficients, setCustomCoefficients] = useState<Coefficient[]>(() => wellCoefficients('low-pair'));
   const [time, setTime] = useState(0);
   const [psiScale, setPsiScale] = useState(2);
+  const [stationaryScale, setStationaryScale] = useState(1);
   const [playing, setPlaying] = useState(false);
+  const clock = useLabPlayback({ active, enabled: mode === 'evolution', time, setTime, playing, setPlaying, defaultFinalTime: TAU_MAX, rate: 1, command: command?.lab === 'well' ? command : null });
+  const [perturbationEnabled, setPerturbationEnabled] = useState(false);
+  const [perturbationStrength, setPerturbationStrength] = useState(6);
+  const strength = perturbationEnabled ? perturbationStrength : 0;
+  const perturbed = strength !== 0;
+  const energyReference = perturbed ? String.raw`E_{\mathrm{ref}}` : 'E_1';
 
   useEffect(() => {
     if (!command || command.lab !== 'well') return;
@@ -111,95 +112,91 @@ export function InfiniteWellLab({
       if (selected) setWidth(selected.width);
       setPsiScale(command.preset === 'parabola' ? 6 : 2);
     }
+    if (command.preset === 'custom' || command.wellModes) {
+      setPreset('custom');
+      if (command.wellModes) setCustomCoefficients(customWellCoefficients(command.wellModes));
+      setTime(0);
+    }
+    if (command.wellWidth !== undefined) setWidth(command.wellWidth);
+    if (command.wellLinear !== undefined) {
+      setPerturbationEnabled(command.wellLinear !== 0);
+      if (command.wellLinear !== 0) setPerturbationStrength(command.wellLinear);
+      setTime(0);
+    }
     if (command.time !== undefined) setTime(command.time);
-    if (command.scale !== undefined) setPsiScale(command.scale);
+    if (command.scale !== undefined) { setPsiScale(command.scale); setStationaryScale(command.scale); }
     setPlaying(false);
   }, [command]);
 
-  useEffect(() => {
-    if (!active || !playing) return;
-    let animationFrame = 0;
-    let previousTime: number | null = null;
-    let accumulatedMilliseconds = 0;
-    const frameDuration = 1000 / 60;
-    const animate = (timestamp: number) => {
-      if (previousTime !== null) {
-        accumulatedMilliseconds += Math.min(timestamp - previousTime, 100);
-        const elapsedFrames = Math.floor(accumulatedMilliseconds / frameDuration);
-        if (elapsedFrames > 0) {
-          accumulatedMilliseconds -= elapsedFrames * frameDuration;
-          const elapsed = (elapsedFrames * frameDuration) / 1000;
-          setTime((current) => (current + elapsed) % TAU_MAX);
-        }
-      }
-      previousTime = timestamp;
-      animationFrame = window.requestAnimationFrame(animate);
-    };
-    animationFrame = window.requestAnimationFrame(animate);
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [active, playing]);
 
-  const coefficients = useMemo(() => wellCoefficients(preset), [preset]);
+  const coefficients = useMemo(() => preset === 'custom' ? customCoefficients : wellCoefficients(preset), [preset, customCoefficients]);
+  const spectrum = useMemo(() => strength === 0 ? null : solveLinearWell(strength), [strength]);
+  const spectralCoefficients = useMemo(() => spectrum ? projectWellState(spectrum, coefficients) : coefficients, [spectrum, coefficients]);
+  const momentModel = useMemo(() => spectrum ? prepareLinearWellMoments(spectrum, spectralCoefficients) : undefined, [spectrum, spectralCoefficients]);
+  const energies = useMemo(() => spectrum?.energies.slice(0, 8) ?? Array.from({ length: 8 }, (_, i) => (i + 1) ** 2), [spectrum]);
   const plotGrid = useMemo(
     () =>
       Array.from({ length: 241 }, (_, index) => {
         const u = index / 240;
-        return { u, x: width * u };
+        return { u };
       }),
-    [width],
+    [],
   );
   const evolutionBasis = useMemo(
     () =>
       plotGrid.map((point) =>
-        coefficients.map((coefficient) =>
-          wellEigenfunction(coefficient.n, point.u, width),
+        spectralCoefficients.map((coefficient) =>
+          spectrum ? linearWellEigenfunction(spectrum.states[coefficient.n - 1], point.u, width) : wellEigenfunction(coefficient.n, point.u, width),
         ),
       ),
-    [coefficients, plotGrid, width],
+    [spectralCoefficients, spectrum, plotGrid, width],
   );
   const evolvedCoefficients = useMemo(
-    () => evolveWellCoefficients(coefficients, time),
-    [coefficients, time],
+    () => evolveWellState(spectralCoefficients, time, spectrum?.energies),
+    [spectralCoefficients, spectrum, time],
   );
   const values = useMemo(() => {
     return plotGrid.map((point, index) => ({
-      x: point.x,
+      x: point.u,
       y:
         mode === 'stationary'
-          ? wellEigenfunction(n, point.u, width)
+          ? stationaryScale * (spectrum ? linearWellEigenfunction(spectrum.states[n - 1], point.u, width) : wellEigenfunction(n, point.u, width))
           : psiScale *
             probabilityFromBasis(evolutionBasis[index], evolvedCoefficients),
     }));
-  }, [evolutionBasis, evolvedCoefficients, mode, n, plotGrid, psiScale, width]);
+  }, [evolutionBasis, evolvedCoefficients, mode, n, plotGrid, psiScale, width, spectrum, stationaryScale]);
+
+  const stationaryExtent = useMemo(() => Math.max(2.3, stationaryScale * (spectrum ? Math.max(...spectrum.states.slice(0, 8).map(state =>
+    Math.max(...plotGrid.map(point => Math.abs(linearWellEigenfunction(state, point.u, width)))))) : Math.sqrt(2 / width)) * 1.12), [spectrum, plotGrid, width, stationaryScale]);
 
   const unscaledMaximumDensity = useMemo(() => {
     if (mode !== 'evolution') return 1;
-    let maximum = 0;
-    const sampleCount = 240;
-    for (let sample = 0; sample < sampleCount; sample += 1) {
-      const sampleTime = (sample * TAU_MAX) / sampleCount;
-      const evolved = evolveWellCoefficients(coefficients, sampleTime);
-      evolutionBasis.forEach((basis) => {
-        maximum = Math.max(maximum, probabilityFromBasis(basis, evolved));
-      });
-    }
-    return maximum;
-  }, [coefficients, evolutionBasis, mode]);
+    return wellDensityCeiling(spectralCoefficients, evolutionBasis);
+  }, [spectralCoefficients, evolutionBasis, mode]);
   const maximumDensity =
     mode === 'evolution'
       ? Math.max(2.2, psiScale * unscaledMaximumDensity)
       : 1;
   const expectedReducedEnergy = useMemo(
     () =>
-      coefficients.reduce(
+      spectralCoefficients.reduce(
         (total, coefficient) =>
           total +
           (coefficient.re * coefficient.re + coefficient.im * coefficient.im) *
-            coefficient.n ** 2,
+            (spectrum?.energies[coefficient.n - 1] ?? coefficient.n ** 2),
         0,
       ),
-    [coefficients],
+    [spectralCoefficients, spectrum],
   );
+  const potentialPlot = useMemo(() => {
+    const floor = [{ x: 0, y: -strength / 2 }, { x: 1, y: strength / 2 }];
+    const domain = potentialEnergyDomain(floor, [expectedReducedEnergy]);
+    return {
+      domain,
+      walls: [{ x: 0, y: domain[1] }, ...floor, { x: 1, y: domain[1] }],
+      energyGuides: clipEnergyGuides([{ value: expectedReducedEnergy, label: String.raw`$\langle E\rangle$`, tone: 'teal', dashed: true, width: 2 }], floor),
+    };
+  }, [strength, expectedReducedEnergy]);
 
   const selectPreset = (nextPreset: WellPreset) => {
     const selected = PRESETS.find((entry) => entry.value === nextPreset);
@@ -211,10 +208,10 @@ export function InfiniteWellLab({
   };
 
   return (
-    <section className="workspace" aria-labelledby="well-title">
+    <section className="workspace well-workspace" aria-labelledby="well-title">
       <aside className="control-panel">
         <div>
-          <p className="eyebrow">01</p>
+          <p className="eyebrow">02</p>
           <h1 id="well-title">Puits de potentiel infini</h1>
           <p className="lede">
             Reliez quantification, nœuds et interférences dans un espace où la
@@ -244,13 +241,30 @@ export function InfiniteWellLab({
           </Button>
         </div>
 
+        <section className="well-perturbation" aria-labelledby="well-perturbation-label">
+          <div className="well-perturbation-heading">
+            <label id="well-perturbation-label" htmlFor="well-linear-enabled">Perturbation linéaire</label>
+            <Switch id="well-linear-enabled" checked={perturbationEnabled} onCheckedChange={enabled => { setPerturbationEnabled(enabled); setTime(0); setPlaying(false); }} aria-describedby="well-perturbation-help" />
+          </div>
+          <p id="well-perturbation-help" className="scale-note">{perturbationEnabled ? 'Potentiel incliné entre deux parois infinies.' : 'Incliner le fond du puits avec un potentiel linéaire.'}</p>
+          {perturbationEnabled ? <div className="control-stack">
+            <div className="equation-card">
+              <Formula display>{String.raw`$V(x)=\lambda E_{\mathrm{ref}}\!\left(\frac{x}{a}-\frac12\right)$`}</Formula>
+              <Formula display>{String.raw`$E_{\mathrm{ref}}=\frac{\pi^2\hbar^2}{2ma^2}$`}</Formula>
+            </div>
+            <QuantumParameter id="well-linear-strength" label="Pente" symbol={String.raw`$\lambda$`} value={perturbationStrength} min={-WELL_LINEAR_LIMIT} max={WELL_LINEAR_LIMIT} step={.1} onChange={value => { setPerturbationStrength(value); setTime(0); setPlaying(false); }} />
+            <p className="scale-note">Le zéro du potentiel est au centre. Inverser le signe inverse la pente ; <Formula>{String.raw`$\lambda=0$`}</Formula> retrouve le puits plat.</p>
+          </div> : null}
+        </section>
+
         <div className="equation-card">
           <span>{mode === 'stationary' ? 'Fonction propre normalisée' : 'État initial'}</span>
           <Formula display>
             {mode === 'stationary'
-              ? String.raw`$\phi_n(x)=\sqrt{\frac{2}{a}}\sin\!\left(\frac{n\pi x}{a}\right)$`
+              ? perturbed ? String.raw`$\begin{aligned}\hat H_\lambda\phi_n^{(\lambda)}&=E_n^{(\lambda)}\phi_n^{(\lambda)},\\\phi_n^{(\lambda)}(0)&=\phi_n^{(\lambda)}(a)=0.\end{aligned}$` : String.raw`$\phi_n(x)=\sqrt{\frac{2}{a}}\sin\!\bigl(n\pi x/a\bigr)$`
               : presetFormula(preset)}
           </Formula>
+          {perturbed ? <p className="scale-note">{mode === 'stationary' ? `États calculés dans une base de ${WELL_BASIS_SIZE} sinus.` : <>Les <Formula>{String.raw`$\phi_n$`}</Formula> de l’état initial restent ceux du puits sans perturbation. L’évolution utilise le potentiel incliné dès <Formula>{'$t=0$'}</Formula>.</>}</p> : null}
         </div>
 
         {mode === 'stationary' ? (
@@ -272,26 +286,10 @@ export function InfiniteWellLab({
               <div className="range-labels" aria-hidden="true"><span>1</span><span>8</span></div>
             </div>
 
-            <div className="control-block">
-              <div className="control-heading">
-                <label htmlFor="well-width">Largeur du puits <Formula>{String.raw`$a$`}</Formula></label>
-                <output>{width.toFixed(1)}</output>
-              </div>
-              <Slider
-                id="well-width"
-                min={0.5}
-                max={4}
-                step={0.1}
-                value={[width]}
-                onValueChange={(value) => setWidth(sliderValue(value, 1))}
-                aria-label="Largeur du puits a"
-              />
-              <div className="range-labels" aria-hidden="true"><span>0.5</span><span>4.0</span></div>
-            </div>
           </div>
         ) : (
           <div className="control-stack">
-            <div className="preset-grid" role="group" aria-label="État initial">
+            <div className="preset-grid preset-grid-four" role="group" aria-label="État initial">
               {PRESETS.map((entry) => (
                 <Button
                   key={entry.value}
@@ -303,69 +301,26 @@ export function InfiniteWellLab({
                   {entry.short}
                 </Button>
               ))}
+              <Button variant="outline" className={preset === 'custom' ? 'is-selected' : ''} aria-pressed={preset === 'custom'} onClick={() => { setPreset('custom'); setTime(0); setPlaying(false); }}>Personnalisé</Button>
             </div>
 
-            <div className="control-block time-control">
-              <div className="control-heading">
-                <label htmlFor="well-time">Temps réduit <Formula>{String.raw`$\tau$`}</Formula></label>
-                <output>{time.toFixed(2)}</output>
-              </div>
-              <Slider
-                id="well-time"
-                min={0}
-                max={TAU_MAX}
-                step={0.01}
-                value={[time]}
-                onValueChange={(value) => setTime(clamp(sliderValue(value, 0), 0, TAU_MAX))}
-                aria-label="Temps réduit tau"
-              />
-              <div className="range-labels" aria-hidden="true"><span>0</span><span><Formula>{String.raw`$2\pi$`}</Formula></span></div>
-            </div>
+            {preset === 'custom' ? <WellStateEditor key={JSON.stringify(customCoefficients)} coefficients={customCoefficients} onApply={next => { setCustomCoefficients(next); setTime(0); setPlaying(false); }} /> : null}
 
-            <div className="control-block scale-control">
-              <div className="control-heading">
-                <label htmlFor="well-scale">Facteur d’affichage <Formula>{String.raw`$s$`}</Formula></label>
-                <output><Formula>{`$s=${psiScale.toFixed(1)}$`}</Formula></output>
-              </div>
-              <Slider
-                id="well-scale"
-                min={DISPLAY_SCALE_MIN}
-                max={DISPLAY_SCALE_MAX}
-                step={0.1}
-                value={[psiScale]}
-                onValueChange={(value) => setPsiScale(sliderValue(value, 2))}
-                aria-label="Facteur d’affichage s de la densité de probabilité"
-              />
-              <div className="range-labels" aria-hidden="true"><span><Formula>{String.raw`$s=0.5$`}</Formula></span><span><Formula>{String.raw`$s=20$`}</Formula></span></div>
-              <p className="scale-note">Le facteur <Formula>{String.raw`$s$`}</Formula> modifie uniquement l’affichage · <Formula>{String.raw`$\int |\psi|^2\,dx=1$`}</Formula></p>
-            </div>
 
-            <div className="transport-controls">
-              <Button onClick={() => setPlaying((current) => !current)}>
-                {playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-                {playing ? 'Pause' : 'Animer'}
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => {
-                setTime(0);
-                setPlaying(false);
-              }} aria-label="Revenir au temps zéro">
-                <RotateCcw aria-hidden="true" />
-              </Button>
-            </div>
           </div>
         )}
 
         <dl className="measurements">
           {mode === 'stationary' ? (
             <>
-              <div><dt>Énergie</dt><dd><Formula>{String.raw`$E_${n}=${n * n}E_1$`}</Formula></dd></div>
+              <div><dt>Énergie</dt><dd><Formula>{String.raw`$${perturbed ? energies[n - 1].toFixed(3) : n * n}\,${energyReference}$`}</Formula></dd></div>
               <div><dt>Nœuds internes</dt><dd>{n - 1}</dd></div>
-              <div><dt>Échelle d’énergie</dt><dd><Formula>{String.raw`$E_1\propto a^{-2}$`}</Formula></dd></div>
+              <div><dt>Échelle d’énergie</dt><dd><Formula>{String.raw`$${energyReference}\propto a^{-2}$`}</Formula></dd></div>
             </>
           ) : (
             <>
               <div><dt>Largeur</dt><dd><Formula>{String.raw`$a=${width.toFixed(1)}$`}</Formula></dd></div>
-              <div><dt>Énergie moyenne</dt><dd><Formula>{String.raw`$${expectedReducedEnergy.toFixed(2)}\,E_1$`}</Formula></dd></div>
+              <div><dt>Énergie moyenne</dt><dd><Formula>{String.raw`$${expectedReducedEnergy.toFixed(2)}\,${energyReference}$`}</Formula></dd></div>
               <div><dt>Facteur <Formula>{String.raw`$s$`}</Formula></dt><dd><Formula>{`$s=${psiScale.toFixed(1)}$`}</Formula></dd></div>
             </>
           )}
@@ -379,14 +334,14 @@ export function InfiniteWellLab({
             <h2>
               <Formula>
                 {mode === 'stationary'
-                  ? String.raw`$\phi_${n}(x)$`
+                  ? perturbed ? String.raw`$s\,\phi_${n}^{(\lambda)}(x)$` : String.raw`$s\,\phi_${n}(x)$`
                   : String.raw`$s\,|\psi(x,\tau)|^2$`}
               </Formula>
             </h2>
           </div>
           <div className="plot-legend" aria-label="Légende">
             <span><i className="legend-swatch accent" aria-hidden="true" />{mode === 'stationary' ? 'fonction d’onde' : 'densité de probabilité'}</span>
-            <span><i className="legend-swatch teal dashed" aria-hidden="true" />axe de symétrie</span>
+            <span><i className="legend-swatch teal dashed" aria-hidden="true" />{perturbed ? 'centre du puits' : 'axe de symétrie'}</span>
           </div>
         </div>
 
@@ -394,15 +349,15 @@ export function InfiniteWellLab({
           <ScientificPlot
             ariaLabel={
               mode === 'stationary'
-                ? `Fonction propre du puits infini pour n égal à ${n} et largeur ${width.toFixed(1)}`
-                : `Densité de probabilité dans le puits infini au temps réduit ${time.toFixed(2)}, facteur s égal à ${psiScale.toFixed(1)}`
+                ? `Fonction propre du puits infini pour n égal à ${n}, pente lambda ${strength.toFixed(1)}`
+                : `Densité de probabilité dans le puits infini au temps réduit ${time.toFixed(2)}, pente lambda ${strength.toFixed(1)}, facteur s égal à ${psiScale.toFixed(1)}`
             }
-            xDomain={[-0.12 * width, 1.12 * width]}
-            yDomain={mode === 'stationary' ? [-2.3, 2.3] : [0, maximumDensity * 1.08]}
-            xTicks={[0, width / 4, width / 2, (3 * width) / 4, width]}
-            yTicks={mode === 'stationary' ? [-2, -1, 0, 1, 2] : undefined}
-            xLabel={String.raw`$x$`}
-            yLabel={mode === 'stationary' ? String.raw`$\phi_n(x)$` : String.raw`$s\,|\psi(x,\tau)|^2$`}
+            xDomain={[-0.12, 1.12]}
+            yDomain={mode === 'stationary' ? [-stationaryExtent, stationaryExtent] : [0, maximumDensity * 1.08]}
+            xTicks={[0, 0.25, 0.5, 0.75, 1]}
+            yTicks={mode === 'stationary' && stationaryExtent === 2.3 ? [-2, -1, 0, 1, 2] : undefined}
+            xLabel={String.raw`$x/a$`}
+            yLabel={mode === 'stationary' ? perturbed ? String.raw`$s\,\phi_n^{(\lambda)}(x)$` : String.raw`$s\,\phi_n(x)$` : String.raw`$s\,|\psi(x,\tau)|^2$`}
             series={[
               {
                 values,
@@ -413,29 +368,46 @@ export function InfiniteWellLab({
               },
             ]}
             bands={[
-              { from: -0.12 * width, to: 0, tone: 'ink', fadeToward: 'right', opacity: 0.2 },
-              { from: width, to: 1.12 * width, tone: 'ink', fadeToward: 'left', opacity: 0.2 },
+              { from: -0.12, to: 0, tone: 'ink', fadeToward: 'right', opacity: 0.2 },
+              { from: 1, to: 1.12, tone: 'ink', fadeToward: 'left', opacity: 0.2 },
             ]}
             verticalLines={[
               { value: 0, label: String.raw`$V\to\infty$`, tone: 'ink', dashed: false, width: 3.5 },
-              { value: width / 2, tone: 'teal', dashed: true },
-              { value: width, label: String.raw`$V\to\infty$`, tone: 'ink', dashed: false, width: 3.5 },
+              { value: 0.5, tone: 'teal', dashed: true },
+              { value: 1, label: String.raw`$V\to\infty$`, tone: 'ink', dashed: false, width: 3.5 },
             ]}
             horizontalLines={mode === 'stationary' ? [{ value: 0, tone: 'ink', dashed: false }] : []}
           />
         </div>
 
-        {mode === 'stationary' ? <EnergyLevels energies={Array.from({ length: 8 }, (_, index) => (index + 1) ** 2)} selected={n - 1} firstIndex={1} unit="$E/E_1$" label="Niveaux d’énergie du puits infini, de n égal à 1 à 8" /> : null}
+        {mode === 'stationary' ? <DisplayControls id="well-stationary" stationary scale={stationaryScale} onScaleChange={setStationaryScale} /> : null}
+        {mode === 'evolution' ? <PlaybackControls id="well" clock={clock} scale={psiScale} onScaleChange={setPsiScale}
+          timeSymbol={String.raw`$\tau$`} finalSymbol={String.raw`$\tau_f$`}
+          note={<><Formula>{String.raw`$\tau=${energyReference}t/\hbar$`}</Formula>. Le facteur <Formula>$s$</Formula> ne modifie pas la normalisation.</>} /> : null}
+        <p className="scale-note">La boîte s’étend de <Formula>{'$x/a=0$'}</Formula> à <Formula>{'$x/a=1$'}</Formula>. Seule l’abscisse est réduite ; la normalisation reste définie par <Formula>{String.raw`$\int_0^a |\psi(x,t)|^2\,dx=1$`}</Formula>.</p>
+        {mode === 'stationary' ? <EnergyLevels energies={energies} selected={n - 1} firstIndex={1} unit={`$E/${energyReference}$`} label="Niveaux d’énergie du puits infini, de n égal à 1 à 8" potentialBox boxTilt={strength} /> : null}
+        {mode === 'evolution' && perturbed ? <section className="well-potential-profile" aria-label="Profil du potentiel incliné">
+          <div className="well-moment-heading well-potential-heading">
+            <p className="eyebrow">Potentiel dans le puits</p>
+            <output aria-label="Énergie moyenne de l’état"><i className="legend-swatch teal dashed" aria-hidden="true" /><Formula>{String.raw`$\langle E\rangle=${expectedReducedEnergy.toFixed(3)}\,E_{\mathrm{ref}}$`}</Formula></output>
+          </div>
+          <div className="plot-shell"><ScientificPlot ariaLabel={`Potentiel linéaire de pente lambda ${strength.toFixed(1)}, avec deux parois infinies et énergie moyenne ${expectedReducedEnergy.toFixed(3)} en unités E ref`} xDomain={[-.12, 1.12]} yDomain={potentialPlot.domain} xTicks={[0, .25, .5, .75, 1]} xLabel="$x/a$" yLabel={String.raw`$E/E_{\mathrm{ref}}$`}
+            series={[{ values: potentialPlot.walls, tone: 'ink', width: 3 }]}
+            bands={[{ from: -.12, to: 0, tone: 'ink', opacity: .2, fadeToward: 'right' }, { from: 1, to: 1.12, tone: 'ink', opacity: .2, fadeToward: 'left' }]}
+            verticalLines={[{ value: 0, width: 0, label: String.raw`$V\to\infty$`, labelAbove: true }, { value: 1, width: 0, label: String.raw`$V\to\infty$`, labelAbove: true }]}
+            horizontalLines={[{ value: 0, tone: 'muted', dashed: true }, ...potentialPlot.energyGuides]} /></div>
+        </section> : null}
+        {mode === 'evolution' ? <WellObservables coefficients={coefficients} time={time} finalTime={clock.finalTime} momentModel={momentModel} perturbed={perturbed} /> : null}
         <div className="insight-row">
           <span className="insight-index">{mode === 'stationary' ? String(n).padStart(2, '0') : 'τ'}</span>
           <p>
             {mode === 'stationary'
               ? n === 1
                 ? 'L’état fondamental ne possède aucun nœud interne et minimise l’énergie.'
-                : <>Le mode <Formula>{String.raw`$n=${n}$`}</Formula> possède {n - 1} nœud{n > 2 ? 's' : ''} interne{n > 2 ? 's' : ''}; son énergie vaut <Formula>{String.raw`$${n * n}E_1$`}</Formula>.</>
-              : presetInsight(preset)}
+                : <>Le mode <Formula>{String.raw`$n=${n}$`}</Formula> possède {n - 1} nœud{n > 2 ? 's' : ''} interne{n > 2 ? 's' : ''}; son énergie vaut <Formula>{String.raw`$${perturbed ? energies[n - 1].toFixed(3) : n * n}\,${energyReference}$`}</Formula>.</>
+              : perturbed ? 'Le potentiel incliné mélange les modes du puits non perturbé. Les nouvelles différences d’énergie déterminent les oscillations.' : presetInsight(preset)}
           </p>
-          <span className="insight-formula"><Formula>{String.raw`$E_n=n^2E_1$`}</Formula></span>
+          <span className="insight-formula"><Formula>{perturbed ? String.raw`$\lambda=${strength.toFixed(1)}$` : String.raw`$E_n=n^2E_1$`}</Formula></span>
         </div>
 
         <details className="theory-notes">
@@ -443,20 +415,21 @@ export function InfiniteWellLab({
           <div className="theory-grid">
             <div>
               <span>Potentiel</span>
-              <Formula display>{String.raw`$V(x)=\begin{cases}0,&0<x<a,\\ +\infty,&x\le 0\ \text{ou}\ x\ge a.\end{cases}$`}</Formula>
+              <Formula display>{perturbed ? String.raw`$V(x)=\begin{cases}\lambda E_{\mathrm{ref}}\!\left(\frac{x}{a}-\frac12\right),&0<x<a,\\ +\infty,&\text{ailleurs}.\end{cases}$` : String.raw`$V(x)=\begin{cases}0,&0<x<a,\\ +\infty,&x\le 0\ \text{ou}\ x\ge a.\end{cases}$`}</Formula>
             </div>
             <div>
-              <span>Énergies propres</span>
-              <Formula display>{String.raw`$E_n=\frac{n^2\pi^2\hbar^2}{2ma^2},\qquad n=1,2,3,\ldots$`}</Formula>
+              <span>{perturbed ? 'Hamiltonien réduit' : 'Énergies propres'}</span>
+              <Formula display>{perturbed ? String.raw`$\frac{\hat H_\lambda}{E_{\mathrm{ref}}}=-\frac{1}{\pi^2}\frac{d^2}{du^2}+\lambda\!\left(u-\frac12\right)$` : String.raw`$E_n=\frac{n^2\pi^2\hbar^2}{2ma^2},\qquad n=1,2,3,\ldots$`}</Formula>
             </div>
             <div>
               <span>Décomposition sur les états propres</span>
-              <Formula display>{String.raw`$\psi(x,t)=\sum_{n=1}^{\infty}c_n\,\phi_n(x)\,e^{-iE_nt/\hbar}$`}</Formula>
+              <Formula display>{perturbed ? String.raw`$\psi(x,t)=\sum_{n=1}^{40}d_n\,\phi_n^{(\lambda)}(x)\,e^{-iE_n^{(\lambda)}t/\hbar}$` : String.raw`$\psi(x,t)=\sum_{n=1}^{\infty}c_n\,\phi_n(x)\,e^{-iE_nt/\hbar}$`}</Formula>
             </div>
           </div>
           <p>
-            Les coefficients sont donnés par <Formula>{String.raw`$c_n=\langle\phi_n|\psi(0)\rangle$`}</Formula>. Les conditions aux bords sont <Formula>{String.raw`$\psi(0,t)=\psi(a,t)=0$`}</Formula>. Le temps réduit est <Formula>{String.raw`$\tau=E_1t/\hbar$`}</Formula>.
+            Les coefficients sont donnés par <Formula>{perturbed ? String.raw`$d_n=\langle\phi_n^{(\lambda)}|\psi(0)\rangle$` : String.raw`$c_n=\langle\phi_n|\psi(0)\rangle$`}</Formula>. Les conditions aux bords sont <Formula>{String.raw`$\psi(0,t)=\psi(a,t)=0$`}</Formula>. Le temps réduit est <Formula>{String.raw`$\tau=${energyReference}t/\hbar$`}</Formula>.
           </p>
+          {perturbed ? <p>Avec <Formula>{String.raw`$u=x/a$`}</Formula>, le calcul diagonalise le Hamiltonien dans une base de {WELL_BASIS_SIZE} sinus normalisés, sans approximation au premier ordre. <Formula>{String.raw`$E_{\mathrm{ref}}$`}</Formula> reste l’énergie fondamentale du puits sans perturbation ; ce n’est pas l’énergie fondamentale du puits incliné. Le changement de potentiel conserve l’état initial choisi et remet le temps à zéro.</p> : null}
         </details>
       </div>
     </section>

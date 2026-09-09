@@ -7,9 +7,9 @@ import { basisDensityCeiling, evolveSamples, type AtomicTerm } from '@/lib/atomi
 
 const RESOLUTION = 241;
 
-export function HydrogenSlice({ state, basis, plane, extent, phaseColors, active, evolutionTerms, phase = 0 }: {
+export function HydrogenSlice({ state, basis, plane, extent, phaseColors, active, evolutionTerms, phase = 0, densityScale = 1 }: {
   state: AtomicState; basis: HarmonicBasis; plane: OrbitalPlane; extent: number; phaseColors: boolean; active: boolean;
-  evolutionTerms?: readonly AtomicTerm[]; phase?: number;
+  evolutionTerms?: readonly AtomicTerm[]; phase?: number; densityScale?: number;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const sampled = useMemo(() => {
@@ -39,13 +39,13 @@ export function HydrogenSlice({ state, basis, plane, extent, phaseColors, active
     const pixels = context.createImageData(RESOLUTION, RESOLUTION);
     for (let j = 0; j < field.real.length; j++) {
       const density = field.real[j] ** 2 + field.imaginary[j] ** 2;
-      const brightness = field.nodal ? 0 : Math.pow(density / field.maximum, .32);
+      const brightness = field.nodal ? 0 : Math.pow(Math.min(1, densityScale * density / field.maximum), .32);
       const color = phaseColors ? phaseRgb(Math.atan2(field.imaginary[j], field.real[j])) : [50, 91, 171];
       for (let k = 0; k < 3; k++) pixels.data[4 * j + k] = Math.round(255 + brightness * (color[k] - 255));
       pixels.data[4 * j + 3] = 255;
     }
     context.putImageData(pixels, 0, 0);
-  }, [active, field, phaseColors]);
+  }, [active, field, phaseColors, densityScale]);
 
   return <>
     <div className="hydrogen-slice-frame">
@@ -61,6 +61,6 @@ export function HydrogenSlice({ state, basis, plane, extent, phaseColors, active
     </div>
     {field?.nodal ? <p className="nodal-notice" role="status">Ce plan est un plan nodal : la fonction d’onde y est nulle. Choisissez la coupe oblique pour voir l’orbitale.</p> : null}
     {plane === 'oblique' ? <p className="scale-note">Plan <Formula>{'$x+y+z=0$'}</Formula>, dans les coordonnées orthonormées <Formula>{String.raw`$u=(x-y)/\sqrt2$`}</Formula> et <Formula>{String.raw`$v=(x+y-2z)/\sqrt6$`}</Formula>.</p> : null}
-    <p className="scale-note">Coupe au centre du noyau, et non projection. Contraste renforcé : la saturation suit <Formula>{String.raw`$(|\psi|^2/\rho_{\mathrm{ref}})^{0.32}$`}</Formula>, avec une référence fixe pendant l’animation. Les zones blanches correspondent aux faibles densités et aux nœuds.</p>
+    <p className="scale-note">Coupe au centre du noyau, et non projection. Contraste renforcé : la saturation suit <Formula>{String.raw`$\min(1,s|\psi|^2/\rho_{\mathrm{ref}})^{0.32}$`}</Formula>, avec une référence fixe pendant l’animation. Le facteur <Formula>$s$</Formula> ne modifie que le contraste. Les zones blanches correspondent aux faibles densités et aux nœuds.</p>
   </>;
 }
