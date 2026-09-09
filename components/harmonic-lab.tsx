@@ -12,6 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { QuantumParameter } from '@/components/quantum-parameter';
 import { CoherentStateEditor } from '@/components/coherent-state-editor';
+import { OscillatorObservables } from '@/components/oscillator-observables';
 import {
   ANHARMONIC_LIMIT, coherentSuperposition, oscillatorBasis,
   solveAnharmonicOscillator, projectOscillatorState, evolveAnharmonicState,
@@ -450,6 +451,7 @@ export function HarmonicLab({
           timeSymbol={String.raw`$\tau=\omega t$`} finalSymbol={String.raw`$\tau_f$`} />
           : <DisplayControls id="oscillator-stationary" stationary scale={stationaryScale} onScaleChange={setStationaryScale} />}
         {mode === 'stationary' ? <p className="scale-note">Échelle commune aux états <Formula>{'$n=0,\\ldots,8$'}</Formula> à potentiel et facteur <Formula>{'$s$'}</Formula> fixés. Tous les niveaux sont indiqués en pointillés ; le niveau sélectionné est en vert.</p> : null}
+        {mode === 'evolution' ? <OscillatorObservables spectrum={spectrum} projected={projected} time={time} finalTime={clock.finalTime} /> : null}
         <div className="insight-row">
           <span className="insight-index">{mode === 'stationary' ? String(n).padStart(2, '0') : 'τ'}</span>
           <p>

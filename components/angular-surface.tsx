@@ -5,7 +5,7 @@ import { Pause, RotateCcw, Rotate3D } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Math as Formula } from '@/components/math';
 import { sphericalHarmonic, phaseRgb } from '@/lib/atomic';
-import { basisDensityCeiling, evolveSamples, type AtomicTerm } from '@/lib/atomic-dynamics';
+import { basisDensityCeiling, combineSamples, evolveSamples, type AtomicTerm } from '@/lib/atomic-dynamics';
 
 type Vertex = { x: number; y: number; z: number };
 type Face = { indices: number[]; phase: number };
@@ -17,7 +17,12 @@ function project(point: Vertex, yaw: number, pitch: number) {
   return { x: u, y: Math.sin(pitch) * v - Math.cos(pitch) * point.z, z: Math.cos(pitch) * v + Math.sin(pitch) * point.z };
 }
 
-export function AngularSurface({ l, m, active, phaseColors, evolutionTerms, phase = 0 }: { l: number; m: number; active: boolean; phaseColors: boolean; evolutionTerms?: readonly AtomicTerm[]; phase?: number }) {
+export function AngularSurface({ l, m, active, phaseColors, evolutionTerms, phase = 0, waveBasis, waveCoefficients, coefficientBounds }: {
+  l: number; m: number; active: boolean; phaseColors: boolean; evolutionTerms?: readonly AtomicTerm[]; phase?: number;
+  waveBasis?: readonly { l: number; m: number }[];
+  waveCoefficients?: readonly { re: number; im: number }[];
+  coefficientBounds?: readonly number[];
+}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const frame = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number } | null>(null);
@@ -40,23 +45,23 @@ export function AngularSurface({ l, m, active, phaseColors, evolutionTerms, phas
       faces.push({ indices: [first, first + 1, first + LONGITUDES + 2, first + LONGITUDES + 1], sample: angles.length });
       angles.push({ theta: (i + .5) * Math.PI / LATITUDES, phi: (j + .5) * 2 * Math.PI / LONGITUDES });
     }
-    const terms = evolutionTerms ?? [{ l, m }];
+    const terms = waveBasis ?? evolutionTerms ?? [{ l, m }];
     const basis = terms.map(term => {
       const real = new Float64Array(angles.length), imaginary = new Float64Array(angles.length);
       angles.forEach((point, index) => { const value = sphericalHarmonic(term.l, term.m, point.theta, point.phi); real[index] = value.re; imaginary[index] = value.im; });
       return { real, imaginary };
     });
-    return { basis, maximum: basisDensityCeiling(basis), directions, faces };
-  }, [l, m, evolutionTerms]);
+    return { basis, maximum: basisDensityCeiling(basis, coefficientBounds), directions, faces };
+  }, [l, m, evolutionTerms, waveBasis, coefficientBounds]);
   const mesh = useMemo(() => {
-    const values = evolveSamples(sampled.basis, phase);
+    const values = waveCoefficients ? combineSamples(sampled.basis, waveCoefficients) : evolveSamples(sampled.basis, phase);
     const vertices = sampled.directions.map((direction, index) => {
       const radius = (values.real[index] ** 2 + values.imaginary[index] ** 2) / sampled.maximum;
       return { x: radius * direction.x, y: radius * direction.y, z: radius * direction.z };
     });
     const faces: Face[] = sampled.faces.map(face => ({ indices: face.indices, phase: Math.atan2(values.imaginary[face.sample], values.real[face.sample]) }));
     return { vertices, faces };
-  }, [sampled, phase]);
+  }, [sampled, phase, waveCoefficients]);
 
   useEffect(() => {
     if (!frame.current) return;
@@ -130,7 +135,7 @@ export function AngularSurface({ l, m, active, phaseColors, evolutionTerms, phas
 
   return <>
     <div ref={frame} className="angular-surface" role="group" aria-label="Vue tridimensionnelle orientable">
-      <canvas ref={canvas} tabIndex={0} role="img" aria-label={`${evolutionTerms ? 'Densité angulaire évolutive d’une superposition' : `Surface de probabilité angulaire pour ell égal à ${l}, m égal à ${m}`}. Utilisez les flèches pour tourner la vue.`}
+      <canvas ref={canvas} tabIndex={0} role="img" aria-label={`${waveBasis ? 'Densité angulaire du rotateur dans le champ orientant' : evolutionTerms ? 'Densité angulaire évolutive d’une superposition' : `Surface de probabilité angulaire pour ell égal à ${l}, m égal à ${m}`}. Utilisez les flèches pour tourner la vue.`}
         onPointerDown={event => { drag.current = { x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId); setRotating(false); }}
         onPointerMove={event => {
           if (!drag.current) return;

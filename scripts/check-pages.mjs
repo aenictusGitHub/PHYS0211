@@ -53,10 +53,14 @@ for (const file of assets.filter(name => name.endsWith('.css'))) {
 }
 assert.ok(assets.some(name => /^scattering\.worker-.*\.js$/.test(name)), 'Missing numerical worker');
 let nativeMathComponent = false;
+let oscillatorMoments = false, rotorField = false;
 for (const file of assets.filter(name => name.endsWith('.js'))) {
   const js = readFileSync(resolve(root, 'assets', file), 'utf8');
   for (const url of js.match(/\/PHYS0211\/assets\/[A-Za-z0-9_.-]+/g) ?? []) checkAsset(url);
   nativeMathComponent ||= /output:["'`]mathml["'`]/.test(js);
+  oscillatorMoments ||= js.includes('oscillator-observables-title');
+  rotorField ||= js.includes('rotor-field-enabled') && js.includes('rotor-lambda');
 }
 assert.ok(nativeMathComponent, 'The published component renders native math without an HTML duplicate');
+assert.ok(oscillatorMoments && rotorField, 'The published bundle includes oscillator moments and the optional rotor field');
 console.log('GitHub Pages: assets, local LaTeX fonts, formula layout and switch containment verified.');

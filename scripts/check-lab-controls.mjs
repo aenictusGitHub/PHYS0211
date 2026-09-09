@@ -178,7 +178,7 @@ for (const [file, component, lab, unit] of labs) {
   near(h.clock().time, unit); assert.equal(h.clock().playing, false, 'Exact endpoint and automatic stop');
   h.command({ mode: 'evolution', finalTime: 12, playbackSpeed: .5, scale: 4, time: 8 });
   near(h.clock().finalTime, 12); near(h.clock().playbackSpeed, .5); near(h.clock().time, 8);
-  if (lab === 'well' || lab === 'spin') assert.ok(h.plots().some(p => Math.abs(p.xDomain[1] - 12 / unit) < 1e-9), 'History follows final time');
+  if (lab === 'well' || lab === 'spin' || lab === 'oscillator') assert.ok(h.plots().some(p => Math.abs(p.xDomain[1] - 12 / unit) < 1e-9), 'History follows final time');
   if (lab !== 'spin') {
     h.command({ mode: 'stationary' });
     assert.equal(h.fields().filter(f => /-scale$/.test(f.id)).length, 1, 'Stationary scale remains available');
@@ -189,6 +189,8 @@ for (const [file, component, lab, unit] of labs) {
 }
 
 const oscillator = harness('components/harmonic-lab.tsx', 'HarmonicLab', 'oscillator');
+const momentPlots = () => oscillator.plots().filter(p => p.ariaLabel.includes('au cours du temps réduit'));
+assert.equal(momentPlots().length, 0);
 const originalEnergies = oscillator.plots()[0].horizontalLines.map(g => g.value);
 oscillator.toggle('oscillator-anharmonic-enabled', true);
 assert.equal(oscillator.sliderProps('oscillator-lambda').max, 1);
@@ -200,6 +202,18 @@ const commonDomain = oscillator.plots()[0].yDomain;
 oscillator.slider('oscillator-n', 8);
 assert.deepEqual(oscillator.plots()[0].yDomain, commonDomain, 'Eigenstates share a fixed vertical scale');
 oscillator.command({ mode: 'evolution', time: 1 });
+assert.equal(momentPlots().length, 2);
+for (const plot of momentPlots()) {
+  assert.deepEqual(plot.series[0].values, plot.series[1].values);
+  assert.ok(plot.series[0].width < plot.series[1].width);
+  assert.equal(plot.series[1].progressive, true);
+  near(plot.progressX, 1); near(plot.verticalLines[0].value, 1);
+}
+const momentsBeforeScale = momentPlots().map(p => [p.series[0].values, p.yDomain]);
+oscillator.enter('oscillator-scale', 10);
+assert.deepEqual(momentPlots().map(p => [p.series[0].values, p.yDomain]), momentsBeforeScale, 'Physical means do not depend on the display factor');
+oscillator.enter('oscillator-final-time', 9);
+momentPlots().forEach(p => { near(p.xDomain[1], 9); near(p.series[0].values.at(-1).x, 9); });
 oscillator.slider('oscillator-lambda', .75); near(oscillator.clock().time, 0);
 const evolution = oscillator.plots()[0], energy = evolution.horizontalLines[0].value;
 assert.equal(evolution.horizontalLines[0].labelOutside, true);
@@ -218,8 +232,41 @@ oscillator.slider('oscillator-time', 1);
 oscillator.slider('alpha-magnitude', 2.5); near(oscillator.clock().time, 0);
 oscillator.toggle('oscillator-anharmonic-enabled', false);
 oscillator.command({ mode: 'stationary' });
+assert.equal(momentPlots().length, 0);
 assert.deepEqual(oscillator.plots()[0].horizontalLines.map(g => g.value), originalEnergies);
 oscillator.dispose();
+
+const rotor = harness('components/rotor-lab.tsx', 'RotorLab', 'rotor');
+const rotorLevels = () => rotor.plots().filter(p => p.ariaLabel.startsWith('Spectre du rotateur'));
+const freeLevels = rotorLevels()[0].horizontalLines.map(g => g.value);
+assert.equal(rotor.sliderProps('rotor-lambda'), undefined, 'Field disabled initially');
+rotor.toggle('rotor-field-enabled', true);
+assert.equal(rotor.sliderProps('rotor-lambda').max, 10);
+rotor.slider('rotor-lambda', 10);
+assert.notDeepEqual(rotorLevels()[0].horizontalLines.map(g => g.value), freeLevels);
+assert.match(rotor.html(), /Orientation moyenne/);
+assert.doesNotMatch(rotor.html(), /Dégénérescence<\/dt>/);
+const rotorDomain = rotorLevels()[0].yDomain;
+rotor.slider('rotor-l', 5);
+assert.deepEqual(rotorLevels()[0].yDomain, rotorDomain, 'Field energy frame is independent of selected l0 in each m sector');
+rotor.slider('rotor-m', 3);
+rotor.slider('rotor-l', 1);
+assert.equal(rotor.sliderProps('rotor-m').value[0], 1, 'm remains valid when changing l0');
+rotor.command({ mode: 'evolution', time: 1 });
+assert.match(rotor.html(), /n’est généralement plus périodique/);
+assert.doesNotMatch(rotor.html(), /Évolution de la superposition/);
+const fieldPolar = rotor.plots()[0].series[0].values;
+rotor.slider('rotor-time', 2);
+assert.ok(rotor.plots()[0].series[0].values.some((point, i) => Math.abs(point.y - fieldPolar[i].y) > .001));
+rotor.slider('rotor-lambda', 2); near(rotor.clock().time, 0);
+rotor.click('Rotation azimutale');
+assert.equal(rotorLevels().length, 2, 'Evolution shows both occupied m sectors');
+rotor.enter('rotor-final-time', 2); near(rotor.clock().finalTime, 4 * Math.PI);
+rotor.toggle('rotor-field-enabled', false); near(rotor.clock().time, 0);
+assert.deepEqual(rotorLevels()[0].horizontalLines.map(g => g.value), freeLevels);
+assert.match(rotor.html(), /Évolution de la superposition/);
+rotor.dispose();
+console.log('Rotor field: optional switch, intensity, shifted levels, quantum-number bounds, coherent evolution, time reset, controls and free-rotor recovery pass.');
 
 let applied;
 const editor = harness('components/coherent-state-editor.tsx', 'CoherentStateEditor', 'editor', {

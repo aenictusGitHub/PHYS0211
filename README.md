@@ -16,6 +16,11 @@ Exploration des états propres et de leur évolution, superpositions initiales,
 perturbations, diffusion, effet tunnel et observables. Les formules sont rendues
 avec KaTeX et les polices LaTeX sont embarquées dans le site.
 
+L’oscillateur affiche les moyennes de position et d’impulsion au cours du temps,
+y compris avec la perturbation anharmonique. Le rotateur propose un champ
+orientant optionnel, de potentiel `V(θ) = −λ B cos(θ)`, avec `B = ℏ²/(2I)` et
+`0 ≤ λ ≤ 10`, pour les états propres et l’évolution des superpositions.
+
 ## Développement local
 
 Avec Node.js 24 et pnpm 11.19.0 :

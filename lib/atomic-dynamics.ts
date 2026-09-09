@@ -23,8 +23,11 @@ export function relativeFactors(count: number, phase: number) {
 }
 
 export function evolveSamples(basis: readonly ComplexSamples[], phase: number): ComplexSamples {
+  return combineSamples(basis, relativeFactors(basis.length, phase));
+}
+
+export function combineSamples(basis: readonly ComplexSamples[], factors: readonly { re: number; im: number }[]): ComplexSamples {
   const real = new Float64Array(basis[0].real.length), imaginary = new Float64Array(real.length);
-  const factors = relativeFactors(basis.length, phase);
   for (let k = 0; k < basis.length; k++) {
     const source = basis[k], factor = factors[k];
     for (let j = 0; j < real.length; j++) {
@@ -36,12 +39,12 @@ export function evolveSamples(basis: readonly ComplexSamples[], phase: number): 
 }
 
 /** Time-independent upper bound: animation never auto-rescales its colors/radii. */
-export function basisDensityCeiling(basis: readonly ComplexSamples[]) {
+export function basisDensityCeiling(basis: readonly ComplexSamples[], bounds?: readonly number[]) {
   let maximum = 0;
   for (let j = 0; j < basis[0].real.length; j++) {
     let sum = 0;
-    for (const source of basis) sum += Math.hypot(source.real[j], source.imaginary[j]);
-    maximum = Math.max(maximum, sum * sum / basis.length);
+    basis.forEach((source, k) => { sum += Math.hypot(source.real[j], source.imaginary[j]) * (bounds?.[k] ?? 1 / Math.sqrt(basis.length)); });
+    maximum = Math.max(maximum, sum * sum);
   }
   return maximum;
 }

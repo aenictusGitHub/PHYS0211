@@ -48,7 +48,7 @@ export function solveAnharmonicOscillator(strength: number, size = oscillatorBas
   const levels = [0, 1].flatMap(parity => {
     const indices = Array.from({ length: Math.ceil((size - parity) / 2) }, (_, i) => 2 * i + parity);
     const matrix = indices.map(i => indices.map(j => oscillatorHamiltonianElement(i, j, strength, frequency)));
-    return diagonalizeOscillatorBlock(matrix).map(level => ({ energy: level.energy,
+    return diagonalizeRealSymmetric(matrix).map(level => ({ energy: level.energy,
       state: Array.from({ length: size }, (_, i) => i % 2 === parity ? level.state[(i - parity) / 2] : 0),
     }));
   }).sort((a, b) => a.energy - b.energy);
@@ -58,7 +58,8 @@ export function solveAnharmonicOscillator(strength: number, size = oscillatorBas
   }) };
 }
 
-function diagonalizeOscillatorBlock(matrix: number[][]) {
+/** Cyclic Jacobi diagonalization; consumes a real symmetric matrix. */
+export function diagonalizeRealSymmetric(matrix: number[][]) {
   const size = matrix.length;
   const vectors = Array.from({ length: size }, (_, i) => Array.from({ length: size }, (_, j): number => i === j ? 1 : 0));
   let converged = false;
@@ -87,7 +88,7 @@ function diagonalizeOscillatorBlock(matrix: number[][]) {
     }
     if (largest < 1e-12) { converged = true; break; }
   }
-  if (!converged) throw new Error('La diagonalisation de l’oscillateur n’a pas convergé.');
+  if (!converged) throw new Error('La diagonalisation du Hamiltonien n’a pas convergé.');
   const order = Array.from({ length: size }, (_, i) => i).sort((a, b) => matrix[a][a] - matrix[b][b]);
   return order.map(i => ({ energy: matrix[i][i], state: vectors.map(row => row[i]) }));
 }
@@ -171,4 +172,9 @@ export function evolveAnharmonicState(spectrum: OscillatorSpectrum, projected: r
 
 export function oscillatorMeanPosition(coefficients: readonly Coefficient[], frequency = 1) {
   return coefficients.slice(0, -1).reduce((sum, c, n) => sum + Math.sqrt(2 * (n + 1) / frequency) * (c.re * coefficients[n + 1].re + c.im * coefficients[n + 1].im), 0);
+}
+
+/** Dimensionless momentum q = x₀p/ℏ in the numerical Hermite basis. */
+export function oscillatorMeanMomentum(coefficients: readonly Coefficient[], frequency = 1) {
+  return coefficients.slice(0, -1).reduce((sum, c, n) => sum + Math.sqrt(2 * (n + 1) * frequency) * (c.re * coefficients[n + 1].im - c.im * coefficients[n + 1].re), 0);
 }
