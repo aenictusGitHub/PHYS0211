@@ -80,7 +80,10 @@ export function sgParticles(p: SGParameters, beam: SGBeam, model: SGModel, time:
     const offset = gaussianRadius * Math.cos(gaussianAngle), perpendicular = gaussianRadius * Math.sin(gaussianAngle);
     const y = Math.min((p.length + p.distance) / 100, -SG_SOURCE_DISTANCE + p.velocity * age / 1000);
     const displacement = sgDeflection(mu, p, y) + offset;
-    return { id, channel, y, displacement, detected: age >= flight,
+    // Angular momentum in units of hbar, opposite to the electronic magnetic moment.
+    // In the quantum model this is a channel label, not an incoming hidden orientation.
+    const spinProjection = model === 'quantum' ? channels[channel].m : -mu / p.g;
+    return { id, channel, mu, spinProjection, y, displacement, detected: age >= flight,
       x: displacement * Math.sin(angle) + perpendicular * Math.cos(angle),
       z: displacement * Math.cos(angle) - perpendicular * Math.sin(angle) };
   });

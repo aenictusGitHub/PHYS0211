@@ -6,7 +6,15 @@ import { Math as Formula } from '@/components/math';
 import { revealFraction } from '@/lib/plot-geometry';
 
 export type PlotPoint = { x: number; y: number };
-export type PlotMarker = PlotPoint & { tone?: 'accent' | 'teal' | 'ink' | 'muted'; radius?: number };
+export type PlotMarker = PlotPoint & {
+  id?: number | string;
+  tone?: 'accent' | 'teal' | 'ink' | 'muted';
+  radius?: number;
+  /** Signed vertical glyph length in CSS pixels; positive points toward +y.
+   * This annotation is independent of the plot's physical coordinate scale. */
+  verticalArrow?: number;
+  label?: string;
+};
 
 export type PlotSeries = {
   values: PlotPoint[];
@@ -290,8 +298,19 @@ export function ScientificPlot({
             </g>
           );
         })}
-        {markers.map((point, index) => <circle key={`marker-${index}`} cx={mapX(point.x)} cy={mapY(point.y)}
-          r={(point.radius ?? 3) * textScale} fill={toneColor[point.tone ?? 'accent']} />)}
+        {markers.map((point, index) => {
+          const length = point.verticalArrow ?? 0, tip = -length;
+          const head = Math.min(4.5, Math.abs(length) * .45), direction = Math.sign(length);
+          const arrow = `M0 0 V${tip} M${-head} ${tip + direction * head} L0 ${tip} L${head} ${tip + direction * head}`;
+          return <g key={`marker-${point.id ?? index}`} transform={`translate(${mapX(point.x)} ${mapY(point.y)}) scale(${textScale})`}>
+            {point.label ? <title>{point.label}</title> : null}
+            {Math.abs(length) > .01 ? <g className="plot-marker-arrow" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <path d={arrow} stroke="var(--paper)" strokeWidth={4.5} />
+              <path d={arrow} stroke={toneColor[point.tone ?? 'accent']} strokeWidth={2.25} />
+            </g> : null}
+            <circle r={point.radius ?? 3} fill={toneColor[point.tone ?? 'accent']} />
+          </g>;
+        })}
       </g>
 
       <g className="axis-layer" aria-hidden="true" style={{ '--plot-tick-scale': textScale } as React.CSSProperties}>

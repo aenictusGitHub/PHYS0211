@@ -49,6 +49,16 @@ const vertical = sgParticles(p, 'mixed', 'quantum', 2, 9).filter(c => c.detected
 const horizontal = sgParticles({ ...p, angle: 90 }, 'mixed', 'quantum', 2, 9).filter(c => c.detected);
 vertical.forEach((hit, i) => { near(hit.z, horizontal[i].x); near(hit.x, -horizontal[i].z); });
 assert.ok(sgParticles(p, 'z-plus', 'quantum', 20, 3).every(c => c.channel === 1));
+for (const model of ['quantum', 'classical']) for (const j of SG_J) {
+  const config = { ...p, j };
+  for (const atom of sgParticles(config, 'mixed', model, 2, 7)) {
+    near(atom.spinProjection, -atom.mu / config.g);
+    assert.ok(Math.abs(atom.spinProjection) <= (model === 'quantum' ? j : Math.sqrt(j * (j + 1))));
+    if (model === 'quantum') near(atom.spinProjection, atom.channel - j);
+  }
+}
+assert.ok(new Set(sgParticles(p, 'mixed', 'classical', 2, 7).map(atom => atom.spinProjection)).size > 20,
+  'Classical angular momentum projections stay continuous, not quantized into channels');
 assert.equal(parseSternGerlach({ lab: 'stern-gerlach', sgJ: .5, sgBeam: 'z-plus', sgAngle: 90, finalTime: 12 }).sgAngle, 90);
 for (const extra of [{ sgJ: 2 }, { sgGradient: NaN }, { sgVelocity: 0 }, { sgLength: 11 }, { sgMass: 0 }, { sgAngle: 181 }, { sgBeam: 'unknown' }, { sgModel: 'other' }, { sgJ: 1, sgBeam: 'z-plus' }, { sgModel: 'classical', sgBeam: 'z-plus' }, { scale: 5 }, { finalTime: 21 }, { time: 2, finalTime: 1 }, { mode: 'evolution' }]) {
   assert.throws(() => parseSternGerlach({ lab: 'stern-gerlach', ...extra }));
