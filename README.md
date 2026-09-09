@@ -31,6 +31,15 @@ non polarisé ou un spin 1/2 préparé et un axe de mesure orientable. Les centr
 des faisceaux suivent le modèle paraxial à force constante ; les impacts sont
 échantillonnés suivant la règle de Born. La structure hyperfine est négligée.
 
+Le mode « En cascade » enchaîne trois analyseurs idéaux de spin 1/2, avec axes
+réglables et sélection des sorties +, − ou des deux sorties pour A et B.
+L’analyseur B peut être retiré. Les préréglages z–x–z, z–z–z, sans B et les
+deux sorties de B permettent de comparer filtrage, mesure non sélective et
+absence de mesure. Le schéma anime les canaux et les impacts, avec comptages
+progressifs et probabilités rapportées au faisceau initial ou aux atomes
+arrivant en C. Le routage entre appareils est idéal, sans rotation du spin ni
+recombinaison cohérente ; le temps du schéma est en unités arbitraires.
+
 ## Développement local
 
 Avec Node.js 24 et pnpm 11.19.0 :

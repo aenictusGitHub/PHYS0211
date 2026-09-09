@@ -63,6 +63,8 @@ function harness(file, exported, lab, initialProps = {}) {
     '@/components/ui/button': { Button }, '@/components/ui/slider': { Slider }, '@/components/ui/input': { Input },
     '@/components/ui/switch': { Switch(props) { switches.push(props); return React.createElement('button', { role: 'switch', 'aria-checked': props.checked, id: props.id }); } },
     '@/components/scientific-plot': { ScientificPlot: Plot },
+    '@/components/stern-gerlach-lab': { SternGerlachLab: props => React.createElement('div', { 'data-single-active': props.active, 'data-single-command': props.command?.id }) },
+    '@/components/stern-gerlach-cascade-lab': { SternGerlachCascadeLab: props => React.createElement('div', { 'data-cascade-active': props.active, 'data-cascade-command': props.command?.id }) },
     '@/components/angular-surface': { AngularSurface(props) { surfaces.push(props); return null; }, PhaseLegend: () => null },
     '@/components/bloch-sphere': { BlochSphere: () => null },
     '@/components/hydrogen-slice': { HydrogenSlice: () => null },
@@ -70,7 +72,7 @@ function harness(file, exported, lab, initialProps = {}) {
   function load(path) {
     if (cache.has(path)) return cache.get(path).exports;
     const mod = { exports: {} }; cache.set(path, mod);
-    const useHooks = /(?:lab|use-lab-playback|atomic-clock|coherent-state-editor|angular-surface)\.tsx?$/.test(path);
+    const useHooks = /(?:lab|stern-gerlach-experiment|use-lab-playback|atomic-clock|coherent-state-editor|angular-surface)\.tsx?$/.test(path);
     new Function('exports', 'require', 'module', compile(readFileSync(path, 'utf8')))(mod.exports, name => {
       if (name === 'react' && useHooks) return hooks;
       if (name in mocks) return mocks[name];
@@ -432,6 +434,42 @@ sg.click('Nouvelle série'); assert.equal(sg.clock().time, 0); assert.match(sg.h
 sg.enter('sg-final-time', 1); assert.equal(sg.clock().finalTime, 1);
 sg.dispose();
 console.log('Stern–Gerlach: preparations, model/axis/geometry changes, zero gradient, high-deflection warning, playback and detector reset pass.');
+const cascade = harness('components/stern-gerlach-cascade-lab.tsx', 'SternGerlachCascadeLab', 'stern-gerlach');
+assert.match(cascade.html(), /Stern–Gerlach en cascade/);
+assert.match(cascade.html(), /12\.5 %/);
+assert.equal(cascade.clock().finalTime, 12);
+assert.doesNotMatch(cascade.html(), /NaN|Infinity|katex-error/);
+cascade.click('Animer'); cascade.tick(); cascade.tick();
+assert.ok(cascade.clock().time > 0);
+cascade.enter('sg-cascade-playback-speed', 2); cascade.enter('sg-cascade-scale', 2);
+assert.equal(cascade.clock().playing, true);
+cascade.setProps({ active: false }); const stoppedTime = cascade.clock().time;
+cascade.tick(); assert.equal(cascade.clock().time, stoppedTime, 'Hidden cascade stops advancing');
+cascade.setProps({ active: true });
+cascade.click('z → z → z'); assert.equal(cascade.clock().time, 0); assert.equal(cascade.clock().playing, false);
+assert.match(cascade.html(), /Théorie : 100\.0 %/);
+cascade.click('z → x → z');
+cascade.command({ sgSetup: 'cascade', time: 8 });
+assert.equal(cascade.clock().time, 8); assert.doesNotMatch(cascade.html(), /NaN|Infinity/);
+cascade.click('Sans l’analyseur B'); assert.equal(cascade.sliderProps('sg-cascade-angle-1'), undefined);
+assert.match(cascade.html(), /Théorie : 100\.0 %/);
+cascade.toggle('sg-cascade-middle', true); assert.equal(cascade.sliderProps('sg-cascade-angle-1').value[0], 90);
+cascade.click('Deux sorties de B'); assert.match(cascade.html(), /25\.0 % du faisceau initial/);
+cascade.slider('sg-cascade-angle-1', 0); assert.equal(cascade.clock().time, 0);
+cascade.click('Filtre B : moins'); assert.match(cascade.html(), /Aucun atome ne peut atteindre C/);
+cascade.command({ sgSetup: 'cascade', sgBeam: 'z-plus', sgCascadeAngles: [0, 0, 0], sgCascadeFilters: ['plus', 'plus'], sgCascadeMiddle: true, time: 5, finalTime: 12 });
+assert.match(cascade.html(), /100\.0 % du faisceau initial/);
+cascade.click('Nouvelle série'); assert.equal(cascade.clock().time, 0); assert.match(cascade.html(), /0 atomes détectés/);
+cascade.enter('sg-cascade-final-time', 4); assert.equal(cascade.clock().finalTime, 4);
+cascade.dispose();
+const sgSetup = harness('components/stern-gerlach-experiment.tsx', 'SternGerlachExperiment', 'stern-gerlach');
+assert.match(sgSetup.html(), /data-single-active="true"/);
+sgSetup.click('En cascade'); assert.match(sgSetup.html(), /data-cascade-active="true"/); assert.match(sgSetup.html(), /data-single-active="false"/);
+sgSetup.command({ sgSetup: 'single', time: 1 }); assert.match(sgSetup.html(), /data-single-active="true"/); assert.doesNotMatch(sgSetup.html(), /data-cascade-command=/);
+sgSetup.command({ sgSetup: 'cascade', time: 5 }); assert.match(sgSetup.html(), /data-cascade-active="true"/); assert.doesNotMatch(sgSetup.html(), /data-single-command=/);
+sgSetup.setProps({ active: false }); assert.doesNotMatch(sgSetup.html(), /data-(single|cascade)-active="true"/);
+sgSetup.dispose();
+console.log('Stern–Gerlach cascade: setup switch, presets, filters, bypass, unreachable output, live counters, playback, command routing and native formulas pass.');
 delete globalThis.window;
 console.log('Double well: initial-state buttons, relative population/phase, pure-state stationarity and reset on preparation pass.');
 console.log('Scattering: automatic endpoint, manual override, physical/display edits, async calculation, cache, safety notice and command progress pass.');

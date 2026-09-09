@@ -727,6 +727,39 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .sg-channel-table th { font-weight: 400; background: var(--paper); color: var(--muted-foreground); }
 .sg-channel-table td:first-child, .sg-channel-table th:first-child { text-align: center; }
 .sg-theory { margin-top: 24px; }
+.sg-setup-bar { padding: 14px 24px; background: var(--card); border: 1px solid var(--line); border-bottom: 0; }
+.sg-setup-bar .mode-switch { width: min(100%, 390px); margin: 0; }
+.sg-cascade-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sg-cascade-presets button { white-space: normal; height: auto; min-height: 42px; padding: 10px 8px; line-height: 1.4; }
+.sg-cascade-setting { min-width: 0; padding: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; }
+.sg-cascade-setting h3 { margin: 0 0 16px; font-size: var(--text-ui); font-weight: 400; }
+.sg-cascade-setting .control-heading { gap: 8px; }
+.sg-cascade-setting .preset-grid { margin-top: 12px; }
+.sg-cascade-filter { margin-top: 18px; }
+.sg-cascade-filter .control-caption { margin-bottom: 0; }
+.sg-cascade-setting .sg-cascade-middle { margin: 0 0 18px; padding: 0; border: 0; background: none; }
+.sg-cascade-middle .control-heading { flex-wrap: nowrap; }
+.sg-cascade-scroll { width: 100%; overflow-x: auto; margin: 24px 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.sg-cascade-scroll:focus-visible { outline: 2px solid var(--lab-tone); outline-offset: 3px; }
+.sg-cascade-diagram { display: block; width: 100%; min-width: 720px; height: auto; }
+.sg-cascade-diagram text { font-family: 'Atelier Latin Modern', serif; font-size: 20px; fill: var(--foreground); }
+.sg-cascade-path { fill: none; stroke: var(--muted-foreground); stroke-width: 2; stroke-opacity: .5; }
+.sg-cascade-magnet { fill: var(--lab-tint); stroke: var(--lab-tone); stroke-width: 2; }
+.sg-cascade-magnet.is-bypassed { fill: var(--card); stroke: var(--line); stroke-dasharray: 5 5; }
+.sg-cascade-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 18px 0; }
+.sg-cascade-results > div { padding: 16px; border: 1px solid var(--line); border-top: 3px solid var(--teal); border-radius: 8px; }
+.sg-cascade-results > .is-plus { border-top-color: var(--accent); }
+.sg-cascade-results dt { font-size: var(--text-ui); }
+.sg-cascade-results dd { margin: 10px 0; font-size: var(--text-ui); }
+.sg-cascade-results p { margin: 6px 0 0; font-size: var(--text-small); color: var(--muted-foreground); line-height: 1.5; }
+.sg-cascade-comparison { padding: 18px; margin-top: 24px; background: var(--lab-tint); border: 1px solid var(--line); border-radius: 8px; }
+.sg-cascade-comparison h3 { margin: 0; font-size: var(--text-ui); font-weight: 400; }
+.sg-cascade-comparison > p { font-size: var(--text-small); line-height: 1.5; }
+.sg-cascade-comparison .sg-channel-table { background: var(--card); }
+@media (max-width: 560px) {
+  .sg-setup-bar { padding: 12px; }
+  .sg-cascade-results { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 1200px) {
   .sg-detector-grid { grid-template-columns: minmax(0, 1fr); }
   .sg-screen-wrap { max-width: 340px; width: 100%; margin: auto; }

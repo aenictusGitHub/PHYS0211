@@ -91,16 +91,27 @@ export function sgParticles(p: SGParameters, beam: SGBeam, model: SGModel, time:
 
 export function parseSternGerlach(data: Record<string, unknown>): Omit<ExperimentCommand, 'id'> {
   if (data.lab !== 'stern-gerlach') throw new Error('Laboratoire Stern–Gerlach attendu.');
-  const allowed = ['lab', 'sgJ', 'sgGradient', 'sgVelocity', 'sgLength', 'sgDistance', 'sgAngle', 'sgG', 'sgMass', 'sgBeam', 'sgModel', 'time', 'scale', 'playbackSpeed', 'finalTime'];
+  const allowed = ['lab', 'sgJ', 'sgGradient', 'sgVelocity', 'sgLength', 'sgDistance', 'sgAngle', 'sgG', 'sgMass', 'sgBeam', 'sgModel', 'sgSetup', 'sgCascadeAngles', 'sgCascadeFilters', 'sgCascadeMiddle', 'time', 'scale', 'playbackSpeed', 'finalTime'];
   for (const key of Object.keys(data)) if (!allowed.includes(key)) throw new Error(`${key} n’est pas utilisé par Stern–Gerlach.`);
   const bounds = { sgGradient: [-1500, 1500], sgVelocity: [100, 1000], sgLength: [1, 10], sgDistance: [2, 30], sgAngle: [0, 180], sgG: [.5, 2], sgMass: [20, 200], time: [0, 20] };
   for (const [key, [min, max]] of Object.entries(bounds)) if (data[key] !== undefined && (typeof data[key] !== 'number' || !Number.isFinite(data[key]) || data[key] < min || data[key] > max)) throw new Error(`${key} doit être compris entre ${min} et ${max}.`);
   if (data.sgJ !== undefined && !(SG_J as readonly unknown[]).includes(data.sgJ)) throw new Error('sgJ doit valoir 0, 0.5, 1 ou 1.5.');
   if (data.sgBeam !== undefined && !(SG_BEAMS as readonly unknown[]).includes(data.sgBeam)) throw new Error('Préparation Stern–Gerlach inconnue.');
   if (data.sgModel !== undefined && data.sgModel !== 'quantum' && data.sgModel !== 'classical') throw new Error('sgModel doit valoir quantum ou classical.');
+  if (data.sgSetup !== undefined && data.sgSetup !== 'single' && data.sgSetup !== 'cascade') throw new Error('sgSetup doit valoir single ou cascade.');
+  const hasCascade = ['sgCascadeAngles', 'sgCascadeFilters', 'sgCascadeMiddle'].some(key => data[key] !== undefined);
+  const setup = data.sgSetup ?? (hasCascade ? 'cascade' : 'single');
+  if (setup === 'single' && hasCascade) throw new Error('Les réglages de cascade nécessitent sgSetup=cascade.');
+  if (data.sgCascadeAngles !== undefined && (!Array.isArray(data.sgCascadeAngles) || data.sgCascadeAngles.length !== 3 || !Array.from(data.sgCascadeAngles).every(v => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 180))) throw new Error('Trois angles de cascade entre 0 et 180 degrés sont attendus.');
+  if (data.sgCascadeFilters !== undefined && (!Array.isArray(data.sgCascadeFilters) || data.sgCascadeFilters.length !== 2 || !Array.from(data.sgCascadeFilters).every(v => ['plus', 'minus', 'both'].includes(v)))) throw new Error('Deux filtres de cascade : plus, minus ou both.');
+  if (data.sgCascadeMiddle !== undefined && typeof data.sgCascadeMiddle !== 'boolean') throw new Error('sgCascadeMiddle doit être un booléen.');
+  if (setup === 'cascade') {
+    if ((data.sgJ !== undefined && data.sgJ !== .5) || (data.sgModel !== undefined && data.sgModel !== 'quantum')) throw new Error('La cascade est un modèle quantique de spin 1/2.');
+    for (const key of ['sgGradient', 'sgVelocity', 'sgLength', 'sgDistance', 'sgAngle', 'sgG', 'sgMass']) if (data[key] !== undefined) throw new Error(`${key} concerne l’analyseur unique, pas la cascade idéale.`);
+  }
   if (data.sgBeam !== undefined && data.sgBeam !== 'mixed' && ((data.sgJ !== undefined && data.sgJ !== .5) || data.sgModel === 'classical')) throw new Error('Un faisceau polarisé est proposé uniquement pour j=1/2, en modèle quantique.');
   const playback = parsePlaybackSettings(data, 4);
-  if (playback.finalTime !== undefined && (playback.finalTime < 1 || playback.finalTime > 20)) throw new Error('Temps final de Stern–Gerlach : de 1 à 20 ms.');
+  if (playback.finalTime !== undefined && (playback.finalTime < (setup === 'cascade' ? 4 : 1) || playback.finalTime > 20)) throw new Error(setup === 'cascade' ? 'Temps final de cascade : de 4 à 20 unités d’animation.' : 'Temps final de Stern–Gerlach : de 1 à 20 ms.');
   if (data.time !== undefined && playback.finalTime !== undefined && (data.time as number) > playback.finalTime) throw new Error('time ne peut pas dépasser finalTime.');
-  return { ...data, ...playback, lab: 'stern-gerlach' } as Omit<ExperimentCommand, 'id'>;
+  return { ...data, ...playback, sgSetup: setup, lab: 'stern-gerlach' } as Omit<ExperimentCommand, 'id'>;
 }

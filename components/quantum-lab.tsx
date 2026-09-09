@@ -10,7 +10,7 @@ import { DoubleWellLab } from '@/components/double-well-lab';
 import { RotorLab } from '@/components/rotor-lab';
 import { HydrogenLab } from '@/components/hydrogen-lab';
 import { SpinLab } from '@/components/spin-lab';
-import { SternGerlachLab } from '@/components/stern-gerlach-lab';
+import { SternGerlachExperiment } from '@/components/stern-gerlach-experiment';
 import { parseSternGerlach, SG_J, SG_BEAMS } from '@/lib/stern-gerlach';
 import { parseSpinExperiment, SPIN_TIME_MAX } from '@/lib/spin';
 import { parseWellModes } from '@/lib/well-state';
@@ -174,7 +174,7 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          `Configure les huit laboratoires. stern-gerlach : sgJ, sgGradient, sgVelocity, sgLength, sgDistance, sgAngle, sgG, sgMass, sgBeam et sgModel. time et finalTime sont en ms (time de 0 à 20, finalTime de 1 à 20), scale de 0.5 à 4 règle la taille des impacts. sgBeam polarisé sélectionne j=1/2 et le modèle quantique ; sinon j différent de 1/2 ou sgModel=classical impose mixed. Pas de mode ni de preset pour Stern–Gerlach. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1), resolution (maillage 3D, ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX} par pas de ${ROTOR_RESOLUTION_STEP}, défaut 64). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 20π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 20π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. Tous les laboratoires acceptent playbackSpeed et finalTime ; ce dernier utilise la même unité interne que time, pas t/T. scale est accepté sauf pour rotor, qui utilise resolution à la place. La lecture reste en pause.`,
+          `Configure les huit laboratoires. stern-gerlach : sgSetup=single (défaut) accepte sgJ, sgGradient, sgVelocity, sgLength, sgDistance, sgAngle, sgG, sgMass, sgBeam et sgModel. Dans ce montage, time et finalTime sont en ms (time de 0 à 20, finalTime de 1 à 20), scale de 0.5 à 4 règle la taille des impacts. sgBeam polarisé sélectionne j=1/2 et le modèle quantique ; sinon j différent de 1/2 ou sgModel=classical impose mixed. sgSetup=cascade : spin 1/2 quantique uniquement, sgBeam, sgCascadeAngles=[A,B,C] en degrés, sgCascadeFilters=[A,B] (plus/minus/both), sgCascadeMiddle (false retire B). Un réglage sgCascade implique cascade. En cascade, time est en unités d’animation de 0 à 20, finalTime de 4 à 20 ; pas de paramètres de géométrie, de gradient ni de sgAngle. Pas de mode ni de preset pour Stern–Gerlach. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1), resolution (maillage 3D, ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX} par pas de ${ROTOR_RESOLUTION_STEP}, défaut 64). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 20π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 20π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. Tous les laboratoires acceptent playbackSpeed et finalTime ; ce dernier utilise la même unité interne que time, pas t/T. scale est accepté sauf pour rotor, qui utilise resolution à la place. La lecture reste en pause.`,
         inputSchema: {
           type: 'object',
           properties: {
@@ -189,6 +189,10 @@ export function QuantumLab() {
             sgMass: { type: 'number', minimum: 20, maximum: 200, description: 'Masse de l’atome modèle en u.' },
             sgBeam: { type: 'string', enum: SG_BEAMS },
             sgModel: { type: 'string', enum: ['quantum', 'classical'] },
+            sgSetup: { type: 'string', enum: ['single', 'cascade'], description: 'Montage : analyseur unique (défaut) ou cascade idéale de spin 1/2. En cascade, time est en unités d’animation (0 à 20), finalTime de 4 à 20 ; pas de paramètres géométriques ni de gradient.' },
+            sgCascadeAngles: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number', minimum: 0, maximum: 180 }, description: 'Angles [A, B, C] dans le plan xz, en degrés ; implique sgSetup=cascade.' },
+            sgCascadeFilters: { type: 'array', minItems: 2, maxItems: 2, items: { type: 'string', enum: ['plus', 'minus', 'both'] }, description: 'Sorties transmises par [A, B]. Les deux sorties de C sont détectées. both signifie mesure non sélective, pas recombinaison cohérente.' },
+            sgCascadeMiddle: { type: 'boolean', description: 'false retire B sans mesurer le spin ; true insère B.' },
             mode: { type: 'string', enum: ['stationary', 'evolution'] },
             quantumNumber: { type: 'integer', minimum: 0, maximum: 8 },
             wellModes: { type: 'array', minItems: 1, maxItems: 10, description: 'Puits infini, évolution : amplitudes relatives et phases en degrés. Normalisation automatique ; au moins une amplitude non nulle.', items: { type: 'object', properties: { n: { type: 'integer', minimum: 1, maximum: 10 }, amplitude: { type: 'number', minimum: 0, maximum: 1 }, phase: { type: 'number', minimum: -180, maximum: 180 } }, required: ['n', 'amplitude'], additionalProperties: false } },
@@ -317,6 +321,10 @@ export function QuantumLab() {
             sgMass: parsed.sgMass ?? null,
             sgBeam: parsed.sgBeam ?? null,
             sgModel: parsed.sgModel ?? null,
+            sgSetup: parsed.sgSetup ?? null,
+            sgCascadeAngles: parsed.sgCascadeAngles ?? null,
+            sgCascadeFilters: parsed.sgCascadeFilters ?? null,
+            sgCascadeMiddle: parsed.sgCascadeMiddle ?? null,
           };
         },
       },
@@ -399,7 +407,7 @@ export function QuantumLab() {
         <div hidden={lab !== 'rotor'}><RotorLab active={lab === 'rotor'} command={command} /></div>
         <div hidden={lab !== 'hydrogen'}><HydrogenLab active={lab === 'hydrogen'} command={command} /></div>
         <div hidden={lab !== 'spin'}><SpinLab active={lab === 'spin'} command={command} /></div>
-        <div hidden={lab !== 'stern-gerlach'}><SternGerlachLab active={lab === 'stern-gerlach'} command={command} /></div>
+        <div hidden={lab !== 'stern-gerlach'}><SternGerlachExperiment active={lab === 'stern-gerlach'} command={command} /></div>
       </div>
 
       <footer>

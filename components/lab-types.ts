@@ -43,4 +43,8 @@ export type ExperimentCommand = {
   sgMass?: number;
   sgBeam?: 'mixed' | 'z-plus' | 'z-minus' | 'x-plus' | 'x-minus' | 'y-plus' | 'y-minus';
   sgModel?: 'quantum' | 'classical';
+  sgSetup?: 'single' | 'cascade';
+  sgCascadeAngles?: [number, number, number];
+  sgCascadeFilters?: ['plus' | 'minus' | 'both', 'plus' | 'minus' | 'both'];
+  sgCascadeMiddle?: boolean;
 };
