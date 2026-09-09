@@ -318,15 +318,16 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .preset-grid button,
 .display-switch button {
   min-width: 0;
-  min-height: 42px;
+  min-height: 2.75rem;
   height: auto;
+  padding: .55em .7em;
   border-color: var(--line);
   border-radius: 6px;
   background: transparent;
   color: var(--muted-foreground);
   font-size: var(--text-small);
   white-space: normal;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .preset-grid button.is-selected,
@@ -337,7 +338,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
   box-shadow: inset 0 -2px 0 var(--lab-tone);
 }
 
-.display-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.display-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .compact-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .compact-controls .control-heading { margin-bottom: 13px; }
 .compact-controls .control-heading output { min-width: 42px; height: 26px; font-size: var(--text-small); }
@@ -570,7 +571,6 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
 .math-display { display: block; min-width: 0; padding-block: .15em; overflow-x: auto; }
 .math-display > .katex-display { min-width: max-content; }
 .math-display math[display='block'] { margin: 0; text-align: inherit; }
-.math-formula .math-hat { font-size: .75em; }
 /* Restore cell breathing room lost to the global padding reset. CSS cell
    spacing works in MathML Core as well as Safari's legacy table layout. */
 .math-formula mtable { border-collapse: separate; border-spacing: 0; }

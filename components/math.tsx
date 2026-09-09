@@ -36,9 +36,7 @@ export const Math = memo(function Math({
       throwOnError: false,
       strict: 'ignore',
       trust: false,
-    }).replaceAll('<mo>^</mo>', '<mo class="math-hat" stretchy="false">^</mo>');
-    // KaTeX leaves ordinary hats stretchy in MathML. Limit only these accents;
-    // explicit \widehat output already carries stretchy="true" and is untouched.
+    });
     // MathML-only output omits KaTeX's display wrapper. Retain it explicitly
     // so the existing card, theory and responsive typography still applies.
     return display ? `<span class="katex-display">${mathml}</span>` : mathml;

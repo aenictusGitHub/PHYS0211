@@ -261,7 +261,7 @@ export function InfiniteWellLab({
           <span>{mode === 'stationary' ? 'Fonction propre normalisée' : 'État initial'}</span>
           <Formula display>
             {mode === 'stationary'
-              ? perturbed ? String.raw`$\begin{aligned}\hat H_\lambda\phi_n^{(\lambda)}&=E_n^{(\lambda)}\phi_n^{(\lambda)},\\\phi_n^{(\lambda)}(0)&=\phi_n^{(\lambda)}(a)=0.\end{aligned}$` : String.raw`$\phi_n(x)=\sqrt{\frac{2}{a}}\,\sin(n\pi x/a)$`
+              ? perturbed ? String.raw`$\begin{aligned}H_\lambda\phi_n^{(\lambda)}&=E_n^{(\lambda)}\phi_n^{(\lambda)},\\\phi_n^{(\lambda)}(0)&=\phi_n^{(\lambda)}(a)=0.\end{aligned}$` : String.raw`$\phi_n(x)=\sqrt{\frac{2}{a}}\,\sin(n\pi x/a)$`
               : presetFormula(preset)}
           </Formula>
           {perturbed ? <p className="scale-note">{mode === 'stationary' ? `États calculés dans une base de ${WELL_BASIS_SIZE} sinus.` : <>Les <Formula>{String.raw`$\phi_n$`}</Formula> de l’état initial restent ceux du puits sans perturbation. L’évolution utilise le potentiel incliné dès <Formula>{'$t=0$'}</Formula>.</>}</p> : null}
@@ -419,7 +419,7 @@ export function InfiniteWellLab({
             </div>
             <div>
               <span>{perturbed ? 'Hamiltonien réduit' : 'Énergies propres'}</span>
-              <Formula display>{perturbed ? String.raw`$\frac{\hat H_\lambda}{E_{\mathrm{ref}}}=-\frac{1}{\pi^2}\frac{d^2}{du^2}+\lambda\!\left(u-\frac12\right)$` : String.raw`$E_n=\frac{n^2\pi^2\hbar^2}{2ma^2},\qquad n=1,2,3,\ldots$`}</Formula>
+              <Formula display>{perturbed ? String.raw`$\frac{H_\lambda}{E_{\mathrm{ref}}}=-\frac{1}{\pi^2}\frac{d^2}{du^2}+\lambda\!\left(u-\frac12\right)$` : String.raw`$E_n=\frac{n^2\pi^2\hbar^2}{2ma^2},\qquad n=1,2,3,\ldots$`}</Formula>
             </div>
             <div>
               <span>Décomposition sur les états propres</span>

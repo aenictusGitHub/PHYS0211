@@ -40,8 +40,10 @@ for (const file of assets.filter(name => name.endsWith('.css'))) {
     'Both block and inline formulas retain the local native LaTeX math font');
   assert.doesNotMatch(css, /\.math-display \.katex-(?:mathml|html)\{/,
     'No competing visibility overrides: a single native expression is emitted');
-  assert.match(css, /\.math-formula \.math-hat\{font-size:\.75em\}/,
-    'Operator hats remain compact in the published stylesheet');
+  assert.doesNotMatch(css, /math-hat/, 'Obsolete operator-hat styles are absent');
+  const choiceRules = [...css.matchAll(/[^{}]*\.display-switch button[^{}]*\{([^}]+)\}/g)].map(match => match[1]);
+  assert.ok(choiceRules.some(rule => rule.includes('height:auto') && rule.includes('padding:.55em .7em') && rule.includes('line-height:1.4')),
+    'Multiline choice buttons retain vertical padding in the published stylesheet');
   assert.match(css, /\.math-formula mtd\{padding:\.22em \.3em\}/,
     'Matrix rows have explicit vertical padding after the global reset');
   assert.match(css, /mtd\+mtd\{padding-left:\.8em\}/,
@@ -58,6 +60,7 @@ for (const file of assets.filter(name => name.endsWith('.js'))) {
   const js = readFileSync(resolve(root, 'assets', file), 'utf8');
   for (const url of js.match(/\/PHYS0211\/assets\/[A-Za-z0-9_.-]+/g) ?? []) checkAsset(url);
   nativeMathComponent ||= /output:["'`]mathml["'`]/.test(js);
+  assert.doesNotMatch(js, /math-hat/, 'No special hat-rendering workaround is published');
   oscillatorMoments ||= js.includes('oscillator-observables-title');
   rotorField ||= js.includes('rotor-field-enabled') && js.includes('rotor-lambda');
 }

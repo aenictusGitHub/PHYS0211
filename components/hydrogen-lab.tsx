@@ -76,8 +76,8 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
         <Button variant="ghost" className={evolving ? 'is-selected' : ''} aria-pressed={evolving} onClick={() => setMode('evolution')}>Évolution</Button>
       </div>
       <div className="equation-card"><span>{evolving ? 'État initial' : 'Séparation radiale et angulaire'}</span><Formula display>{evolving ? preset.formula : basis === 'complex'
-        ? String.raw`$\psi_{n\ell m}=R_{n\ell}(r)\,Y_\ell^m(\theta,\varphi)$`
-        : String.raw`$\psi^{\mathrm{réel}}_{n\ell m}=R_{n\ell}(r)\,\mathcal Y_{\ell m}(\theta,\varphi)$`}</Formula></div>
+        ? String.raw`$\psi_{n\ell m}=R_{n\ell}(r)\,Y_\ell^m\,(\theta,\,\varphi)$`
+        : String.raw`$\psi^{\mathrm{réel}}_{n\ell m}=R_{n\ell}(r)\,\mathcal Y_{\ell m}\,(\theta,\,\varphi)$`}</Formula></div>
       <div className="mode-switch" role="group" aria-label="Vue de l’atome d’hydrogène">
         <Button variant="ghost" className={view === 'slice' ? 'is-selected' : ''} aria-pressed={view === 'slice'} onClick={() => setView('slice')}>Coupe spatiale</Button>
         <Button variant="ghost" className={view === 'radial' ? 'is-selected' : ''} aria-pressed={view === 'radial'} onClick={() => setView('radial')}>Partie radiale</Button>
@@ -102,8 +102,8 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
           <Button variant="outline" className={basis === 'complex' ? 'is-selected' : ''} aria-pressed={basis === 'complex'} onClick={() => setBasis('complex')}>Complexe</Button>
           <Button variant="outline" className={basis === 'real' ? 'is-selected' : ''} aria-pressed={basis === 'real'} onClick={() => setBasis('real')}>Réelle</Button>
         </div>
-        <p className="scale-note">{basis === 'complex' ? <>États propres de <Formula>{String.raw`$\hat L_z$`}</Formula>, de valeur <Formula>{String.raw`$m\hbar$`}</Formula>.</>
-          : <>Pour <Formula>{String.raw`$m\ne0$`}</Formula>, combinaisons des états <Formula>{'$+|m|$'}</Formula> et <Formula>{'$-|m|$'}</Formula>. Cet indice ne désigne plus une valeur propre de <Formula>{String.raw`$\hat L_z$`}</Formula>.</>}</p>
+        <p className="scale-note">{basis === 'complex' ? <>États propres de <Formula>{String.raw`$L_z$`}</Formula>, de valeur <Formula>{String.raw`$m\hbar$`}</Formula>.</>
+          : <>Pour <Formula>{String.raw`$m\ne0$`}</Formula>, combinaisons des états <Formula>{'$+|m|$'}</Formula> et <Formula>{'$-|m|$'}</Formula>. Cet indice ne désigne plus une valeur propre de <Formula>{String.raw`$L_z$`}</Formula>.</>}</p>
         </> : <>
           <QuantumParameter id="rydberg-n" label="Nombre principal" symbol="$n$" value={n} min={RYDBERG_N_MIN} max={RYDBERG_N_MAX} onChange={n => setState(current => ({ n, l: n - 1, m: (current.m < 0 ? -1 : 1) * (n - 1) }))} />
           <div className="display-switch" role="group" aria-label="Signe du moment cinétique">

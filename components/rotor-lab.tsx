@@ -79,7 +79,7 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
           <QuantumParameter id="rotor-lambda" label="Intensité" symbol={String.raw`$\lambda$`} value={fieldStrength} min={0} max={ROTOR_FIELD_MAX} step={.1} onChange={value => { setFieldStrength(value); restart(); }} />
         </div> : null}
       </section>
-      <div className="equation-card"><span>Hamiltonien de rotation</span><Formula display>{perturbed ? String.raw`$\hat H=\frac{\hat L^2}{2I}-\lambda B\cos\theta$` : String.raw`$\hat H=\frac{\hat L^2}{2I}$`}</Formula></div>
+      <div className="equation-card"><span>Hamiltonien de rotation</span><Formula display>{perturbed ? String.raw`$H=\frac{L^2}{2I}-\lambda B\cos\theta$` : String.raw`$H=\frac{L^2}{2I}$`}</Formula></div>
       <div className="control-stack">
         {evolving ? <>
           <div className="preset-grid preset-grid-four">{ROTOR_PRESETS.map(item => <Button key={item.id} variant="outline" className={presetId === item.id ? 'is-selected' : ''} onClick={() => { setPresetId(item.id); clock.setPhase(0); clock.setPlaying(false); }}>{item.label}</Button>)}</div>
@@ -105,7 +105,10 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
       <p className="scale-note"><Formula>{String.raw`$E_\star=\hbar^2/(2I_0)$`}</Formula> fixe l’unité d’énergie. Sans champ extérieur, tous les états de même <Formula>{String.raw`$\ell$`}</Formula> ont la même énergie.</p>
     </aside>
     <div className="figure-panel">
-      <div className="figure-heading"><div><p className="eyebrow">{evolving ? 'Dynamique d’orientation' : 'Probabilité d’orientation'}</p><h2><Formula>{evolving ? String.raw`$|\psi(\theta,\varphi,t)|^2$` : perturbed ? String.raw`$|\Phi_{${l},${m}}(\theta,\varphi)|^2$` : String.raw`$|Y_{${l}}^{${m}}(\theta,\varphi)|^2$`}</Formula></h2></div><span className="figure-tag">Surface angulaire · 3D</span></div>
+      <div className="figure-heading"><div><p className="eyebrow">{evolving ? 'Dynamique d’orientation' : 'Probabilité d’orientation'}</p><h2><Formula>{evolving
+        ? String.raw`$\left\lvert\,\psi(\theta,\,\varphi,\,t)\,\right\rvert^{2}$`
+        : perturbed ? String.raw`$\left\lvert\,\Phi_{${l},${m}}\,(\theta,\,\varphi)\,\right\rvert^{2}$`
+          : String.raw`$\left\lvert\,Y_{${l}}^{${m}}\,(\theta,\,\varphi)\,\right\rvert^{2}$`}</Formula></h2></div><span className="figure-tag">Surface angulaire · 3D</span></div>
       <AngularSurface l={l} m={m} active={active} phaseColors={phaseColors} evolutionTerms={evolving ? preset.terms : undefined} phase={evolving ? clock.phase : 0}
         waveBasis={perturbed ? prepared.basis : undefined} waveCoefficients={perturbed ? wave : undefined} coefficientBounds={perturbed ? prepared.bounds : undefined} />
       {evolving ? perturbed ? <PlaybackControls id="rotor" clock={clock} scale={scale} onScaleChange={setScale} timeUnit={2 * Math.PI} timeSymbol="$t/T_0$" finalSymbol="$t_f/T_0$"
@@ -130,9 +133,9 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
         {evolving ? <p className="scale-note">Parmi les niveaux montrés, le vert signale une population supérieure à 0.01 %. Le calcul inclut les niveaux supérieurs.</p> : null}
       </div>) : <EnergyLevels energies={Array.from({ length: ROTOR_L_MAX + 1 }, (_, ell) => ell * (ell + 1) / inertia)} selected={evolving ? [0, 1] : l} indexSymbol={String.raw`\ell`} unit={String.raw`$E/E_\star$`} label="Spectre du rotateur rigide" />}
       <details className="theory-notes"><summary>Repères théoriques</summary><div className="theory-grid">
-        <div><span>{perturbed ? 'Base du rotateur libre' : 'États propres'}</span><Formula display>{String.raw`$\begin{aligned}\hat L^2Y_\ell^m&=\hbar^2\ell(\ell+1)Y_\ell^m,\\\hat L_zY_\ell^m&=m\hbar Y_\ell^m.\end{aligned}$`}</Formula></div>
+        <div><span>{perturbed ? 'Base du rotateur libre' : 'États propres'}</span><Formula display>{String.raw`$\begin{aligned}L^2Y_\ell^m&=\hbar^2\ell(\ell+1)Y_\ell^m,\\L_zY_\ell^m&=m\hbar Y_\ell^m.\end{aligned}$`}</Formula></div>
         <div><span>{perturbed ? 'États propres sous champ' : 'Niveaux de rotation'}</span><Formula display>{perturbed ? String.raw`$\Phi_{\ell_0,m}=\sum_{\ell=|m|}^{\infty}c_\ell Y_\ell^m$` : String.raw`$\begin{aligned}E_\ell&=\frac{\hbar^2}{2I}\ell(\ell+1),\\m&=-\ell,\ldots,\ell.\end{aligned}$`}</Formula></div>
-        <div><span>Harmoniques sphériques normalisées</span><Formula display>{String.raw`$\begin{aligned}Y_\ell^m(\theta,\varphi)&=N_{\ell m}P_\ell^m(\cos\theta)e^{im\varphi},\\N_{\ell m}&=\sqrt{\frac{2\ell+1}{4\pi}\frac{(\ell-m)!}{(\ell+m)!}}.\end{aligned}$`}</Formula></div>
+        <div><span>Harmoniques sphériques normalisées</span><Formula display>{String.raw`$\begin{aligned}Y_\ell^m\,(\theta,\,\varphi)&=N_{\ell m}\,P_\ell^m\,(\cos\theta)\,e^{im\varphi},\\N_{\ell m}&=\sqrt{\frac{2\ell+1}{4\pi}\frac{(\ell-m)!}{(\ell+m)!}}.\end{aligned}$`}</Formula></div>
       </div>{perturbed ? <>
         <Formula display>{String.raw`$\langle\ell,m|\cos\theta|\ell+1,m\rangle=\sqrt{\frac{(\ell+1)^2-m^2}{(2\ell+1)(2\ell+3)}}$`}</Formula>
         <p>Le couplage relie uniquement <Formula>{String.raw`$\Delta\ell=\pm1$`}</Formula> à <Formula>{String.raw`$\Delta m=0$`}</Formula>. Les secteurs <Formula>{'$m$'}</Formula> et <Formula>{'$-m$'}</Formula> ont les mêmes énergies, mais la dégénérescence entre toutes les projections est levée. Le Hamiltonien est diagonalisé dans la base des harmoniques sphériques jusqu’à <Formula>{String.raw`$\ell=24$`}</Formula>.</p>

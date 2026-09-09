@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -22,7 +22,7 @@ const expressions = [
   String.raw`\frac{V(\xi)}{\hbar\omega}=\frac{\xi^2}{2}+\lambda\xi^4`,
   String.raw`V(x)=\lambda E_{\mathrm{ref}}\!\left(\frac{x}{a}-\frac12\right)`,
   String.raw`\psi(x,t)=\sum_{n=1}^{40}c_n\phi_n(x)e^{-iE_nt/\hbar}`,
-  String.raw`\begin{aligned}\hat H\phi_n&=E_n\phi_n,\\\phi_n(0)&=\phi_n(a)=0\end{aligned}`,
+  String.raw`\begin{aligned}H\phi_n&=E_n\phi_n,\\\phi_n(0)&=\phi_n(a)=0\end{aligned}`,
   String.raw`\psi(x,0)=\frac{\phi_0(x)+\phi_1(x)}{\sqrt2}`,
   String.raw`E_\ell=\frac{\hbar^2\ell(\ell+1)}{2I}`,
   String.raw`\psi_{n\ell m}(r,\theta,\varphi)=R_{n\ell}(r)Y_\ell^m(\theta,\varphi)`,
@@ -82,12 +82,35 @@ const well = labFormula('infinite-well-lab', tex => tex.startsWith('$\\phi_n(x)=
 assert.match(render(well), /<\/msqrt><mtext>\u2009<\/mtext><mi>sin<\/mi>/,
   'The normalization factor is separated from the sine');
 assert.ok(!well.includes('\\!') && !well.includes('\\bigl'), 'No negative gap or oversized parentheses');
-const rotor = labFormula('rotor-lab', tex => tex.startsWith('$\\hat H='));
-assert.equal((render(rotor).match(/class="math-hat" stretchy="false"/g) ?? []).length, 2,
-  'Both Hamiltonian and angular-momentum hats are non-stretching');
-const wide = render(String.raw`\widehat{AB}`);
-assert.match(wide, /<mo stretchy="true">\^<\/mo>/, 'An intentional wide hat stays wide');
-assert.ok(!wide.includes('math-hat'));
+const rotor = labFormula('rotor-lab', tex => tex.startsWith('$H='));
+assert.doesNotMatch(render(rotor), /<mover\b|math-hat|>\^<|accent="true"/, 'Hamiltonian and angular momentum have no hats');
+assert.match(render(rotor), /<msup><mi>L<\/mi><mn>2<\/mn><\/msup>/, 'Removing hats preserves the physical square');
+for (const directory of ['components', 'lib', 'app']) {
+  const root = new URL(`../${directory}/`, import.meta.url);
+  for (const file of readdirSync(root, { recursive: true }).filter(name => /\.tsx?$/.test(name) && !name.startsWith('ui/'))) {
+    assert.doesNotMatch(readFileSync(new URL(file, root), 'utf8'), /\\(?:wide)?hat\b|\u0302/, `No operator hats anywhere in ${directory}/${file}`);
+  }
+}
+const angularTemplate = labFormula('rotor-lab', tex => tex.includes('Y_{${'));
+for (const [l, m] of [[1, 0], [5, -5], [5, 5]]) {
+  const tex = angularTemplate.replaceAll('${l}', String(l)).replaceAll('${m}', String(m));
+  const html = render(tex);
+  assert.doesNotMatch(html, /katex-error|<merror/);
+  assert.match(html, /<msubsup><mi>Y<\/mi>/, 'Native paired scripts remain attached to Y');
+  assert.match(html, /<\/msubsup><mtext>\u2009<\/mtext><mo[^>]*>\(<\/mo>/, 'Indices are separated from the opening parenthesis by a thin space');
+  assert.ok(tex.includes(String.raw`\theta,\,\varphi`), 'Angular arguments are separated');
+  assert.ok(tex.includes(String.raw`\left\lvert\,`) && tex.includes(String.raw`\,\right\rvert^{2}`), 'Absolute-value bars have inner breathing room and size to the expression');
+  assert.equal((html.match(/<math\b/g) ?? []).length, 1);
+}
+const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
+const choiceRule = css.match(/\.preset-grid button,\s*\.display-switch button\s*\{([^}]+)\}/)?.[1];
+assert.ok(choiceRule);
+assert.match(choiceRule, /height:\s*auto/);
+assert.match(choiceRule, /min-height:\s*2\.75rem/);
+assert.match(choiceRule, /padding:\s*\.55em \.7em/);
+assert.match(choiceRule, /line-height:\s*1\.4/);
+assert.match(choiceRule, /white-space:\s*normal/);
+assert.doesNotMatch(css, /math-hat/, 'Obsolete accent positioning is gone');
 const potential = labFormula('scattering-lab', tex => tex.startsWith('$V(x)=\\begin{cases}V_0'));
 assert.equal((render(potential).match(/<mtr>/g) ?? []).length, 2);
 assert.ok(potential.includes('\\lvert x\\rvert') && !potential.includes(','),
@@ -96,4 +119,4 @@ const spinor = render(String.raw`|\psi(t)\rangle=\begin{pmatrix}0.14-0.83i\\-0.5
 assert.equal((spinor.match(/<mtr>/g) ?? []).length, 2, 'The two spinor components keep separate rows');
 for (const number of ['0.14', '0.83', '0.53', '0.05']) assert.ok(spinor.includes(`<mn>${number}</mn>`));
 assert.doesNotMatch(spinor, /katex-error|<merror|katex-html/);
-console.log('Math: unique native rendering, one-line equations, compact hats, product spacing, cases, two-row spinors and accessibility pass.');
+console.log('Math: no operator hats, preserved powers, spaced spherical harmonics, multiline button padding, unique native rendering, cases and spinors pass.');

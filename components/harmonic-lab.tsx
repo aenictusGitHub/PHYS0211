@@ -280,7 +280,7 @@ export function HarmonicLab({
           <Formula display>
             {mode === 'stationary'
               ? strength > 0
-                ? String.raw`$\hat H\phi_n=E_n\phi_n$`
+                ? String.raw`$H\phi_n=E_n\phi_n$`
                 : String.raw`$\phi_n(\xi)=\frac{e^{-\xi^2/2}H_n(\xi)}{\pi^{1/4}\sqrt{2^n n!}}$`
               : presetFormula(preset)}
           </Formula>
@@ -469,7 +469,7 @@ export function HarmonicLab({
           <div className="theory-grid">
             <div>
               <span>Hamiltonien</span>
-              <Formula display>{String.raw`$\frac{\hat H}{\hbar\omega}=-\frac12\frac{\mathrm d^2}{\mathrm d\xi^2}+\frac{\xi^2}{2}+\lambda\xi^4$`}</Formula>
+              <Formula display>{String.raw`$\frac{H}{\hbar\omega}=-\frac12\frac{\mathrm d^2}{\mathrm d\xi^2}+\frac{\xi^2}{2}+\lambda\xi^4$`}</Formula>
             </div>
             <div>
               <span>Base harmonique non perturbée</span>
@@ -477,7 +477,7 @@ export function HarmonicLab({
             </div>
             <div>
               <span>État cohérent</span>
-              <Formula display>{String.raw`$\begin{aligned}\hat a|\alpha\rangle&=\alpha|\alpha\rangle,\\ |\alpha\rangle&=e^{-|\alpha|^2/2}\sum_{n=0}^{\infty}\frac{\alpha^n}{\sqrt{n!}}\,|n\rangle.\end{aligned}$`}</Formula>
+              <Formula display>{String.raw`$\begin{aligned}a|\alpha\rangle&=\alpha|\alpha\rangle,\\ |\alpha\rangle&=e^{-|\alpha|^2/2}\sum_{n=0}^{\infty}\frac{\alpha^n}{\sqrt{n!}}\,|n\rangle.\end{aligned}$`}</Formula>
             </div>
             <div>
               <span>Superposition cohérente normalisée</span>

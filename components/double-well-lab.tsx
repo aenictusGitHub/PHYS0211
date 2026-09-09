@@ -227,7 +227,7 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
       <details className="theory-notes">
         <summary>Repères théoriques</summary>
         <div className="theory-grid">
-          <div><span>Équation stationnaire</span><Formula display>{String.raw`$\begin{aligned}\hat H\phi_n&=E_n\phi_n,\\\hat H&=-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}+V(x).\end{aligned}$`}</Formula></div>
+          <div><span>Équation stationnaire</span><Formula display>{String.raw`$\begin{aligned}H\phi_n&=E_n\phi_n,\\H&=-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}+V(x).\end{aligned}$`}</Formula></div>
           <div><span>Doublet choisi</span><Formula display>{String.raw`$\begin{aligned}n_a&=2j,\quad n_b=2j+1,\\\Delta E&=E_{n_b}-E_{n_a},\\T&=\frac{2\pi\hbar}{\Delta E}.\end{aligned}$`}</Formula></div>
           <div><span>Évolution de la superposition</span><Formula display>{String.raw`$\begin{aligned}\psi(x,t)&=\sqrt{1-p}\,\phi_{n_a}(x)\,e^{-iE_{n_a}t/\hbar}+e^{i\delta}\,\sqrt{p}\,\phi_{n_b}(x)\,e^{-iE_{n_b}t/\hbar},\\\langle E\rangle&=(1-p)E_{n_a}+pE_{n_b}.\end{aligned}$`}</Formula></div>
         </div>
