@@ -31,6 +31,28 @@ for (const sigma of [.2, .5, 1, 2, 5]) for (const chirp of [-2, 0, 2]) {
   }
 }
 for (const x of [-2, 0, 1, 3]) near(wave(x, 'position', base).density, wave(x, 'position', { ...base, chirp: 2 }).density);
+// The physical interpretation follows from the current, not a classical
+// simultaneous assignment of position and momentum. Check the phase gradient
+// and its symmetrized covariance independently from the stated formulas.
+for (const chirp of [-2, 0, 2]) {
+  const config = { ...base, chirp, center: .8, momentum: 1.3 }, epsilon = 1e-5;
+  let covariance = 0;
+  for (let i = 0; i < 2000; i++) {
+    const x = config.center - 9 + (i + .5) * 18 / 2000;
+    const psi = wave(x, 'position', config), plus = wave(x + epsilon, 'position', config), minus = wave(x - epsilon, 'position', config);
+    const current = (psi.real * (plus.imaginary - minus.imaginary) - psi.imaginary * (plus.real - minus.real)) / (2 * epsilon);
+    covariance += (x - config.center) * (current - config.momentum * psi.density) * 18 / 2000;
+    if (Math.abs(x - config.center) < 2) near(current / psi.density, config.momentum + chirp * (x - config.center) / 2, 2e-8);
+  }
+  near(covariance, chirp / 2, 2e-8);
+}
+const sigma0 = .8, mass = 1.7;
+for (const t of [-1, 0, 1]) {
+  const c = t / (2 * mass * sigma0 ** 2);
+  const expanded = moments({ ...base, sigma: sigma0 * Math.hypot(1, c), chirp: c });
+  near(expanded.dp, 1 / (2 * sigma0)); // momentum spread is conserved in free flight
+  near(2 * expanded.covariance / mass, t / (2 * mass ** 2 * sigma0 ** 2));
+}
 near(moments({ ...base, sigma: .5 }).dp, 2 * moments(base).dp);
 near(moments({ ...base, center: 2, momentum: 2 }).product, moments(base).product);
 assert.deepEqual(domains({ ...base, sigma: .5 }), domains({ ...base, sigma: 2 }), 'Changing width must not zoom away its visible effect');

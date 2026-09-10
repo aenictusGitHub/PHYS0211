@@ -700,6 +700,9 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .spin-workspace .figure-panel { position: static; }
 .fourier-workspace .figure-panel { position: static; }
 .fourier-phase .control-stack { margin-top: 18px; }
+.fourier-chirp-control .compact-stepper { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto; align-items: center; gap: 8px; margin-bottom: 16px; font-size: var(--text-ui); }
+.fourier-chirp-control .compact-stepper > label { color: var(--foreground); }
+.fourier-chirp-control .compact-stepper-field input { font-size: var(--text-ui); }
 .fourier-view { margin: 20px 0; }
 .fourier-plots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .fourier-plot { min-width: 0; padding: 14px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
@@ -714,7 +717,15 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .fourier-uncertainty span { font-size: var(--text-small); color: var(--muted-foreground); }
 .fourier-uncertainty p:not(.control-caption) { margin: 4px 0; font-size: var(--text-emphasis); }
 .fourier-explanation { font-size: var(--text-body); line-height: 1.6; }
-.fourier-workspace .measurements { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.fourier-workspace .measurements { grid-template-columns: minmax(0, 1fr); }
+.fourier-workspace .measurements > div { min-width: 0; flex-wrap: wrap; column-gap: 1.5rem; row-gap: .5rem; }
+.fourier-workspace .measurements dd { display: flex; align-items: baseline; gap: .45em; white-space: nowrap; }
+.fourier-workspace .measurements output { font-variant-numeric: tabular-nums; }
+.fourier-physical-note { margin-top: 20px; padding: 18px; border: 1px solid var(--line); border-left: 3px solid var(--lab-tone); border-radius: 8px; background: var(--paper); font-size: var(--text-ui); line-height: 1.6; }
+.fourier-physical-note h3 { margin: 0 0 12px; font-size: var(--text-body); font-weight: 400; }
+.fourier-physical-note p { margin: 12px 0 0; }
+.fourier-physical-note ul { margin: 12px 0; padding-left: 1.2em; }
+.fourier-physical-note li + li { margin-top: 8px; }
 @media (min-width: 781px) and (max-width: 1150px), (max-width: 620px) {
   .fourier-plots { grid-template-columns: minmax(0, 1fr); }
 }
