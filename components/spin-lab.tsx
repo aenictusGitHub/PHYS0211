@@ -54,7 +54,7 @@ export function SpinLab({ active, command }: { active: boolean; command: Experim
 
   return <section className="workspace spin-workspace" aria-labelledby="spin-title">
     <aside className="control-panel">
-      <div><p className="eyebrow">07</p><h1 id="spin-title">Spin-1/2</h1><p className="lede">Deux résultats possibles, une infinité de superpositions. Préparez un spin, faites-le précesser et changez l’axe de mesure.</p></div>
+      <div><p className="eyebrow">08</p><h1 id="spin-title">Spin-1/2</h1><p className="lede">Deux résultats possibles, une infinité de superpositions. Préparez un spin, faites-le précesser et changez l’axe de mesure.</p></div>
       <div className="equation-card"><span>État initial dans la base de <Formula>{'$S_z$'}</Formula></span><Formula display>{String.raw`$|\psi(0)\rangle=\cos(\theta_0/2)\,|+z\rangle+e^{i\varphi_0}\,\sin(\theta_0/2)\,|-z\rangle$`}</Formula></div>
       <div className="control-stack">
         <div className="control-block"><p className="control-caption">Préparer un état propre</p><div className="spin-presets" role="group" aria-label="État initial du spin">{SPIN_PRESETS.map(p => {

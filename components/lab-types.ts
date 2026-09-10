@@ -1,6 +1,11 @@
 export type ExperimentCommand = {
   id: number;
-  lab: 'well' | 'oscillator' | 'scattering' | 'double-well' | 'rotor' | 'hydrogen' | 'spin' | 'stern-gerlach';
+  lab: 'fourier' | 'well' | 'oscillator' | 'scattering' | 'double-well' | 'rotor' | 'hydrogen' | 'spin' | 'stern-gerlach';
+  fourierSigma?: number;
+  fourierCenter?: number;
+  fourierMomentum?: number;
+  fourierChirp?: number;
+  fourierView?: 'density' | 'complex';
   mode?: 'stationary' | 'evolution';
   quantumNumber?: number;
   preset?: string;

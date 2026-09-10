@@ -211,7 +211,7 @@ export function InfiniteWellLab({
     <section className="workspace well-workspace" aria-labelledby="well-title">
       <aside className="control-panel">
         <div>
-          <p className="eyebrow">02</p>
+          <p className="eyebrow">03</p>
           <h1 id="well-title">Puits de potentiel infini</h1>
           <p className="lede">
             Reliez quantification, nœuds et interférences dans un espace où la

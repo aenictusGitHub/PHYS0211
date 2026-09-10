@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { QuantumMark } from '@/components/quantum-mark';
+import { FourierLab } from '@/components/fourier-lab';
+import { parseFourier } from '@/lib/fourier';
 
 import { HarmonicLab } from '@/components/harmonic-lab';
 import { InfiniteWellLab } from '@/components/infinite-well-lab';
@@ -47,11 +49,12 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
   }
 
   const data = input as Record<string, unknown>;
+  if (data.lab === 'fourier') return parseFourier(data);
   if (data.lab === 'stern-gerlach') return parseSternGerlach(data);
   if (data.lab === 'spin') return parseSpinExperiment(data);
   if (data.lab === 'rotor' || data.lab === 'hydrogen') return parseAtomicExperiment(data);
   if (data.lab !== 'well' && data.lab !== 'oscillator' && data.lab !== 'scattering' && data.lab !== 'double-well') {
-    throw new Error('lab doit valoir well, oscillator, scattering, double-well, rotor, hydrogen ou spin.');
+    throw new Error('lab doit valoir fourier, scattering, well, oscillator, double-well, rotor, hydrogen, spin ou stern-gerlach.');
   }
 
   if (
@@ -159,7 +162,7 @@ function parseExperimentCommand(input: unknown): Omit<ExperimentCommand, 'id'> {
 }
 
 export function QuantumLab() {
-  const [lab, setLab] = useState<Lab>('scattering');
+  const [lab, setLab] = useState<Lab>('fourier');
   const [command, setCommand] = useState<ExperimentCommand | null>(null);
 
   useEffect(() => {
@@ -174,11 +177,16 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          `Configure les huit laboratoires. stern-gerlach : sgSetup=single (défaut) accepte sgJ, sgGradient, sgVelocity, sgLength, sgDistance, sgAngle, sgG, sgMass, sgBeam et sgModel. Dans ce montage, time et finalTime sont en ms (time de 0 à 20, finalTime de 1 à 20), scale de 0.5 à 4 règle la taille des impacts. sgBeam polarisé sélectionne j=1/2 et le modèle quantique ; sinon j différent de 1/2 ou sgModel=classical impose mixed. sgSetup=cascade : spin 1/2 quantique uniquement, sgBeam, sgCascadeAngles=[A,B,C] en degrés, sgCascadeFilters=[A,B] (plus/minus/both), sgCascadeMiddle (false retire B). Un réglage sgCascade implique cascade. En cascade, time est en unités d’animation de 0 à 20, finalTime de 4 à 20 ; pas de paramètres de géométrie, de gradient ni de sgAngle. Pas de mode ni de preset pour Stern–Gerlach. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1), resolution (maillage 3D, ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX} par pas de ${ROTOR_RESOLUTION_STEP}, défaut 64). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 20π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 20π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. Tous les laboratoires acceptent playbackSpeed et finalTime ; ce dernier utilise la même unité interne que time, pas t/T. scale est accepté sauf pour rotor, qui utilise resolution à la place. La lecture reste en pause.`,
+          `Configure les neuf laboratoires. fourier : fourierSigma (0.5 à 2), fourierCenter et fourierMomentum (-2 à 2), fourierChirp (-2 à 2), fourierView (density/complex). Paire gaussienne normalisée, hbar=1 ; pas de temps, de facteur d’affichage ni de lecture pour ce laboratoire. stern-gerlach : sgSetup=single (défaut) accepte sgJ, sgGradient, sgVelocity, sgLength, sgDistance, sgAngle, sgG, sgMass, sgBeam et sgModel. Dans ce montage, time et finalTime sont en ms (time de 0 à 20, finalTime de 1 à 20), scale de 0.5 à 4 règle la taille des impacts. sgBeam polarisé sélectionne j=1/2 et le modèle quantique ; sinon j différent de 1/2 ou sgModel=classical impose mixed. sgSetup=cascade : spin 1/2 quantique uniquement, sgBeam, sgCascadeAngles=[A,B,C] en degrés, sgCascadeFilters=[A,B] (plus/minus/both), sgCascadeMiddle (false retire B). Un réglage sgCascade implique cascade. En cascade, time est en unités d’animation de 0 à 20, finalTime de 4 à 20 ; pas de paramètres de géométrie, de gradient ni de sgAngle. Pas de mode ni de preset pour Stern–Gerlach. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1), resolution (maillage 3D, ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX} par pas de ${ROTOR_RESOLUTION_STEP}, défaut 64). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 20π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 20π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. Tous les laboratoires sauf fourier acceptent playbackSpeed et finalTime ; ce dernier utilise la même unité interne que time, pas t/T. scale est accepté sauf pour fourier et rotor, qui utilise resolution à la place. La lecture reste en pause.`,
         inputSchema: {
           type: 'object',
           properties: {
-            lab: { type: 'string', enum: ['well', 'oscillator', 'scattering', 'double-well', 'rotor', 'hydrogen', 'spin', 'stern-gerlach'] },
+            lab: { type: 'string', enum: ['fourier', 'scattering', 'well', 'oscillator', 'double-well', 'rotor', 'hydrogen', 'spin', 'stern-gerlach'] },
+            fourierSigma: { type: 'number', minimum: .5, maximum: 2, description: 'Écart-type en position du paquet gaussien, hbar=1.' },
+            fourierCenter: { type: 'number', minimum: -2, maximum: 2 },
+            fourierMomentum: { type: 'number', minimum: -2, maximum: 2 },
+            fourierChirp: { type: 'number', minimum: -2, maximum: 2, description: 'Coefficient c de phase quadratique. Δp=sqrt(1+c²)/(2 sigma).' },
+            fourierView: { type: 'string', enum: ['density', 'complex'] },
             sgJ: { type: 'number', enum: SG_J },
             sgGradient: { type: 'number', minimum: -1500, maximum: 1500, description: 'Gradient de Stern–Gerlach en T/m.' },
             sgVelocity: { type: 'number', minimum: 100, maximum: 1000, description: 'Vitesse longitudinale en m/s.' },
@@ -325,6 +333,11 @@ export function QuantumLab() {
             sgCascadeAngles: parsed.sgCascadeAngles ?? null,
             sgCascadeFilters: parsed.sgCascadeFilters ?? null,
             sgCascadeMiddle: parsed.sgCascadeMiddle ?? null,
+            fourierSigma: parsed.fourierSigma ?? null,
+            fourierCenter: parsed.fourierCenter ?? null,
+            fourierMomentum: parsed.fourierMomentum ?? null,
+            fourierChirp: parsed.fourierChirp ?? null,
+            fourierView: parsed.fourierView ?? null,
           };
         },
       },
@@ -347,13 +360,15 @@ export function QuantumLab() {
         </a>
 
         <nav aria-label="Choisir un laboratoire">
+          <Button variant="ghost" className={`lab-tab lab-tab-fourier${lab === 'fourier' ? ' is-active' : ''}`}
+            onClick={() => setLab('fourier')} aria-pressed={lab === 'fourier'}><span>01</span> Incertitude et transformée de Fourier</Button>
           <Button
             variant="ghost"
             className={lab === 'scattering' ? 'lab-tab lab-tab-scattering is-active' : 'lab-tab lab-tab-scattering'}
             onClick={() => setLab('scattering')}
             aria-pressed={lab === 'scattering'}
           >
-            <span>01</span> Diffusion paquets d’ondes
+            <span>02</span> Diffusion paquets d’ondes
           </Button>
           <Button
             variant="ghost"
@@ -361,7 +376,7 @@ export function QuantumLab() {
             onClick={() => setLab('well')}
             aria-pressed={lab === 'well'}
           >
-            <span>02</span> Puits infini
+            <span>03</span> Puits infini
           </Button>
           <Button
             variant="ghost"
@@ -369,7 +384,7 @@ export function QuantumLab() {
             onClick={() => setLab('oscillator')}
             aria-pressed={lab === 'oscillator'}
           >
-            <span>03</span> Oscillateur harmonique
+            <span>04</span> Oscillateur harmonique
           </Button>
           <Button
             variant="ghost"
@@ -377,21 +392,22 @@ export function QuantumLab() {
             onClick={() => setLab('double-well')}
             aria-pressed={lab === 'double-well'}
           >
-            <span>04</span> Double puits
+            <span>05</span> Double puits
           </Button>
           <Button variant="ghost" className={`lab-tab lab-tab-rotor${lab === 'rotor' ? ' is-active' : ''}`}
-            onClick={() => setLab('rotor')} aria-pressed={lab === 'rotor'}><span>05</span> Rotateur rigide</Button>
+            onClick={() => setLab('rotor')} aria-pressed={lab === 'rotor'}><span>06</span> Rotateur rigide</Button>
           <Button variant="ghost" className={`lab-tab lab-tab-hydrogen${lab === 'hydrogen' ? ' is-active' : ''}`}
-            onClick={() => setLab('hydrogen')} aria-pressed={lab === 'hydrogen'}><span>06</span> Atome d’hydrogène</Button>
+            onClick={() => setLab('hydrogen')} aria-pressed={lab === 'hydrogen'}><span>07</span> Atome d’hydrogène</Button>
           <Button variant="ghost" className={`lab-tab lab-tab-spin${lab === 'spin' ? ' is-active' : ''}`}
-            onClick={() => setLab('spin')} aria-pressed={lab === 'spin'}><span>07</span> Spin-1/2</Button>
+            onClick={() => setLab('spin')} aria-pressed={lab === 'spin'}><span>08</span> Spin-1/2</Button>
           <Button variant="ghost" className={`lab-tab lab-tab-sg${lab === 'stern-gerlach' ? ' is-active' : ''}`}
-            onClick={() => setLab('stern-gerlach')} aria-pressed={lab === 'stern-gerlach'}><span>08</span> Stern–Gerlach</Button>
+            onClick={() => setLab('stern-gerlach')} aria-pressed={lab === 'stern-gerlach'}><span>09</span> Stern–Gerlach</Button>
         </nav>
 
       </header>
 
       <div id="laboratory" tabIndex={-1}>
+        <div hidden={lab !== 'fourier'}><FourierLab command={command} /></div>
         <div hidden={lab !== 'scattering'}>
           <ScatteringLab active={lab === 'scattering'} command={command} />
         </div>

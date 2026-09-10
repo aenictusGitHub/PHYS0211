@@ -68,7 +68,7 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
 
   return <section className="workspace" aria-labelledby="rotor-title">
     <aside className="control-panel">
-      <div><p className="eyebrow">05</p><h1 id="rotor-title">Rotateur rigide</h1><p className="lede">Une distance fixe, une orientation quantique. Reliez les harmoniques sphériques aux valeurs du moment cinétique.</p></div>
+      <div><p className="eyebrow">06</p><h1 id="rotor-title">Rotateur rigide</h1><p className="lede">Une distance fixe, une orientation quantique. Reliez les harmoniques sphériques aux valeurs du moment cinétique.</p></div>
       <div className="mode-switch" role="group" aria-label="Mode du rotateur">
         <Button variant="ghost" className={!evolving ? 'is-selected' : ''} aria-pressed={!evolving} onClick={() => { setMode('stationary'); clock.setPlaying(false); }}>États propres</Button>
         <Button variant="ghost" className={evolving ? 'is-selected' : ''} aria-pressed={evolving} onClick={() => setMode('evolution')}>Évolution</Button>

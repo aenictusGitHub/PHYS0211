@@ -115,7 +115,7 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
   return <section className="workspace double-well-workspace" aria-labelledby="double-well-title">
     <aside className="control-panel">
       <div>
-        <p className="eyebrow">04</p>
+        <p className="eyebrow">05</p>
         <h1 id="double-well-title">Double puits</h1>
         <p className="lede">Deux minima, une barrière centrale. Explorez les doublets d’énergie et le transfert de probabilité par effet tunnel.</p>
       </div>

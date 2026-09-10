@@ -70,7 +70,7 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
 
   return <section className="workspace" aria-labelledby="hydrogen-title">
     <aside className="control-panel">
-      <div><p className="eyebrow">06</p><h1 id="hydrogen-title">Atome d’hydrogène</h1><p className="lede">Explorez les orbitales du potentiel coulombien : leur forme, leurs nœuds et la distance de l’électron au noyau.</p></div>
+      <div><p className="eyebrow">07</p><h1 id="hydrogen-title">Atome d’hydrogène</h1><p className="lede">Explorez les orbitales du potentiel coulombien : leur forme, leurs nœuds et la distance de l’électron au noyau.</p></div>
       <div className="mode-switch" role="group" aria-label="Mode de l’hydrogène">
         <Button variant="ghost" className={!evolving ? 'is-selected' : ''} aria-pressed={!evolving} onClick={() => { setMode('stationary'); clock.setPlaying(false); }}>États propres</Button>
         <Button variant="ghost" className={evolving ? 'is-selected' : ''} aria-pressed={evolving} onClick={() => setMode('evolution')}>Évolution</Button>

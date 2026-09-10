@@ -142,6 +142,30 @@ const labs = [
   ['components/hydrogen-lab.tsx', 'HydrogenLab', 'hydrogen', 2 * Math.PI],
   ['components/spin-lab.tsx', 'SpinLab', 'spin', 2 * Math.PI],
 ];
+const fourier = harness('components/fourier-lab.tsx', 'FourierLab', 'fourier');
+assert.match(fourier.html(), /Incertitude et transformée de Fourier/);
+assert.equal(fourier.plots().length, 2);
+assert.match(fourier.html(), /0\.500/);
+const initialAxes = fourier.plots().map(plot => [plot.xDomain, plot.yDomain]);
+fourier.click('Étroit'); assert.equal(fourier.sliderProps('fourier-sigma').value[0], .5);
+assert.deepEqual(fourier.plots().map(plot => [plot.xDomain, plot.yDomain]), initialAxes);
+fourier.click('Large'); assert.equal(fourier.sliderProps('fourier-sigma').value[0], 2);
+assert.deepEqual(fourier.plots().map(plot => [plot.xDomain, plot.yDomain]), initialAxes);
+const positionDensity = fourier.plots()[0].series[0].values;
+fourier.slider('fourier-chirp', 2);
+assert.deepEqual(fourier.plots()[0].series[0].values, positionDensity, 'Quadratic phase does not change position density');
+assert.match(fourier.html(), /1\.118/);
+fourier.click('Parties réelle et imaginaire');
+assert.ok(fourier.plots().every(plot => plot.series.length === 2 && plot.yDomain[0] < 0));
+fourier.command({ fourierSigma: .7, fourierCenter: 1, fourierMomentum: -1, fourierChirp: -1, fourierView: 'density' });
+assert.equal(fourier.sliderProps('fourier-center').value[0], 1);
+assert.equal(fourier.sliderProps('fourier-momentum').value[0], -1);
+assert.ok(fourier.plots().every(plot => plot.series.length === 1));
+fourier.click('Réinitialiser le paquet');
+assert.equal(fourier.sliderProps('fourier-sigma').value[0], 1); assert.equal(fourier.sliderProps('fourier-chirp').value[0], 0);
+for (const plot of fourier.plots()) assert.ok(plot.series.every(curve => curve.values.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))));
+fourier.dispose();
+console.log('Fourier: preset widths, fixed axes, phase changes, complex/density switch, command settings, reset and native formulas pass.');
 for (const [file, component, lab, unit] of labs) {
   const h = harness(file, component, lab);
   const displaySuffix = lab === 'rotor' ? 'resolution' : 'scale';

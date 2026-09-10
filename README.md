@@ -4,18 +4,25 @@ Laboratoires interactifs pour le cours PHYS0211-3, année 2026–2027.
 
 **[Ouvrir les laboratoires](https://aenictusgithub.github.io/PHYS0211/)**
 
-1. Diffusion paquets d’ondes
-2. Puits infini
-3. Oscillateur harmonique
-4. Double puits
-5. Rotateur rigide
-6. Atome d’hydrogène
-7. Spin-1/2
-8. Stern–Gerlach
+1. Incertitude et transformée de Fourier
+2. Diffusion paquets d’ondes
+3. Puits infini
+4. Oscillateur harmonique
+5. Double puits
+6. Rotateur rigide
+7. Atome d’hydrogène
+8. Spin-1/2
+9. Stern–Gerlach
 
 Exploration des états propres et de leur évolution, superpositions initiales,
 perturbations, diffusion, effet tunnel et observables. Les formules sont rendues
 avec KaTeX et les polices LaTeX sont embarquées dans le site.
+
+Le laboratoire de Fourier affiche une paire gaussienne analytique normalisée
+en position et en impulsion, avec réglages de largeur, translations et phase
+quadratique. Les densités et amplitudes complexes partagent des axes fixes
+lorsqu’on change la largeur. Les écarts-types et le produit Δx Δp montrent la
+borne de Heisenberg et l’effet d’une phase non uniforme (unités ℏ=1).
 
 L’oscillateur affiche les moyennes de position et d’impulsion au cours du temps,
 y compris avec la perturbation anharmonique. Le rotateur propose un champ

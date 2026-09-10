@@ -229,7 +229,7 @@ export function HarmonicLab({
     <section className="workspace oscillator-workspace" aria-labelledby="oscillator-title">
       <aside className="control-panel">
         <div>
-          <p className="eyebrow">03</p>
+          <p className="eyebrow">04</p>
           <h1 id="oscillator-title">Oscillateur harmonique</h1>
           <p className="lede">
             Explorez les modes d’Hermite, l’échelle régulière des énergies et

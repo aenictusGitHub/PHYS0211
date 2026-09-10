@@ -76,7 +76,7 @@ export function SternGerlachLab({ active, command }: { active: boolean; command:
 
   return <section className="workspace sg-workspace" aria-labelledby="sg-title">
     <aside className="control-panel">
-      <div><p className="eyebrow">08 · Mesure du moment magnétique</p><h1 id="sg-title">Stern–Gerlach</h1><p className="lede">Du faisceau d’atomes neutres aux traces sur l’écran : explorez la quantification spatiale.</p></div>
+      <div><p className="eyebrow">09 · Mesure du moment magnétique</p><h1 id="sg-title">Stern–Gerlach</h1><p className="lede">Du faisceau d’atomes neutres aux traces sur l’écran : explorez la quantification spatiale.</p></div>
       <div className="mode-switch" role="group" aria-label="Modèle de Stern–Gerlach">
         <Button variant="ghost" aria-pressed={model === 'quantum'} className={model === 'quantum' ? 'is-selected' : ''} onClick={() => { setModel('quantum'); reset(); }}>Quantique</Button>
         <Button variant="ghost" aria-pressed={model === 'classical'} className={model === 'classical' ? 'is-selected' : ''} onClick={() => { setModel('classical'); setBeam('mixed'); reset(); }}>Classique</Button>

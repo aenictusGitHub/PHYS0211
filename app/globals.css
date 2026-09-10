@@ -138,6 +138,7 @@ body { min-width: 320px; background: var(--background); color: var(--foreground)
 button, a { -webkit-tap-highlight-color: transparent; }
 
 .app-shell { min-height: 100vh; padding: 24px clamp(12px, 2.8vw, 44px); }
+.app-shell[data-lab='fourier'] { --lab-tone: #3964a0; --lab-tint: #edf3fc; }
 .app-shell[data-lab='oscillator'] { --lab-tone: var(--teal); --lab-tint: #e9f5f3; }
 .app-shell[data-lab='well'] { --lab-tone: var(--accent); --lab-tint: #fcf0eb; }
 .app-shell[data-lab='scattering'] { --lab-tone: var(--violet); --lab-tint: #f0edfa; }
@@ -186,10 +187,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .brand strong { font-size: var(--text-heading); letter-spacing: 0.01em; }
 .brand small { margin-top: 2px; color: var(--muted-foreground); font-size: var(--text-small); letter-spacing: 0.08em; }
 
-.site-header nav { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); border-top: 1px solid var(--line); }
-.site-header .lab-tab { grid-column: span 3; }
-.site-header .lab-tab:nth-child(n+5) { grid-column: span 3; border-top: 1px solid var(--line); }
-.lab-tab:nth-child(5) { border-left: 0; }
+.site-header nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.site-header .lab-tab { grid-column: auto; }
+.site-header .lab-tab:nth-child(n+4) { border-top: 1px solid var(--line); }
+.site-header .lab-tab:nth-child(3n+1) { border-left: 0; }
 
 .lab-tab {
   --tab-tone: var(--accent);
@@ -210,6 +211,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 }
 
 .lab-tab:first-child { border-left: 0; }
+.lab-tab-fourier { --tab-tone: #3964a0; --tab-tint: #edf3fc; }
 .lab-tab:last-child { border-right: 0; }
 .lab-tab-oscillator { --tab-tone: var(--teal); --tab-tint: rgba(45, 111, 106, 0.12); }
 .lab-tab-scattering { --tab-tone: var(--violet); --tab-tint: #f0edfa; }
@@ -526,10 +528,10 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
 @media (max-width: 780px) {
   .app-shell { padding: 10px; }
   .site-header nav { grid-column: 1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .site-header .lab-tab, .site-header .lab-tab:nth-child(n+5) { grid-column: auto; }
-  .site-header .lab-tab:last-child { grid-column: auto; }
-  .lab-tab:nth-child(odd) { border-left: 0; }
-  .lab-tab:nth-child(even) { border-left: 1px solid var(--line); }
+  .site-header .lab-tab { grid-column: auto; }
+  .site-header .lab-tab:last-child { grid-column: 1 / -1; }
+  .site-header .lab-tab:nth-child(odd) { border-left: 0; }
+  .site-header .lab-tab:nth-child(even) { border-left: 1px solid var(--line); }
   .lab-tab:nth-child(n+3) { border-top: 1px solid var(--line); }
   .lab-tab { min-width: 0; padding: 12px 8px; font-size: var(--text-small); white-space: normal; }
   .lab-tab:first-child { border-left: 0; }
@@ -677,9 +679,9 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .density-key { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 10px; margin: 18px 0; color: var(--muted-foreground); font-size: var(--text-small); }
 .density-key i { height: 9px; width: 120px; border: 1px solid var(--line); border-radius: 5px; background: linear-gradient(90deg, white, #325bab); }
 @media (min-width: 1600px) {
-  .site-header nav { grid-template-columns: repeat(8, minmax(0, 1fr)); }
-  .site-header .lab-tab, .site-header .lab-tab:nth-child(n+5) { grid-column: auto; border-top: 0; }
-  .lab-tab:nth-child(5) { border-left: 1px solid var(--line); }
+  .site-header nav { grid-template-columns: repeat(9, minmax(0, 1fr)); }
+  .site-header .lab-tab, .site-header .lab-tab:nth-child(n+4) { grid-column: auto; border-top: 0; padding: 12px 10px; }
+  .site-header .lab-tab:nth-child(n+2) { border-left: 1px solid var(--line); }
 }
 @media (min-width: 781px) and (max-width: 1100px) {
   .figure-panel { padding: 20px 14px; }
@@ -694,6 +696,33 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 }
 
 .spin-workspace .figure-panel { position: static; }
+.fourier-workspace .figure-panel { position: static; }
+.fourier-phase .control-stack { margin-top: 18px; }
+.fourier-view { margin: 20px 0; }
+.fourier-plots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.fourier-plot { min-width: 0; padding: 14px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+.fourier-plot h3 { margin: 0 12px; font-size: var(--text-ui); font-weight: 400; }
+.fourier-plot .plot-shell { margin: 10px 0; }
+.fourier-plot .scientific-plot-frame { height: 310px; aspect-ratio: auto; }
+.fourier-width { margin: 4px 12px 0; text-align: center; font-size: var(--text-body); }
+.fourier-width output { font-variant-numeric: tabular-nums; }
+.fourier-uncertainty { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: center; margin: 24px 0 14px; padding: 20px; background: var(--lab-tint); border: 1px solid var(--line); border-left: 3px solid var(--lab-tone); border-radius: 8px; }
+.fourier-uncertainty .math-display { margin: 8px 0 0; }
+.fourier-uncertainty > div:last-child { text-align: center; }
+.fourier-uncertainty span { font-size: var(--text-small); color: var(--muted-foreground); }
+.fourier-uncertainty p:not(.control-caption) { margin: 4px 0; font-size: var(--text-emphasis); }
+.fourier-explanation { font-size: var(--text-body); line-height: 1.6; }
+.fourier-workspace .measurements { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 781px) and (max-width: 1150px), (max-width: 620px) {
+  .fourier-plots { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 780px) {
+  .fourier-workspace .control-panel > .fourier-phase { grid-column: 1 / -1; }
+}
+@media (max-width: 460px) {
+  .fourier-uncertainty { grid-template-columns: minmax(0, 1fr); }
+  .fourier-workspace .measurements { grid-template-columns: minmax(0, 1fr); }
+}
 .sg-workspace .figure-panel { position: static; }
 .sg-stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; gap: 8px; padding: 0; margin: 18px 0; counter-reset: sg-stage; }
 .sg-stages li { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: var(--text-small); line-height: 1.4; }

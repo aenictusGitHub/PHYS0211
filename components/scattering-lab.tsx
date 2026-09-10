@@ -200,7 +200,7 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
     <section className="workspace" aria-labelledby="scattering-title">
       <aside className="control-panel scattering-controls">
         <div>
-          <p className="eyebrow">01</p>
+          <p className="eyebrow">02</p>
           <h1 id="scattering-title">Diffusion d’un paquet d’ondes</h1>
           <p className="lede">Suivez l’étalement d’un paquet libre, sa chute dans un champ gravitationnel ou sa diffusion par un potentiel.</p>
         </div>
