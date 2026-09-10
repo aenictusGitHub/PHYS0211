@@ -398,6 +398,8 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .scientific-plot { width: 100%; overflow: visible; }
 .scientific-plot .series-line { fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
 .scientific-plot .series-fill { stroke: none; }
+.plot-drag-surface { cursor: ew-resize; touch-action: pan-y; }
+.plot-drag-surface:focus-visible { outline: none; stroke: var(--lab-tone); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .scientific-plot .series-line.series-accent { stroke: var(--accent); }
 .scientific-plot .series-line.series-teal { stroke: var(--teal); }
 .scientific-plot .series-line.series-ink { stroke: var(--foreground); }

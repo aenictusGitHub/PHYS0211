@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { Math as Formula } from '@/components/math';
-import { revealFraction } from '@/lib/plot-geometry';
+import { dragPlotValue, revealFraction } from '@/lib/plot-geometry';
 
 export type PlotPoint = { x: number; y: number };
 export type PlotMarker = PlotPoint & {
@@ -63,6 +63,7 @@ type ScientificPlotProps = {
   yTicks?: number[];
   progressX?: number;
   markers?: PlotMarker[];
+  xDrag?: { value: number; min: number; max: number; step: number; label: string; onChange: (value: number) => void };
 };
 
 const WIDTH = 780;
@@ -87,9 +88,11 @@ export function ScientificPlot({
   yTicks,
   progressX,
   markers = [],
+  xDrag,
 }: ScientificPlotProps) {
   const clipId = `plot-${useId().replaceAll(':', '')}`;
   const frameRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ pointerId: number; clientX: number; value: number; unitsPerPixel: number } | null>(null);
   const [size, setSize] = useState({ width: WIDTH, height: 440, labelFont: 18 });
   useEffect(() => {
     const frame = frameRef.current;
@@ -157,7 +160,7 @@ export function ScientificPlot({
       <svg
         className="scientific-plot"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        role="img"
+        role={xDrag ? 'group' : 'img'}
         aria-label={ariaLabel}
       >
         <defs>
@@ -365,6 +368,40 @@ export function ScientificPlot({
 
       </g>
 
+      {xDrag ? <>
+        <circle cx={mapX(xDrag.value)} cy={MARGIN.top + 10 * textScale} r={5 * textScale} fill="var(--lab-tone)" stroke="var(--card)" strokeWidth={2 * textScale} pointerEvents="none" />
+        <rect className="plot-drag-surface" x={MARGIN.left} y={MARGIN.top} width={innerWidth} height={innerHeight}
+          fill="transparent" role="slider" tabIndex={0} aria-label={xDrag.label} aria-orientation="horizontal"
+          aria-valuemin={xDrag.min} aria-valuemax={xDrag.max} aria-valuenow={xDrag.value}
+          onPointerDown={event => {
+            if (event.button !== 0 || !event.isPrimary) return;
+            const width = event.currentTarget.getBoundingClientRect().width;
+            if (!(width > 0)) return;
+            event.preventDefault();
+            event.currentTarget.focus();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            drag.current = { pointerId: event.pointerId, clientX: event.clientX, value: xDrag.value, unitsPerPixel: (xDomain[1] - xDomain[0]) / width };
+          }}
+          onPointerMove={event => {
+            const start = drag.current;
+            if (!start || start.pointerId !== event.pointerId) return;
+            xDrag.onChange(dragPlotValue(start.value, event.clientX - start.clientX, start.unitsPerPixel, xDrag.min, xDrag.max, xDrag.step));
+          }}
+          onPointerUp={event => {
+            if (drag.current?.pointerId !== event.pointerId) return;
+            const start = drag.current;
+            xDrag.onChange(dragPlotValue(start.value, event.clientX - start.clientX, start.unitsPerPixel, xDrag.min, xDrag.max, xDrag.step));
+            drag.current = null;
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+          }}
+          onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }}
+          onKeyDown={event => {
+            const direction = event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -1 : 0;
+            if (!direction && event.key !== 'Home' && event.key !== 'End') return;
+            event.preventDefault();
+            xDrag.onChange(event.key === 'Home' ? xDrag.min : event.key === 'End' ? xDrag.max : dragPlotValue(xDrag.value, direction * (event.shiftKey ? 10 : 1), xDrag.step, xDrag.min, xDrag.max, xDrag.step));
+          }} />
+      </> : null}
       </svg>
 
       <div className="plot-guide-labels" aria-hidden="true">

@@ -31,6 +31,7 @@ function harness(file, exported, lab, initialProps = {}) {
       return [slots[i].value, slots[i].set];
     },
     useRef(initial) { const i = cursor++; return slots[i] ??= { current: initial }; },
+    useId() { return hooks.useRef(`test-${++nextId}`).current; },
     useMemo(fn, deps) { const i = cursor++; if (!slots[i] || !same(slots[i].deps, deps)) slots[i] = { deps, value: fn() }; return slots[i].value; },
     useCallback(fn, deps) { return hooks.useMemo(() => fn, deps); },
     useEffect(fn, deps) {
@@ -72,7 +73,7 @@ function harness(file, exported, lab, initialProps = {}) {
   function load(path) {
     if (cache.has(path)) return cache.get(path).exports;
     const mod = { exports: {} }; cache.set(path, mod);
-    const useHooks = /(?:lab|stern-gerlach-experiment|use-lab-playback|atomic-clock|coherent-state-editor|angular-surface)\.tsx?$/.test(path);
+    const useHooks = /(?:lab|stern-gerlach-experiment|use-lab-playback|atomic-clock|coherent-state-editor|angular-surface|scientific-plot)\.tsx?$/.test(path);
     new Function('exports', 'require', 'module', compile(readFileSync(path, 'utf8')))(mod.exports, name => {
       if (name === 'react' && useHooks) return hooks;
       if (name in mocks) return mocks[name];
@@ -163,9 +164,47 @@ assert.equal(fourier.sliderProps('fourier-momentum').value[0], -1);
 assert.ok(fourier.plots().every(plot => plot.series.length === 1));
 fourier.click('Réinitialiser le paquet');
 assert.equal(fourier.sliderProps('fourier-sigma').value[0], 1); assert.equal(fourier.sliderProps('fourier-chirp').value[0], 0);
+assert.equal(fourier.sliderProps('fourier-sigma').min, .2); assert.equal(fourier.sliderProps('fourier-sigma').max, 5);
+const axesBeforeDrag = fourier.plots().map(plot => [plot.xDomain, plot.yDomain]);
+fourier.plots()[0].xDrag.onChange(6.3); fourier.render();
+fourier.plots()[1].xDrag.onChange(-5.1); fourier.render();
+assert.equal(fourier.sliderProps('fourier-center').value[0], 6.3);
+assert.equal(fourier.sliderProps('fourier-momentum').value[0], -5.1);
+assert.equal(fourier.sliderProps('fourier-sigma').value[0], 1);
+assert.deepEqual(fourier.plots().map(plot => [plot.xDomain, plot.yDomain]), axesBeforeDrag);
+assert.match(fourier.html(), /0\.500/);
+for (const sigma of [.2, 5]) {
+  fourier.slider('fourier-sigma', sigma);
+  for (const plot of fourier.plots()) assert.ok(plot.series.every(curve => curve.values.every(p => p.y <= plot.yDomain[1])), 'Expanded width never clips density peak');
+}
 for (const plot of fourier.plots()) assert.ok(plot.series.every(curve => curve.values.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))));
 fourier.dispose();
 console.log('Fourier: preset widths, fixed axes, phase changes, complex/density switch, command settings, reset and native formulas pass.');
+// Real SVG interaction handlers, with a synthetic measured hit area (no browser).
+let translated = 1, captured = false;
+const plotDrag = { value: 1, min: -8, max: 8, step: .1, label: 'Déplacer le centre', onChange: value => { translated = value; } };
+const interactive = harness('components/scientific-plot.tsx', 'ScientificPlot', 'plot', { ariaLabel: 'Paquet', xDomain: [-18, 18], yDomain: [0, 1], xLabel: '$x$', yLabel: '$p$', series: [], xDrag: plotDrag });
+const hit = () => interactive.elements().find(el => el.props.className === 'plot-drag-surface').props;
+const target = { getBoundingClientRect: () => ({ width: 360 }), focus() {}, setPointerCapture() { captured = true; }, hasPointerCapture: () => captured, releasePointerCapture() { captured = false; } };
+const event = (clientX, extra = {}) => ({ button: 0, isPrimary: true, pointerId: 1, clientX, currentTarget: target, preventDefault() {}, ...extra });
+hit().onPointerDown(event(100)); assert.equal(captured, true); near(translated, 1);
+hit().onPointerMove(event(120, { pointerId: 2 })); near(translated, 1);
+hit().onPointerMove(event(120)); near(translated, 3);
+interactive.setProps({ xDrag: { ...plotDrag, value: translated } });
+hit().onPointerMove(event(140)); near(translated, 5); // original anchor survives rerender
+hit().onPointerUp(event(145)); near(translated, 5.5); assert.equal(captured, false);
+hit().onPointerMove(event(150)); near(translated, 5.5);
+hit().onPointerDown(event(100, { button: 2 })); hit().onPointerMove(event(200)); near(translated, 5.5);
+hit().onPointerDown(event(100)); hit().onPointerMove(event(-900)); near(translated, -8);
+hit().onPointerCancel(); hit().onPointerMove(event(100)); near(translated, -8);
+hit().onPointerDown(event(100)); hit().onLostPointerCapture(); hit().onPointerMove(event(900)); near(translated, -8);
+hit().onKeyDown({ key: 'ArrowRight', shiftKey: true, preventDefault() {} }); near(translated, 4);
+hit().onKeyDown({ key: 'Home', preventDefault() {} }); near(translated, -8);
+hit().onKeyDown({ key: 'End', preventDefault() {} }); near(translated, 8);
+interactive.setProps({ xDrag: undefined });
+assert.equal(interactive.elements().some(el => el.props.role === 'slider'), false, 'Other laboratories stay noninteractive');
+interactive.dispose();
+console.log('Plot dragging: pointer capture, no initial jump, coordinate mapping, rerender continuity, bounds, cancellation, keyboard and opt-in behavior pass.');
 for (const [file, component, lab, unit] of labs) {
   const h = harness(file, component, lab);
   const displaySuffix = lab === 'rotor' ? 'resolution' : 'scale';

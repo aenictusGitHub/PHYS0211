@@ -50,3 +50,9 @@ export function revealFraction(value: number, domain: readonly [number, number])
   if (!(span > 0) || Number.isNaN(value)) return 0;
   return Math.max(0, Math.min(1, (value - domain[0]) / span));
 }
+
+/** Horizontal translation in data units, snapped to a control's step. */
+export function dragPlotValue(startValue: number, pixelDelta: number, unitsPerPixel: number, min: number, max: number, step: number) {
+  const value = startValue + pixelDelta * unitsPerPixel;
+  return Number(Math.max(min, Math.min(max, Math.round(value / step) * step)).toFixed(10));
+}

@@ -2,9 +2,10 @@ import type { ExperimentCommand } from '../components/lab-types';
 
 export type FourierConfig = { sigma: number; center: number; momentum: number; chirp: number };
 export const FOURIER_DEFAULTS: FourierConfig = { sigma: 1, center: 0, momentum: 0, chirp: 0 };
-export const FOURIER_SIGMA_MIN = .5;
-export const FOURIER_SIGMA_MAX = 2;
-export const FOURIER_BOUNDS = { fourierSigma: [.5, 2], fourierCenter: [-2, 2], fourierMomentum: [-2, 2], fourierChirp: [-2, 2] } as const;
+export const FOURIER_SIGMA_MIN = .2;
+export const FOURIER_SIGMA_MAX = 5;
+export const FOURIER_CENTER_LIMIT = 8;
+export const FOURIER_BOUNDS = { fourierSigma: [FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX], fourierCenter: [-FOURIER_CENTER_LIMIT, FOURIER_CENTER_LIMIT], fourierMomentum: [-FOURIER_CENTER_LIMIT, FOURIER_CENTER_LIMIT], fourierChirp: [-2, 2] } as const;
 
 /** Normalized analytic Fourier pair, hbar=1, with convention
  * phi(p)=(2 pi)^(-1/2) integral psi(x) exp(-i p x) dx.
@@ -30,10 +31,18 @@ export function fourierMoments(config: FourierConfig) {
 }
 
 export function fourierDomains(config: FourierConfig) {
-  // Reserve five standard deviations for EVERY allowed sigma: changing its
-  // slider must not auto-zoom away the reciprocal change in widths.
-  const momentumExtent = Math.ceil(2 + 5 * Math.hypot(1, config.chirp) / (2 * FOURIER_SIGMA_MIN));
-  return { position: [-12, 12] as [number, number], momentum: [-momentumExtent, momentumExtent] as [number, number] };
+  // Keep comparison axes fixed for the standard presets; extend only for
+  // broader tails. Reserve the full translation range so dragging never zooms.
+  const positionExtent = Math.ceil(FOURIER_CENTER_LIMIT + 5 * Math.max(2, config.sigma));
+  const momentumExtent = Math.ceil(FOURIER_CENTER_LIMIT + 5 * Math.max(1, fourierMoments(config).dp));
+  return { position: [-positionExtent, positionExtent] as [number, number], momentum: [-momentumExtent, momentumExtent] as [number, number] };
+}
+
+export function fourierYMax(space: 'position' | 'momentum', view: 'density' | 'complex', config: FourierConfig) {
+  const delta = space === 'position' ? config.sigma : fourierMoments(config).dp;
+  const peak = 1 / (Math.sqrt(2 * Math.PI) * delta);
+  const baseline = view === 'density' ? space === 'position' ? .9 : 1.8 : space === 'position' ? 1 : 1.4;
+  return Math.max(baseline, Math.ceil(1.1 * (view === 'density' ? peak : Math.sqrt(peak)) * 10) / 10);
 }
 
 export function parseFourier(data: Record<string, unknown>): Omit<ExperimentCommand, 'id'> {

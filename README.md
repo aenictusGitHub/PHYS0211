@@ -20,8 +20,10 @@ avec KaTeX et les polices LaTeX sont embarquées dans le site.
 
 Le laboratoire de Fourier affiche une paire gaussienne analytique normalisée
 en position et en impulsion, avec réglages de largeur, translations et phase
-quadratique. Les densités et amplitudes complexes partagent des axes fixes
-lorsqu’on change la largeur. Les écarts-types et le produit Δx Δp montrent la
+quadratique. La largeur varie de 0.2 à 5 ; les centres se déplacent directement
+sur les graphes (souris, toucher ou clavier), sans changer les dispersions.
+Les axes restent fixes pendant le déplacement et s’étendent si les largeurs
+extrêmes le nécessitent. Les écarts-types et le produit Δx Δp montrent la
 borne de Heisenberg et l’effet d’une phase non uniforme (unités ℏ=1).
 
 L’oscillateur affiche les moyennes de position et d’impulsion au cours du temps,

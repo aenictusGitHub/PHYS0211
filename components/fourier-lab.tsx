@@ -6,7 +6,7 @@ import { Math as Formula } from '@/components/math';
 import { QuantumParameter } from '@/components/quantum-parameter';
 import { ScientificPlot, type PlotSeries } from '@/components/scientific-plot';
 import type { ExperimentCommand } from '@/components/lab-types';
-import { FOURIER_DEFAULTS, FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX, fourierValue, fourierMoments, fourierDomains, type FourierConfig } from '@/lib/fourier';
+import { FOURIER_DEFAULTS, FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX, FOURIER_CENTER_LIMIT, fourierValue, fourierMoments, fourierDomains, fourierYMax, type FourierConfig } from '@/lib/fourier';
 
 const fixed = (value: number) => (Math.abs(value) < .0005 ? 0 : value).toFixed(3);
 
@@ -23,8 +23,8 @@ export function FourierLab({ command }: { command: ExperimentCommand | null }) {
   const moments = fourierMoments(config), domains = fourierDomains(config);
   const plots = useMemo(() => (['position', 'momentum'] as const).map(space => {
     const domain = fourierDomains(config)[space];
-    const samples = Array.from({ length: 1001 }, (_, i) => {
-      const x = domain[0] + (domain[1] - domain[0]) * i / 1000;
+    const samples = Array.from({ length: 2001 }, (_, i) => {
+      const x = domain[0] + (domain[1] - domain[0]) * i / 2000;
       return { x, ...fourierValue(x, space, config) };
     });
     const series: PlotSeries[] = view === 'density'
@@ -41,8 +41,8 @@ export function FourierLab({ command }: { command: ExperimentCommand | null }) {
       </div>
       <div className="equation-card"><span>Paquet gaussien normalisé</span><Formula display>{String.raw`$\psi(x)=\frac{e^{-\frac{(x-x_0)^2}{4\sigma^2}}\,e^{i\Phi(x)}}{(2\pi\sigma^2)^{1/4}}$`}</Formula><Formula display>{String.raw`$\Phi(x)=p_0(x-x_0)+\frac{c(x-x_0)^2}{4\sigma^2}$`}</Formula><p className="scale-note">Unités réduites : <Formula>{String.raw`$\hbar=1$`}</Formula>. Le paramètre <Formula>$c$</Formula> vaut zéro par défaut.</p></div>
       <details className="theory-notes fourier-phase"><summary>Phase et translations</summary><div className="control-stack">
-        <QuantumParameter id="fourier-center" label="Position moyenne" symbol="$x_0$" value={config.center} min={-2} max={2} step={.1} onChange={center => change({ center })} />
-        <QuantumParameter id="fourier-momentum" label="Impulsion moyenne" symbol="$p_0$" value={config.momentum} min={-2} max={2} step={.1} onChange={momentum => change({ momentum })} />
+        <QuantumParameter id="fourier-center" label="Position moyenne" symbol="$x_0$" value={config.center} min={-FOURIER_CENTER_LIMIT} max={FOURIER_CENTER_LIMIT} step={.1} onChange={center => change({ center })} />
+        <QuantumParameter id="fourier-momentum" label="Impulsion moyenne" symbol="$p_0$" value={config.momentum} min={-FOURIER_CENTER_LIMIT} max={FOURIER_CENTER_LIMIT} step={.1} onChange={momentum => change({ momentum })} />
         <QuantumParameter id="fourier-chirp" label="Phase quadratique" symbol="$c$" value={config.chirp} min={-2} max={2} step={.1} onChange={chirp => change({ chirp })} />
       </div><p className="scale-note">Changer <Formula>$c$</Formula> conserve la densité en position, mais modifie celle en impulsion. Une densité seule ne détermine donc pas entièrement l’état.</p></details>
       <Button variant="outline" onClick={() => { setConfig(FOURIER_DEFAULTS); setView('density'); }}>Réinitialiser le paquet</Button>
@@ -51,18 +51,20 @@ export function FourierLab({ command }: { command: ExperimentCommand | null }) {
       <div className="figure-heading"><div><p className="eyebrow">Position ↔ impulsion</p><h2>Une paire de Fourier</h2></div><span className="figure-tag"><Formula>{String.raw`$\int |\psi|^2\,dx=\int|\widetilde\psi|^2\,dp=1$`}</Formula></span></div>
       <div className="display-switch fourier-view" role="group" aria-label="Représentation de l’état"><Button variant="outline" aria-pressed={view === 'density'} className={view === 'density' ? 'is-selected' : ''} onClick={() => setView('density')}>Densités de probabilité</Button><Button variant="outline" aria-pressed={view === 'complex'} className={view === 'complex' ? 'is-selected' : ''} onClick={() => setView('complex')}>Parties réelle et imaginaire</Button></div>
       {view === 'complex' ? <div className="plot-legend"><span><i className="legend-swatch" />partie réelle</span><span><i className="legend-swatch teal dashed" />partie imaginaire</span></div> : null}
+      <p className="scale-note">Faites glisser horizontalement sur un graphe pour déplacer sa moyenne. Au clavier : flèches ← →, ou Maj + flèche pour un déplacement plus grand.</p>
       <div className="fourier-plots">{plots.map(({ space, series }) => {
         const position = space === 'position', mean = position ? moments.x : moments.p, delta = position ? moments.dx : moments.dp;
-        const ymax = view === 'density' ? position ? .9 : 1.8 : position ? 1 : 1.4;
+        const ymax = fourierYMax(space, view, config);
         return <div className="fourier-plot" key={space}><h3>{position ? 'Position' : 'Impulsion'} <Formula>{position ? '$x$' : '$p$'}</Formula></h3>
           <div className="plot-shell"><ScientificPlot ariaLabel={position ? 'Distribution en position et largeur Δx' : 'Transformée de Fourier en impulsion et largeur Δp'}
             xDomain={domains[space]} yDomain={[view === 'density' ? 0 : -ymax, ymax]} xLabel={position ? '$x$' : '$p$'} yLabel={view === 'density' ? position ? String.raw`$|\psi(x)|^2$` : String.raw`$|\widetilde\psi(p)|^2$` : position ? String.raw`$\psi(x)$` : String.raw`$\widetilde\psi(p)$`}
             series={series} bands={[{ from: mean - delta, to: mean + delta, tone: position ? 'accent' : 'teal', opacity: .15 }]}
+            xDrag={{ value: mean, min: -FOURIER_CENTER_LIMIT, max: FOURIER_CENTER_LIMIT, step: .1, label: position ? 'Déplacer la position moyenne du paquet' : 'Déplacer l’impulsion moyenne du paquet', onChange: value => change(position ? { center: value } : { momentum: value }) }}
             verticalLines={[{ value: mean, tone: 'ink', dashed: false }, { value: mean - delta, tone: 'muted' }, { value: mean + delta, tone: 'muted' }]} horizontalLines={view === 'complex' ? [{ value: 0, tone: 'muted' }] : []} /></div>
           <p className="fourier-width"><Formula>{position ? String.raw`$\Delta x=$` : String.raw`$\Delta p=$`}</Formula> <output>{fixed(delta)}</output></p>
         </div>;
       })}</div>
-      <p className="scale-note">Les bandes couvrent la moyenne ± un écart-type, soit environ 68.3 % de chaque distribution gaussienne. Les axes restent fixes quand vous changez la largeur ; l’étendue en impulsion s’adapte seulement au réglage de phase <Formula>$c$</Formula>.</p>
+      <p className="scale-note">Les bandes couvrent la moyenne ± un écart-type, soit environ 68.3 % de chaque distribution gaussienne. Les axes restent fixes pendant le déplacement du paquet. Pour comparer les largeurs, ils ne s’élargissent que si nécessaire pour contenir les distributions et leurs sommets.</p>
       <div className="fourier-uncertainty" aria-live="off"><div><p className="control-caption">Relation d’incertitude</p><Formula display>{String.raw`$\Delta x\,\Delta p\geq\frac{\hbar}{2}$`}</Formula></div><div><span>Produit actuel</span><p><output>{fixed(moments.product)}</output> <Formula>{String.raw`$\hbar$`}</Formula></p><span>Minimum : <Formula>{String.raw`$0.500\,\hbar$`}</Formula></span></div></div>
       <p className="fourier-explanation">{Math.abs(config.chirp) < 1e-10 ? <>Le paquet atteint le minimum <Formula>{String.raw`$\hbar/2$`}</Formula>. Diviser <Formula>$\Delta x$</Formula> par deux multiplie <Formula>$\Delta p$</Formula> par deux : le produit reste inchangé.</> : <>La phase quadratique crée une corrélation entre position et impulsion : <Formula>{String.raw`$\Delta x\,\Delta p=\frac{\hbar}{2}\sqrt{1+c^2}>\frac{\hbar}{2}$`}</Formula>. La densité en position reste pourtant identique à celle du paquet sans cette phase.</>}</p>
       <dl className="measurements"><div><dt>Position moyenne</dt><dd><Formula>{String.raw`$\langle x\rangle=$`}</Formula> {fixed(moments.x)}</dd></div><div><dt>Impulsion moyenne</dt><dd><Formula>{String.raw`$\langle p\rangle=$`}</Formula> {fixed(moments.p)}</dd></div></dl>

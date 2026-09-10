@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FOURIER_DEFAULTS as base, fourierValue as wave, fourierMoments as moments, fourierDomains as domains, parseFourier } from '../lib/fourier.ts';
+import { FOURIER_DEFAULTS as base, fourierValue as wave, fourierMoments as moments, fourierDomains as domains, fourierYMax, parseFourier } from '../lib/fourier.ts';
 const near = (a, b, tolerance = 1e-9) => assert.ok(Math.abs(a - b) < tolerance, `${a} != ${b}`);
-for (const sigma of [.5, 1, 2]) for (const chirp of [-2, 0, 2]) {
+for (const sigma of [.2, .5, 1, 2, 5]) for (const chirp of [-2, 0, 2]) {
   const config = { sigma, chirp, center: 1.3, momentum: -1.2 }, m = moments(config);
   near(m.product, Math.hypot(1, chirp) / 2);
   assert.ok(m.product >= .5);
@@ -34,13 +34,19 @@ for (const x of [-2, 0, 1, 3]) near(wave(x, 'position', base).density, wave(x, '
 near(moments({ ...base, sigma: .5 }).dp, 2 * moments(base).dp);
 near(moments({ ...base, center: 2, momentum: 2 }).product, moments(base).product);
 assert.deepEqual(domains({ ...base, sigma: .5 }), domains({ ...base, sigma: 2 }), 'Changing width must not zoom away its visible effect');
-for (const config of [{ ...base, sigma: .5, chirp: 2 }, { ...base, sigma: 2, center: -2 }]) {
+for (const config of [{ ...base, sigma: .2, chirp: 2, center: 8, momentum: -8 }, { ...base, sigma: 5, center: -8, momentum: 8 }]) {
   const m = moments(config), axes = domains(config);
   assert.ok(axes.position[0] <= m.x - 5 * m.dx && axes.position[1] >= m.x + 5 * m.dx);
   assert.ok(axes.momentum[0] <= m.p - 5 * m.dp && axes.momentum[1] >= m.p + 5 * m.dp);
+  assert.deepEqual(axes, domains({ ...config, center: 0, momentum: 0 }), 'Dragging cannot change the coordinate scale');
+  for (const space of ['position', 'momentum']) for (const view of ['density', 'complex']) {
+    const density = wave(space === 'position' ? m.x : m.p, space, config).density;
+    assert.ok(fourierYMax(space, view, config) > (view === 'density' ? density : Math.sqrt(density)), 'Peaks fit even at the new width limits');
+  }
 }
+for (const sigma of [.2, 5]) assert.equal(parseFourier({ lab: 'fourier', fourierSigma: sigma }).fourierSigma, sigma);
 assert.equal(parseFourier({ lab: 'fourier', fourierSigma: 1.2, fourierView: 'complex' }).fourierSigma, 1.2);
-for (const bad of [{ fourierSigma: 0 }, { fourierSigma: NaN }, { fourierChirp: 3 }, { fourierCenter: -3 }, { fourierMomentum: '1' }, { fourierView: 'bad' }, { time: 1 }, { scale: 2 }]) assert.throws(() => parseFourier({ lab: 'fourier', ...bad }));
+for (const bad of [{ fourierSigma: 0 }, { fourierSigma: .19 }, { fourierSigma: 5.1 }, { fourierSigma: NaN }, { fourierChirp: 3 }, { fourierCenter: -9 }, { fourierMomentum: '1' }, { fourierView: 'bad' }, { time: 1 }, { scale: 2 }]) assert.throws(() => parseFourier({ lab: 'fourier', ...bad }));
 const app = readFileSync(new URL('../components/quantum-lab.tsx', import.meta.url), 'utf8');
 assert.match(app, /useState<Lab>\('fourier'\)/);
 assert.ok(app.indexOf('<span>01</span> Incertitude') < app.indexOf('<span>02</span> Diffusion'));
