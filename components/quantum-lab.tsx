@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { QuantumMark } from '@/components/quantum-mark';
+import { Math as Formula } from '@/components/math';
 import { FourierLab } from '@/components/fourier-lab';
 import { parseFourier, FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX, FOURIER_CENTER_LIMIT } from '@/lib/fourier';
 
@@ -177,7 +178,7 @@ export function QuantumLab() {
         name: 'configure_quantum_experiment',
         title: 'Configurer une expérience quantique',
         description:
-          `Configure les neuf laboratoires. fourier : fourierSigma (0.2 à 5), fourierCenter et fourierMomentum (-8 à 8), fourierChirp (-2 à 2), fourierView (density/complex). Paire gaussienne normalisée, hbar=1 ; pas de temps, de facteur d’affichage ni de lecture pour ce laboratoire. stern-gerlach : sgSetup=single (défaut) accepte sgJ, sgGradient, sgVelocity, sgLength, sgDistance, sgAngle, sgG, sgMass, sgBeam et sgModel. Dans ce montage, time et finalTime sont en ms (time de 0 à 20, finalTime de 1 à 20), scale de 0.5 à 4 règle la taille des impacts. sgBeam polarisé sélectionne j=1/2 et le modèle quantique ; sinon j différent de 1/2 ou sgModel=classical impose mixed. sgSetup=cascade : spin 1/2 quantique uniquement, sgBeam, sgCascadeAngles=[A,B,C] en degrés, sgCascadeFilters=[A,B] (plus/minus/both), sgCascadeMiddle (false retire B). Un réglage sgCascade implique cascade. En cascade, time est en unités d’animation de 0 à 20, finalTime de 4 à 20 ; pas de paramètres de géométrie, de gradient ni de sgAngle. Pas de mode ni de preset pour Stern–Gerlach. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1), resolution (maillage 3D, ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX} par pas de ${ROTOR_RESOLUTION_STEP}, défaut 64). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 20π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 20π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. Tous les laboratoires sauf fourier acceptent playbackSpeed et finalTime ; ce dernier utilise la même unité interne que time, pas t/T. scale est accepté sauf pour fourier et rotor, qui utilise resolution à la place. La lecture reste en pause.`,
+          `Configure les neuf laboratoires. fourier : fourierSigma (0.2 à 5), fourierCenter et fourierMomentum (-8 à 8), fourierChirp (-2 à 2), fourierView (density/complex). Paire gaussienne normalisée, hbar=m=1. mode stationary/evolution ; time de 0 à 20, finalTime de 0.1 à 20, playbackSpeed de 0.25 à 4. fourierChirpEnabled active le chirp initial (false par défaut) ; fournir fourierChirp l’active sauf désactivation explicite. fourierWindow (5 à 400, défaut 35) est la demi-largeur de fenêtre x, fixe pendant l’évolution et les changements de sigma. Pas de scale. stern-gerlach : sgSetup=single (défaut) accepte sgJ, sgGradient, sgVelocity, sgLength, sgDistance, sgAngle, sgG, sgMass, sgBeam et sgModel. Dans ce montage, time et finalTime sont en ms (time de 0 à 20, finalTime de 1 à 20), scale de 0.5 à 4 règle la taille des impacts. sgBeam polarisé sélectionne j=1/2 et le modèle quantique ; sinon j différent de 1/2 ou sgModel=classical impose mixed. sgSetup=cascade : spin 1/2 quantique uniquement, sgBeam, sgCascadeAngles=[A,B,C] en degrés, sgCascadeFilters=[A,B] (plus/minus/both), sgCascadeMiddle (false retire B). Un réglage sgCascade implique cascade. En cascade, time est en unités d’animation de 0 à 20, finalTime de 4 à 20 ; pas de paramètres de géométrie, de gradient ni de sgAngle. Pas de mode ni de preset pour Stern–Gerlach. scattering : potential, height, width, momentum, sigma, progress. double-well : barrier, separation, preset left/right, time (phase ΔE t/ℏ). rotor : angular (ℓ, défaut 1), magnetic (m, défaut 0), inertia (I/I0, défaut 1), resolution (maillage 3D, ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX} par pas de ${ROTOR_RESOLUTION_STEP}, défaut 64). hydrogen : principal (n, défaut 1), angular (ℓ, défaut 0), magnetic (m, défaut 0), basis (complex/real), atomicView (slice/radial), plane (xz/xy/yz/oblique). Respecter |m|≤ℓ<n pour hydrogen. rotor et hydrogen acceptent mode stationary/evolution ; en évolution, choisir un preset rotor-polar/rotor-rotation ou hydrogen-breathing/hydrogen-dipole/hydrogen-rotation et time (phase ΔE t/ℏ de 0 à 20π). Ils n’utilisent pas quantumNumber. spin : spinTheta et spinPhi en degrés, spinField (x/y/z/tilted), spinMeasure (x/y/z), spinOmega (Ω/Ω0), time (Ω0t, de 0 à 20π), preset spin-x-plus/minus, spin-y-plus/minus ou spin-z-plus/minus. Les angles explicites priment sur le preset. Tous les laboratoires acceptent playbackSpeed et finalTime ; ce dernier utilise la même unité interne que time, pas t/T. scale est accepté sauf pour fourier et rotor, qui utilise resolution à la place. La lecture reste en pause.`,
         inputSchema: {
           type: 'object',
           properties: {
@@ -187,6 +188,8 @@ export function QuantumLab() {
             fourierMomentum: { type: 'number', minimum: -FOURIER_CENTER_LIMIT, maximum: FOURIER_CENTER_LIMIT },
             fourierChirp: { type: 'number', minimum: -2, maximum: 2, description: 'Coefficient c de phase quadratique. Δp=sqrt(1+c²)/(2 sigma).' },
             fourierView: { type: 'string', enum: ['density', 'complex'] },
+            fourierChirpEnabled: { type: 'boolean', description: 'Activer la phase quadratique de l’état initial, désactivée par défaut.' },
+            fourierWindow: { type: 'number', minimum: 5, maximum: 400, description: 'Demi-largeur de la fenêtre en position ; jamais ajustée automatiquement.' },
             sgJ: { type: 'number', enum: SG_J },
             sgGradient: { type: 'number', minimum: -1500, maximum: 1500, description: 'Gradient de Stern–Gerlach en T/m.' },
             sgVelocity: { type: 'number', minimum: 100, maximum: 1000, description: 'Vitesse longitudinale en m/s.' },
@@ -338,6 +341,8 @@ export function QuantumLab() {
             fourierMomentum: parsed.fourierMomentum ?? null,
             fourierChirp: parsed.fourierChirp ?? null,
             fourierView: parsed.fourierView ?? null,
+            fourierChirpEnabled: parsed.fourierChirpEnabled ?? null,
+            fourierWindow: parsed.fourierWindow ?? null,
           };
         },
       },
@@ -361,7 +366,7 @@ export function QuantumLab() {
 
         <nav aria-label="Choisir un laboratoire">
           <Button variant="ghost" className={`lab-tab lab-tab-fourier${lab === 'fourier' ? ' is-active' : ''}`}
-            onClick={() => setLab('fourier')} aria-pressed={lab === 'fourier'}><span>01</span> Incertitude et transformée de Fourier</Button>
+            onClick={() => setLab('fourier')} aria-pressed={lab === 'fourier'}><span>01</span><span>Fonctions d’ondes en <Formula>$x$</Formula> et <Formula>$p$</Formula></span></Button>
           <Button
             variant="ghost"
             className={lab === 'scattering' ? 'lab-tab lab-tab-scattering is-active' : 'lab-tab lab-tab-scattering'}
@@ -407,7 +412,7 @@ export function QuantumLab() {
       </header>
 
       <div id="laboratory" tabIndex={-1}>
-        <div hidden={lab !== 'fourier'}><FourierLab command={command} /></div>
+        <div hidden={lab !== 'fourier'}><FourierLab active={lab === 'fourier'} command={command} /></div>
         <div hidden={lab !== 'scattering'}>
           <ScatteringLab active={lab === 'scattering'} command={command} />
         </div>

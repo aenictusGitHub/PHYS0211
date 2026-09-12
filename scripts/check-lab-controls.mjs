@@ -144,7 +144,7 @@ const labs = [
   ['components/spin-lab.tsx', 'SpinLab', 'spin', 2 * Math.PI],
 ];
 const fourier = harness('components/fourier-lab.tsx', 'FourierLab', 'fourier');
-assert.match(fourier.html(), /Incertitude et transformée de Fourier/);
+assert.match(fourier.html(), /Fonctions d’ondes en/);
 assert.match(fourier.html(), /Sens physique du paramètre/);
 assert.match(fourier.html(), /point de focalisation/);
 assert.match(fourier.html(), /temps de vol libre/);
@@ -152,6 +152,8 @@ assert.match(fourier.html(), /ce n’est pas faire avancer le temps/);
 assert.match(fourier.html(), /<output>0\.000<\/output>/);
 assert.equal(fourier.plots().length, 2);
 assert.match(fourier.html(), /0\.500/);
+assert.equal(fourier.fields().filter(field => field.id === 'fourier-chirp-value').length, 0, 'Initial chirp is optional and off by default');
+fourier.toggle('fourier-chirp-enabled', true);
 assert.match(fourier.html().split('<details')[0], /id="fourier-chirp-value"/, 'The c input is visible without opening a disclosure');
 assert.equal(fourier.fields().filter(field => field.id === 'fourier-chirp-value').length, 1);
 fourier.enter('fourier-chirp-value', 1.25);
@@ -163,13 +165,14 @@ fourier.enter('fourier-chirp-value', 10); near(fourier.sliderProps('fourier-chir
 fourier.slider('fourier-chirp', -.75);
 assert.equal(fourier.fields().find(field => field.id === 'fourier-chirp-value').value, '-0.75');
 fourier.click('Réinitialiser le paquet');
-assert.equal(fourier.fields().find(field => field.id === 'fourier-chirp-value').value, '0');
+assert.equal(fourier.fields().filter(field => field.id === 'fourier-chirp-value').length, 0);
 const initialAxes = fourier.plots().map(plot => [plot.xDomain, plot.yDomain]);
 fourier.click('Étroit'); assert.equal(fourier.sliderProps('fourier-sigma').value[0], .5);
 assert.deepEqual(fourier.plots().map(plot => [plot.xDomain, plot.yDomain]), initialAxes);
 fourier.click('Large'); assert.equal(fourier.sliderProps('fourier-sigma').value[0], 2);
 assert.deepEqual(fourier.plots().map(plot => [plot.xDomain, plot.yDomain]), initialAxes);
 const positionDensity = fourier.plots()[0].series[0].values;
+fourier.toggle('fourier-chirp-enabled', true);
 fourier.slider('fourier-chirp', 2);
 assert.deepEqual(fourier.plots()[0].series[0].values, positionDensity, 'Quadratic phase does not change position density');
 assert.match(fourier.html(), /1\.118/);
@@ -180,7 +183,8 @@ assert.equal(fourier.sliderProps('fourier-center').value[0], 1);
 assert.equal(fourier.sliderProps('fourier-momentum').value[0], -1);
 assert.ok(fourier.plots().every(plot => plot.series.length === 1));
 fourier.click('Réinitialiser le paquet');
-assert.equal(fourier.sliderProps('fourier-sigma').value[0], 1); assert.equal(fourier.sliderProps('fourier-chirp').value[0], 0);
+assert.equal(fourier.sliderProps('fourier-sigma').value[0], 1);
+assert.equal(fourier.fields().filter(field => field.id === 'fourier-chirp-value').length, 0);
 assert.equal(fourier.sliderProps('fourier-sigma').min, .2); assert.equal(fourier.sliderProps('fourier-sigma').max, 5);
 const axesBeforeDrag = fourier.plots().map(plot => [plot.xDomain, plot.yDomain]);
 fourier.plots()[0].xDrag.onChange(6.3); fourier.render();
@@ -192,11 +196,62 @@ assert.deepEqual(fourier.plots().map(plot => [plot.xDomain, plot.yDomain]), axes
 assert.match(fourier.html(), /0\.500/);
 for (const sigma of [.2, 5]) {
   fourier.slider('fourier-sigma', sigma);
+  assert.deepEqual(fourier.plots().map(plot => plot.xDomain), initialAxes.map(axes => axes[0]));
   for (const plot of fourier.plots()) assert.ok(plot.series.every(curve => curve.values.every(p => p.y <= plot.yDomain[1])), 'Expanded width never clips density peak');
 }
 for (const plot of fourier.plots()) assert.ok(plot.series.every(curve => curve.values.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))));
+fourier.click('Réinitialiser le paquet');
+fourier.slider('fourier-momentum', 1);
+fourier.click('Évolution libre');
+const freeAxes = fourier.plots().map(plot => [plot.xDomain, plot.yDomain]);
+const momentumDensity = fourier.plots()[1].series[0].values;
+fourier.click('Animer'); fourier.tick(); fourier.tick();
+assert.ok(fourier.clock().time > 0);
+fourier.click('Pause'); const pausedTime = fourier.clock().time; fourier.tick(); near(fourier.clock().time, pausedTime);
+fourier.slider('fourier-time', 2);
+near(fourier.clock().time, 2);
+assert.match(fourier.html(), /<output>2\.000<\/output>/);
+assert.match(fourier.html(), /<output>1\.414<\/output>/);
+assert.match(fourier.html(), /Phase quadratique actuelle/);
+assert.deepEqual(fourier.plots()[1].series[0].values, momentumDensity);
+assert.deepEqual(fourier.plots().map(plot => [plot.xDomain, plot.yDomain]), freeAxes);
+assert.equal(fourier.plots()[0].xDrag, undefined, 'Dragging edits the initial state, not the running solution');
+fourier.enter('fourier-window', 60);
+assert.deepEqual(fourier.plots()[0].xDomain, [-60, 60]);
+assert.deepEqual(fourier.plots()[1].series[0].values, momentumDensity);
+near(fourier.clock().time, 2);
+fourier.enter('fourier-playback-speed', 2); near(fourier.clock().playbackSpeed, 2);
+fourier.enter('fourier-final-time', 1); near(fourier.clock().time, 1); near(fourier.clock().finalTime, 1);
+fourier.click('Rejouer'); near(fourier.clock().time, 0);
+fourier.tick(); fourier.tick(); assert.ok(fourier.clock().time > 0);
+fourier.setProps({ active: false }); const hiddenTime = fourier.clock().time; fourier.tick(); near(fourier.clock().time, hiddenTime);
+fourier.setProps({ active: true });
+fourier.command({ fourierSigma: 1, fourierCenter: 0, fourierMomentum: 0, fourierChirp: -1, time: 1, finalTime: 4 });
+assert.equal(fourier.clock().playing, false);
+assert.match(fourier.html(), /<output>0\.707<\/output>/);
+assert.match(fourier.html(), /0\.500/); // minimum reached at the focus
+fourier.toggle('fourier-chirp-enabled', false); near(fourier.clock().time, 0);
+assert.equal(fourier.fields().filter(field => field.id === 'fourier-chirp-value').length, 0);
+assert.match(fourier.html(), /0\.500/);
+fourier.toggle('fourier-chirp-enabled', true);
+near(fourier.sliderProps('fourier-chirp').value[0], -1, 1e-10);
+fourier.slider('fourier-time', 2); fourier.slider('fourier-sigma', 2); near(fourier.clock().time, 0);
+fourier.command({ fourierSigma: 1, fourierMomentum: 8, fourierChirpEnabled: false, fourierWindow: 35, time: 20, finalTime: 20 });
+assert.match(fourier.html(), /Une partie du paquet sort de la fenêtre/);
+assert.deepEqual(fourier.plots()[0].xDomain, [-35, 35]);
+fourier.click('État initial');
+assert.equal(fourier.plots()[0].xDrag.value, 0);
+fourier.command({ fourierSigma: .2, fourierCenter: .37, fourierMomentum: 0, fourierChirp: -2, fourierWindow: 400, time: .032, finalTime: 1 });
+const focusedPeak = Math.max(...fourier.plots()[0].series[0].values.map(p => p.y));
+near(focusedPeak, 1 / (Math.sqrt(2 * Math.PI) * .2 / Math.sqrt(5)), 1e-8);
+assert.ok(fourier.plots()[0].series[0].values.length < 600, 'Wide windows resolve a narrow focus without huge empty-tail arrays');
+fourier.command({ fourierSigma: 1, fourierCenter: 0, fourierMomentum: 8, fourierWindow: 5, fourierChirpEnabled: false, time: 4 });
+for (const plot of fourier.plots()) {
+  assert.equal(plot.series[0].values[0].x, plot.xDomain[0]);
+  assert.equal(plot.series[0].values.at(-1).x, plot.xDomain[1]);
+}
 fourier.dispose();
-console.log('Fourier: preset widths, fixed axes, phase changes, complex/density switch, command settings, reset and native formulas pass.');
+console.log('Fourier: fixed axes, optional phase, free playback, focus, conserved momentum density, manual window, presets, drag, commands and formulas pass.');
 // Real SVG interaction handlers, with a synthetic measured hit area (no browser).
 let translated = 1, captured = false;
 const plotDrag = { value: 1, min: -8, max: 8, step: .1, label: 'Déplacer le centre', onChange: value => { translated = value; } };

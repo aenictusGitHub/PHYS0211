@@ -220,7 +220,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .lab-tab-hydrogen { --tab-tone: var(--rose); --tab-tint: #fcf0f5; }
 .lab-tab-spin { --tab-tone: #5054a6; --tab-tint: #f0f1fc; }
 .lab-tab-sg { --tab-tone: #08758a; --tab-tint: #eaf6f8; }
-.lab-tab span { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid currentColor; border-radius: 50%; color: var(--tab-tone); font-size: var(--text-small); flex-shrink: 0; }
+.lab-tab > span:first-child { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid currentColor; border-radius: 50%; color: var(--tab-tone); font-size: var(--text-small); flex-shrink: 0; }
 
 .lab-tab::after {
   position: absolute;
@@ -700,6 +700,9 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .spin-workspace .figure-panel { position: static; }
 .fourier-workspace .figure-panel { position: static; }
 .fourier-phase .control-stack { margin-top: 18px; }
+.fourier-workspace .control-panel > .well-perturbation { grid-column: 1 / -1; }
+.fourier-initial-window { margin: 12px 0 18px; }
+.fourier-window-note { color: var(--accent); }
 .fourier-chirp-control .compact-stepper { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto; align-items: center; gap: 8px; margin-bottom: 16px; font-size: var(--text-ui); }
 .fourier-chirp-control .compact-stepper > label { color: var(--foreground); }
 .fourier-chirp-control .compact-stepper-field input { font-size: var(--text-ui); }
@@ -769,7 +772,7 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .sg-channel-table th { font-weight: 400; background: var(--paper); color: var(--muted-foreground); }
 .sg-channel-table td:first-child, .sg-channel-table th:first-child { text-align: center; }
 .sg-theory { margin-top: 24px; }
-.sg-setup-bar { padding: 14px 24px; background: var(--card); border: 1px solid var(--line); border-bottom: 0; }
+.sg-setup-bar { width: 100%; max-width: 1440px; margin: 16px auto 0; padding: 14px 24px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
 .sg-setup-bar .mode-switch { width: min(100%, 390px); margin: 0; }
 .sg-cascade-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .sg-cascade-presets button { white-space: normal; height: auto; min-height: 42px; padding: 10px 8px; line-height: 1.4; }

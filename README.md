@@ -4,7 +4,7 @@ Laboratoires interactifs pour le cours PHYS0211-3, année 2026–2027.
 
 **[Ouvrir les laboratoires](https://aenictusgithub.github.io/PHYS0211/)**
 
-1. Incertitude et transformée de Fourier
+1. Fonctions d’ondes en $x$ et $p$
 2. Diffusion paquets d’ondes
 3. Puits infini
 4. Oscillateur harmonique
@@ -22,8 +22,10 @@ Le laboratoire de Fourier affiche une paire gaussienne analytique normalisée
 en position et en impulsion, avec réglages de largeur, translations et phase
 quadratique. La largeur varie de 0.2 à 5 ; les centres se déplacent directement
 sur les graphes (souris, toucher ou clavier), sans changer les dispersions.
-Les axes restent fixes pendant le déplacement et s’étendent si les largeurs
-extrêmes le nécessitent. Les écarts-types et le produit Δx Δp montrent la
+La phase quadratique initiale est optionnelle. L’évolution libre analytique
+propose lecture/pause, vitesse et temps final ; la densité en impulsion est
+conservée. Les axes horizontaux restent fixes pendant les changements de
+largeur et l’évolution ; seule la fenêtre de position se règle manuellement. Les écarts-types et le produit Δx Δp montrent la
 borne de Heisenberg et l’effet d’une phase non uniforme (unités ℏ=1).
 
 L’oscillateur affiche les moyennes de position et d’impulsion au cours du temps,
