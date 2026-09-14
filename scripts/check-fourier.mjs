@@ -134,11 +134,13 @@ for (const config of [{ ...base, sigma: .2, chirp: 2, center: 8, momentum: -8 },
   }
 }
 for (const sigma of [.2, 5]) assert.equal(parseFourier({ lab: 'fourier', fourierSigma: sigma }).fourierSigma, sigma);
+for (const center of [-400, -35, 35, 400]) assert.equal(parseFourier({ lab: 'fourier', fourierCenter: center }).fourierCenter, center);
+for (const momentum of [-100, -40, 40, 100]) assert.equal(parseFourier({ lab: 'fourier', fourierMomentum: momentum }).fourierMomentum, momentum);
 assert.equal(parseFourier({ lab: 'fourier', fourierSigma: 1.2, fourierView: 'complex' }).fourierSigma, 1.2);
 assert.equal(parseFourier({ lab: 'fourier', time: 1, mode: 'evolution', finalTime: 4 }).time, 1);
 assert.equal(parseFourier({ lab: 'fourier', fourierChirp: 1 }).fourierChirpEnabled, true);
 assert.equal(parseFourier({ lab: 'fourier', fourierChirp: 1, fourierChirpEnabled: false }).fourierChirpEnabled, false);
-for (const bad of [{ fourierSigma: 0 }, { fourierSigma: .19 }, { fourierSigma: 5.1 }, { fourierSigma: NaN }, { fourierChirp: 3 }, { fourierCenter: -9 }, { fourierMomentum: '1' }, { fourierView: 'bad' }, { time: -1 }, { time: 21 }, { finalTime: 21 }, { time: 3, finalTime: 2 }, { fourierChirpEnabled: 'true' }, { fourierWindow: 0 }, { fourierWindow: 401 }, { playbackSpeed: 5 }, { mode: 'bad' }, { scale: 2 }]) assert.throws(() => parseFourier({ lab: 'fourier', ...bad }));
+for (const bad of [{ fourierSigma: 0 }, { fourierSigma: .19 }, { fourierSigma: 5.1 }, { fourierSigma: NaN }, { fourierChirp: 3 }, { fourierCenter: -401 }, { fourierMomentum: 101 }, { fourierMomentum: '1' }, { fourierView: 'bad' }, { time: -1 }, { time: 21 }, { finalTime: 21 }, { time: 3, finalTime: 2 }, { fourierChirpEnabled: 'true' }, { fourierWindow: 0 }, { fourierWindow: 401 }, { playbackSpeed: 5 }, { mode: 'bad' }, { scale: 2 }]) assert.throws(() => parseFourier({ lab: 'fourier', ...bad }));
 const app = readFileSync(new URL('../components/quantum-lab.tsx', import.meta.url), 'utf8');
 assert.match(app, /useState<Lab>\('fourier'\)/);
 assert.match(app, /<span>01<\/span><span>Fonctions d’ondes en <Formula>\$x\$<\/Formula> et <Formula>\$p\$<\/Formula>/);

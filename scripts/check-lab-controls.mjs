@@ -292,6 +292,28 @@ for (const plot of fourier.plots()) {
   assert.equal(plot.series[0].values[0].x, plot.xDomain[0]);
   assert.equal(plot.series[0].values.at(-1).x, plot.xDomain[1]);
 }
+fourier.click('État initial');
+fourier.click('Réinitialiser le paquet');
+fourier.enter('fourier-window', 35); fourier.enter('fourier-momentum-window', 40);
+const translationAxes = fourier.plots().map(plot => [plot.xDomain, plot.yDomain]);
+assert.deepEqual(fourier.plots().map(plot => [plot.xDrag.min, plot.xDrag.max]), [[-35, 35], [-40, 40]]);
+fourier.plots()[0].xDrag.onChange(25); fourier.render();
+fourier.plots()[1].xDrag.onChange(-30); fourier.render();
+assert.equal(fourier.sliderProps('fourier-center').value[0], 25);
+assert.equal(fourier.sliderProps('fourier-momentum').value[0], -30);
+assert.deepEqual(fourier.plots().map(plot => [plot.xDomain, plot.yDomain]), translationAxes);
+assert.ok(fourier.html().includes(String.raw`0.500\,\hbar</annotation>`));
+fourier.enter('fourier-window', 400); fourier.enter('fourier-momentum-window', 100);
+assert.deepEqual(fourier.plots().map(plot => [plot.xDrag.min, plot.xDrag.max]), [[-400, 400], [-100, 100]]);
+fourier.plots()[0].xDrag.onChange(-400); fourier.render();
+fourier.plots()[1].xDrag.onChange(100); fourier.render();
+assert.equal(fourier.sliderProps('fourier-center').value[0], -400);
+assert.equal(fourier.sliderProps('fourier-momentum').value[0], 100);
+assert.equal(fourier.sliderProps('fourier-center').min, -400);
+assert.equal(fourier.sliderProps('fourier-momentum').max, 100);
+fourier.enter('fourier-window', 35); fourier.enter('fourier-momentum-window', 40);
+assert.equal(fourier.sliderProps('fourier-center').value[0], -400, 'Zooming does not modify the physical state');
+assert.equal(fourier.sliderProps('fourier-momentum').value[0], 100);
 fourier.dispose();
 console.log('Fourier: fixed axes, optional phase, free playback, focus, conserved momentum density, manual window, presets, drag, commands and formulas pass.');
 // Real SVG interaction handlers, with a synthetic measured hit area (no browser).

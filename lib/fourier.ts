@@ -41,11 +41,12 @@ export type FourierConfig = { sigma: number; center: number; momentum: number; c
 export const FOURIER_DEFAULTS: FourierConfig = { sigma: 1, center: 0, momentum: 0, chirp: 0 };
 export const FOURIER_SIGMA_MIN = .2;
 export const FOURIER_SIGMA_MAX = 5;
-export const FOURIER_CENTER_LIMIT = 8;
+export const FOURIER_CENTER_LIMIT = 400;
+export const FOURIER_MOMENTUM_LIMIT = 100;
 export const FOURIER_FINAL_TIME_MAX = 20;
 export const FOURIER_WINDOW_DEFAULT = 35;
 export const FOURIER_MOMENTUM_WINDOW_DEFAULT = 40;
-export const FOURIER_BOUNDS = { fourierSigma: [FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX], fourierCenter: [-FOURIER_CENTER_LIMIT, FOURIER_CENTER_LIMIT], fourierMomentum: [-FOURIER_CENTER_LIMIT, FOURIER_CENTER_LIMIT], fourierChirp: [-2, 2] } as const;
+export const FOURIER_BOUNDS = { fourierSigma: [FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX], fourierCenter: [-FOURIER_CENTER_LIMIT, FOURIER_CENTER_LIMIT], fourierMomentum: [-FOURIER_MOMENTUM_LIMIT, FOURIER_MOMENTUM_LIMIT], fourierChirp: [-2, 2] } as const;
 
 /** Normalized analytic Fourier pair, hbar=1, with convention
  * phi(p)=(2 pi)^(-1/2) integral psi(x) exp(-i p x) dx.

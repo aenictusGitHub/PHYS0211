@@ -11,7 +11,7 @@ import { PlaybackControls } from '@/components/playback-controls';
 import { useLabPlayback } from '@/components/use-lab-playback';
 import { ScientificPlot, type PlotSeries } from '@/components/scientific-plot';
 import type { ExperimentCommand } from '@/components/lab-types';
-import { FOURIER_DEFAULTS, FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX, FOURIER_CENTER_LIMIT, FOURIER_FINAL_TIME_MAX, FOURIER_WINDOW_DEFAULT, FOURIER_MOMENTUM_WINDOW_DEFAULT, fourierDomains, type FourierConfig } from '@/lib/fourier';
+import { FOURIER_DEFAULTS, FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX, FOURIER_CENTER_LIMIT, FOURIER_MOMENTUM_LIMIT, FOURIER_FINAL_TIME_MAX, FOURIER_WINDOW_DEFAULT, FOURIER_MOMENTUM_WINDOW_DEFAULT, fourierDomains, type FourierConfig } from '@/lib/fourier';
 import { FOURIER_HBAR, FOURIER_P_SCALE, FOURIER_T_SCALE, evolveFourierSI as evolveFourier, fourierValueSI as fourierValue, fourierMomentsSI as fourierMoments, fourierYMaxSI as fourierYMax } from '@/lib/fourier';
 
 const fixed = (value: number) => (Math.abs(value) < .0005 ? 0 : value).toFixed(3);
@@ -112,7 +112,7 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
       </div>
       <details className="theory-notes fourier-phase"><summary>Translations</summary><div className="control-stack">
         <QuantumParameter id="fourier-center" label="Position moyenne" symbol={String.raw`$x_0\ (\mathrm{nm})$`} value={config.center} min={-FOURIER_CENTER_LIMIT} max={FOURIER_CENTER_LIMIT} step={.1} onChange={center => change({ center })} />
-        <QuantumParameter id="fourier-momentum" label="Impulsion moyenne" symbol="$p_0$" value={config.momentum} min={-FOURIER_CENTER_LIMIT} max={FOURIER_CENTER_LIMIT} step={.1} onChange={momentum => change({ momentum })} />
+        <QuantumParameter id="fourier-momentum" label="Impulsion moyenne" symbol="$p_0$" value={config.momentum} min={-FOURIER_MOMENTUM_LIMIT} max={FOURIER_MOMENTUM_LIMIT} step={.1} onChange={momentum => change({ momentum })} />
         <p className="scale-note">Impulsion en <Formula>{`$${momentumUnit}$`}</Formula>.</p>
       </div></details>
       <Button variant="outline" onClick={() => { setConfig(FOURIER_DEFAULTS); setChirpEnabled(false); setView('density'); resetTime(); }}>Réinitialiser le paquet</Button>
@@ -124,7 +124,7 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
       {mode === 'evolution' ? <PlaybackControls id="fourier" clock={clock} displayControl={windowControl} finalMin={.1} finalMax={FOURIER_FINAL_TIME_MAX} timeSymbol={String.raw`$t\ (\mathrm{fs})$`} finalSymbol={String.raw`$t_f\ (\mathrm{fs})$`}
         note={<>Évolution libre d’un électron : <Formula>$V=0$</Formula>, <Formula>$m=m_e$</Formula>. Le temps est en femtosecondes. La densité en impulsion reste constante. Modifier l’état initial remet le temps à zéro.</>} /> : <div className="fourier-initial-window">{windowControl}</div>}
       <p className="scale-note">Fenêtre <Formula>$p$</Formula> en <Formula>{`$${momentumUnit}$`}</Formula>.</p>
-      <p className="scale-note">À <Formula>$t=0$</Formula>, faites glisser horizontalement sur un graphe pour déplacer sa moyenne. Au clavier : flèches ← →, ou Maj + flèche. Revenez à l’état initial pour modifier le paquet par glissement.</p>
+      <p className="scale-note">À <Formula>$t=0$</Formula>, faites glisser horizontalement sur un graphe pour déplacer sa moyenne sur toute la fenêtre visible. Augmentez « Fenêtre <Formula>$x$</Formula> » ou « Fenêtre <Formula>$p$</Formula> » pour aller plus loin. Au clavier : flèches ← →, ou Maj + flèche. Revenez à l’état initial pour modifier le paquet par glissement.</p>
       <div className="fourier-plots">{plots.map(({ space, series }) => {
         const position = space === 'position', mean = position ? moments.x : moments.p, delta = position ? moments.dx : moments.dp;
         const ymax = fourierYMax(space, view, position ? { ...initial, sigma: initial.sigma / Math.hypot(1, initial.chirp) } : initial);
@@ -132,7 +132,7 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
           <div className="plot-shell"><ScientificPlot ariaLabel={position ? 'Distribution en position et largeur Δx' : 'Transformée de Fourier en impulsion et largeur Δp'}
             xDomain={domains[space]} yDomain={[view === 'density' ? 0 : -ymax, ymax]} xLabel={position ? String.raw`$x\ (\mathrm{nm})$` : String.raw`$p\ (${momentumUnit})$`} yLabel={view === 'density' ? position ? String.raw`$|\psi(x)|^2$` : String.raw`$|\widetilde\psi(p)|^2$` : position ? String.raw`$\psi(x)$` : String.raw`$\widetilde\psi(p)$`}
             series={series} bands={[{ from: mean - delta, to: mean + delta, tone: position ? 'accent' : 'teal', opacity: .15 }]}
-            xDrag={displayTime === 0 ? { value: mean, min: -FOURIER_CENTER_LIMIT, max: FOURIER_CENTER_LIMIT, step: .1, label: position ? 'Déplacer la position moyenne du paquet' : 'Déplacer l’impulsion moyenne du paquet', onChange: value => change(position ? { center: value } : { momentum: value }) } : undefined}
+            xDrag={displayTime === 0 ? { value: mean, min: domains[space][0], max: domains[space][1], step: .1, label: position ? 'Déplacer la position moyenne du paquet' : 'Déplacer l’impulsion moyenne du paquet', onChange: value => change(position ? { center: value } : { momentum: value }) } : undefined}
             verticalLines={[{ value: mean, tone: 'ink', dashed: false }, { value: mean - delta, tone: 'muted' }, { value: mean + delta, tone: 'muted' }]} horizontalLines={view === 'complex' ? [{ value: 0, tone: 'muted' }] : []} /></div>
           <p className="fourier-width"><Formula>{position ? String.raw`$\Delta x=$` : String.raw`$\Delta p=$`}</Formula> <output>{fixed(delta)}</output> <Formula>{position ? String.raw`$\mathrm{nm}$` : String.raw`$\times ${momentumUnit}$`}</Formula></p>
           <p className="scale-note fourier-axis-unit">Ordonnée en <Formula>{position ? view === 'density' ? String.raw`$\mathrm{nm}^{-1}$` : String.raw`$\mathrm{nm}^{-1/2}$` : String.raw`$(${momentumUnit})^{${view === 'density' ? '-1' : '-1/2'}}$`}</Formula>.</p>
