@@ -25,7 +25,11 @@ sur les graphes (souris, toucher ou clavier), sans changer les dispersions.
 La phase quadratique initiale est optionnelle. L’évolution libre analytique
 propose lecture/pause, vitesse et temps final ; la densité en impulsion est
 conservée. Les axes horizontaux restent fixes pendant les changements de
-largeur et l’évolution ; seule la fenêtre de position se règle manuellement. Les écarts-types et le produit Δx Δp montrent la
+largeur et l’évolution ; les fenêtres en position et en impulsion se règlent
+indépendamment. Les formules et explications liées au chirp sont masquées
+quand l’option est désactivée. Les définitions intégrales des moyennes et des
+moments d’ordre deux complètent le rappel des dispersions.
+Les écarts-types et le produit Δx Δp montrent la
 borne de Heisenberg et l’effet d’une phase non uniforme (unités ℏ=1).
 
 L’oscillateur affiche les moyennes de position et d’impulsion au cours du temps,

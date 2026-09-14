@@ -7,6 +7,7 @@ export const FOURIER_SIGMA_MAX = 5;
 export const FOURIER_CENTER_LIMIT = 8;
 export const FOURIER_FINAL_TIME_MAX = 20;
 export const FOURIER_WINDOW_DEFAULT = 35;
+export const FOURIER_MOMENTUM_WINDOW_DEFAULT = 40;
 export const FOURIER_BOUNDS = { fourierSigma: [FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX], fourierCenter: [-FOURIER_CENTER_LIMIT, FOURIER_CENTER_LIMIT], fourierMomentum: [-FOURIER_CENTER_LIMIT, FOURIER_CENTER_LIMIT], fourierChirp: [-2, 2] } as const;
 
 /** Normalized analytic Fourier pair, hbar=1, with convention
@@ -46,9 +47,9 @@ export function fourierMoments(config: FourierConfig) {
   return { x: config.center, p: config.momentum, dx, dp, product: dx * dp, covariance: config.chirp / 2 };
 }
 
-export function fourierDomains(_config: FourierConfig, positionExtent = FOURIER_WINDOW_DEFAULT) {
-  // Only the explicit viewport setting changes the position window.
-  return { position: [-positionExtent, positionExtent] as [number, number], momentum: [-40, 40] as [number, number] };
+export function fourierDomains(_config: FourierConfig, positionExtent = FOURIER_WINDOW_DEFAULT, momentumExtent = FOURIER_MOMENTUM_WINDOW_DEFAULT) {
+  // Only the explicit viewport settings change either horizontal window.
+  return { position: [-positionExtent, positionExtent] as [number, number], momentum: [-momentumExtent, momentumExtent] as [number, number] };
 }
 
 export function fourierYMax(space: 'position' | 'momentum', view: 'density' | 'complex', config: FourierConfig) {
@@ -60,7 +61,7 @@ export function fourierYMax(space: 'position' | 'momentum', view: 'density' | 'c
 
 export function parseFourier(data: Record<string, unknown>): Omit<ExperimentCommand, 'id'> {
   if (data.lab !== 'fourier') throw new Error('Laboratoire fourier attendu.');
-  const allowed = ['lab', ...Object.keys(FOURIER_BOUNDS), 'fourierView', 'fourierChirpEnabled', 'fourierWindow', 'mode', 'time', 'finalTime', 'playbackSpeed'];
+  const allowed = ['lab', ...Object.keys(FOURIER_BOUNDS), 'fourierView', 'fourierChirpEnabled', 'fourierWindow', 'fourierMomentumWindow', 'mode', 'time', 'finalTime', 'playbackSpeed'];
   for (const key of Object.keys(data)) if (!allowed.includes(key)) throw new Error(`${key} n’est pas utilisé par le laboratoire de Fourier.`);
   for (const [key, [min, max]] of Object.entries(FOURIER_BOUNDS)) {
     const value = data[key];
@@ -69,7 +70,7 @@ export function parseFourier(data: Record<string, unknown>): Omit<ExperimentComm
   if (data.fourierView !== undefined && data.fourierView !== 'density' && data.fourierView !== 'complex') throw new Error('fourierView doit valoir density ou complex.');
   if (data.fourierChirpEnabled !== undefined && typeof data.fourierChirpEnabled !== 'boolean') throw new Error('fourierChirpEnabled doit être booléen.');
   if (data.mode !== undefined && data.mode !== 'stationary' && data.mode !== 'evolution') throw new Error('Mode de Fourier invalide.');
-  for (const [key, min, max] of [['time', 0, FOURIER_FINAL_TIME_MAX], ['finalTime', .1, FOURIER_FINAL_TIME_MAX], ['playbackSpeed', .25, 4], ['fourierWindow', 5, 400]] as const) {
+  for (const [key, min, max] of [['time', 0, FOURIER_FINAL_TIME_MAX], ['finalTime', .1, FOURIER_FINAL_TIME_MAX], ['playbackSpeed', .25, 4], ['fourierWindow', 5, 400], ['fourierMomentumWindow', 1, 100]] as const) {
     const value = data[key];
     if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max)) throw new Error(`${key} doit être compris entre ${min} et ${max}.`);
   }

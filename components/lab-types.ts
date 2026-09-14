@@ -7,6 +7,7 @@ export type ExperimentCommand = {
   fourierChirp?: number;
   fourierChirpEnabled?: boolean;
   fourierWindow?: number;
+  fourierMomentumWindow?: number;
   fourierView?: 'density' | 'complex';
   mode?: 'stationary' | 'evolution';
   quantumNumber?: number;

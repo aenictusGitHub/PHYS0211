@@ -90,6 +90,9 @@ for (const sigma of [.2, .5, 1, 2, 5]) for (const chirp of [-2, 0, 2]) for (cons
   assert.deepEqual(domains(evolveFourier({ ...base, sigma, chirp, momentum: 8 }, time)), domains(base), 'No automatic horizontal zoom');
 }
 assert.deepEqual(domains(base, 100), { position: [-100, 100], momentum: [-40, 40] });
+assert.deepEqual(domains(base, 100, 3), { position: [-100, 100], momentum: [-3, 3] });
+for (const extent of [1, 40, 100]) assert.equal(parseFourier({ lab: 'fourier', fourierMomentumWindow: extent }).fourierMomentumWindow, extent);
+for (const extent of [0, 101, NaN, '5']) assert.throws(() => parseFourier({ lab: 'fourier', fourierMomentumWindow: extent }));
 near(moments({ ...base, center: 2, momentum: 2 }).product, moments(base).product);
 assert.deepEqual(domains({ ...base, sigma: .5 }), domains({ ...base, sigma: 2 }), 'Changing width must not zoom away its visible effect');
 for (const config of [{ ...base, sigma: .2, chirp: 2, center: 8, momentum: -8 }, { ...base, sigma: 5, center: -8, momentum: 8 }]) {

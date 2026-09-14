@@ -190,6 +190,7 @@ export function QuantumLab() {
             fourierView: { type: 'string', enum: ['density', 'complex'] },
             fourierChirpEnabled: { type: 'boolean', description: 'Activer la phase quadratique de l’état initial, désactivée par défaut.' },
             fourierWindow: { type: 'number', minimum: 5, maximum: 400, description: 'Demi-largeur de la fenêtre en position ; jamais ajustée automatiquement.' },
+            fourierMomentumWindow: { type: 'number', minimum: 1, maximum: 100, description: 'Demi-largeur de la fenêtre en impulsion, défaut 40 ; indépendante de la physique et du temps.' },
             sgJ: { type: 'number', enum: SG_J },
             sgGradient: { type: 'number', minimum: -1500, maximum: 1500, description: 'Gradient de Stern–Gerlach en T/m.' },
             sgVelocity: { type: 'number', minimum: 100, maximum: 1000, description: 'Vitesse longitudinale en m/s.' },
@@ -343,6 +344,7 @@ export function QuantumLab() {
             fourierView: parsed.fourierView ?? null,
             fourierChirpEnabled: parsed.fourierChirpEnabled ?? null,
             fourierWindow: parsed.fourierWindow ?? null,
+            fourierMomentumWindow: parsed.fourierMomentumWindow ?? null,
           };
         },
       },

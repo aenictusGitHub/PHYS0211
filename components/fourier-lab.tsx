@@ -11,7 +11,7 @@ import { PlaybackControls } from '@/components/playback-controls';
 import { useLabPlayback } from '@/components/use-lab-playback';
 import { ScientificPlot, type PlotSeries } from '@/components/scientific-plot';
 import type { ExperimentCommand } from '@/components/lab-types';
-import { FOURIER_DEFAULTS, FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX, FOURIER_CENTER_LIMIT, FOURIER_FINAL_TIME_MAX, FOURIER_WINDOW_DEFAULT, evolveFourier, fourierValue, fourierMoments, fourierDomains, fourierYMax, type FourierConfig } from '@/lib/fourier';
+import { FOURIER_DEFAULTS, FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX, FOURIER_CENTER_LIMIT, FOURIER_FINAL_TIME_MAX, FOURIER_WINDOW_DEFAULT, FOURIER_MOMENTUM_WINDOW_DEFAULT, evolveFourier, fourierValue, fourierMoments, fourierDomains, fourierYMax, type FourierConfig } from '@/lib/fourier';
 
 const fixed = (value: number) => (Math.abs(value) < .0005 ? 0 : value).toFixed(3);
 
@@ -22,6 +22,7 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
   const [mode, setMode] = useState<'stationary' | 'evolution'>('stationary');
   const [time, setTime] = useState(0), [playing, setPlaying] = useState(false);
   const [positionWindow, setPositionWindow] = useState(FOURIER_WINDOW_DEFAULT);
+  const [momentumWindow, setMomentumWindow] = useState(FOURIER_MOMENTUM_WINDOW_DEFAULT);
   const ownCommand = command?.lab === 'fourier' ? command : null;
   const clock = useLabPlayback({ active, enabled: mode === 'evolution', time, setTime, playing, setPlaying, defaultFinalTime: 6, rate: .5, command: ownCommand });
   const resetTime = () => { setTime(0); setPlaying(false); };
@@ -33,6 +34,7 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
     if (command.fourierView) setView(command.fourierView);
     if (command.fourierChirpEnabled !== undefined || command.fourierChirp !== undefined) setChirpEnabled(command.fourierChirpEnabled ?? true);
     if (command.fourierWindow !== undefined) setPositionWindow(command.fourierWindow);
+    if (command.fourierMomentumWindow !== undefined) setMomentumWindow(command.fourierMomentumWindow);
     if (command.mode) setMode(command.mode);
     else if (command.time !== undefined) setMode('evolution');
     setTime(command.time ?? 0); setPlaying(false);
@@ -40,10 +42,13 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
   const initial = { ...config, chirp: chirpEnabled ? config.chirp : 0 };
   const displayTime = mode === 'evolution' ? time : 0;
   const current = evolveFourier(initial, displayTime);
-  const moments = fourierMoments(current), domains = fourierDomains(initial, positionWindow);
-  const windowControl = <CompactStepper id="fourier-window" label={<>Fenêtre <Formula>$x$</Formula> : ±</>} value={positionWindow} min={5} max={400} step={5} onChange={setPositionWindow} description="Seul ce réglage change l’échelle horizontale en position. La largeur du paquet et le temps ne la modifient pas." />;
+  const moments = fourierMoments(current), domains = fourierDomains(initial, positionWindow, momentumWindow);
+  const windowControl = <>
+    <CompactStepper id="fourier-window" label={<>Fenêtre <Formula>$x$</Formula> : ±</>} value={positionWindow} min={5} max={400} step={5} onChange={setPositionWindow} description="Seul ce réglage change l’échelle horizontale en position. La largeur du paquet et le temps ne la modifient pas." />
+    <CompactStepper id="fourier-momentum-window" label={<>Fenêtre <Formula>$p$</Formula> : ±</>} value={momentumWindow} min={1} max={100} step={1} onChange={setMomentumWindow} description="Demi-largeur de la fenêtre en impulsion, de 1 à 100, par défaut 40. Modifie seulement l’affichage, pas l’état du paquet ni le temps." />
+  </>;
   const plots = useMemo(() => (['position', 'momentum'] as const).map(space => {
-    const domain = fourierDomains(initial, positionWindow)[space];
+    const domain = fourierDomains(initial, positionWindow, momentumWindow)[space];
     const position = space === 'position', delta = position ? current.sigma : fourierMoments(initial).dp;
     const center = position ? current.center : initial.momentum;
     // Resolve the occupied region even in a very wide viewport, without
@@ -61,7 +66,7 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
       ? [{ values: samples.map(p => ({ x: p.x, y: p.density })), tone: space === 'position' ? 'accent' : 'teal', fillTo: 0, fillOpacity: .12 }]
       : [{ values: samples.map(p => ({ x: p.x, y: p.real })), tone: 'accent' }, { values: samples.map(p => ({ x: p.x, y: p.imaginary })), tone: 'teal', dashed: true }];
     return { space, series };
-  }), [config, chirpEnabled, view, displayTime, positionWindow]);
+  }), [config, chirpEnabled, view, displayTime, positionWindow, momentumWindow]);
   return <section className="workspace fourier-workspace" aria-labelledby="fourier-title">
     <aside className="control-panel">
       <div><p className="eyebrow">01</p><h1 id="fourier-title">Fonctions d’ondes en <Formula>$x$</Formula> et <Formula>$p$</Formula></h1><p className="lede">Un même état quantique, deux représentations. Resserrez le paquet en position et observez son spectre en impulsion.</p></div>
@@ -75,7 +80,7 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
       </div>
       <div className="well-perturbation">
         <div className="well-perturbation-heading"><label htmlFor="fourier-chirp-enabled">Phase quadratique <Formula>$c$</Formula></label><Switch id="fourier-chirp-enabled" checked={chirpEnabled} onCheckedChange={enabled => { setChirpEnabled(enabled); resetTime(); }} /></div>
-        <p className="scale-note">Option pour l’état initial. Désactivée : <Formula>$c(0)=0$</Formula>. Une phase quadratique peut ensuite apparaître pendant l’évolution libre.</p>
+        <p className="scale-note">Ajoute une phase quadratique à l’état initial. L’évolution libre reste disponible lorsque cette option est désactivée.</p>
         {chirpEnabled ? <div className="control-block fourier-chirp-control">
         <CompactStepper id="fourier-chirp-value" label={<>Phase quadratique <Formula>$c$</Formula></>} value={config.chirp} min={-2} max={2} step={.01}
           onChange={chirp => change({ chirp })} description="Paramètre c, de −2 à 2. Valeur initiale : 0. Saisissez une valeur puis validez avec Entrée, ou utilisez les petites flèches." />
@@ -84,7 +89,7 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
         <div className="range-labels" aria-hidden="true"><span>−2</span><span>2</span></div>
         <p className="scale-note"><Formula>$c$</Formula> mesure une corrélation position–impulsion, appelée « chirp » spatial : le gradient de phase varie à travers le paquet. Il peut décrire un paquet en expansion ou préparé pour se focaliser.</p>
       </div> : null}</div>
-      <div className="equation-card"><span>État initial normalisé</span><Formula display>{String.raw`$\psi(x,0)=\frac{e^{-\frac{(x-x_0)^2}{4\sigma_0^2}}\,e^{i\Phi(x)}}{(2\pi\sigma_0^2)^{1/4}}$`}</Formula><Formula display>{String.raw`$\Phi(x)=p_0(x-x_0)+\frac{c(0)(x-x_0)^2}{4\sigma_0^2}$`}</Formula><p className="scale-note">Unités réduites : <Formula>{String.raw`$\hbar=m=1$`}</Formula>. Les réglages décrivent l’état à <Formula>$t=0$</Formula>.</p></div>
+      <div className="equation-card"><span>État initial normalisé</span><Formula display>{String.raw`$\psi(x,0)=\frac{e^{-\frac{(x-x_0)^2}{4\sigma_0^2}}\,e^{i\Phi(x)}}{(2\pi\sigma_0^2)^{1/4}}$`}</Formula><Formula display>{chirpEnabled ? String.raw`$\Phi(x)=p_0(x-x_0)+\frac{c(0)(x-x_0)^2}{4\sigma_0^2}$` : String.raw`$\Phi(x)=p_0(x-x_0)$`}</Formula><p className="scale-note">Unités réduites : <Formula>{String.raw`$\hbar=m=1$`}</Formula>. Les réglages décrivent l’état à <Formula>$t=0$</Formula>.</p></div>
       <details className="theory-notes fourier-phase"><summary>Translations</summary><div className="control-stack">
         <QuantumParameter id="fourier-center" label="Position moyenne" symbol="$x_0$" value={config.center} min={-FOURIER_CENTER_LIMIT} max={FOURIER_CENTER_LIMIT} step={.1} onChange={center => change({ center })} />
         <QuantumParameter id="fourier-momentum" label="Impulsion moyenne" symbol="$p_0$" value={config.momentum} min={-FOURIER_CENTER_LIMIT} max={FOURIER_CENTER_LIMIT} step={.1} onChange={momentum => change({ momentum })} />
@@ -110,12 +115,13 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
           <p className="fourier-width"><Formula>{position ? String.raw`$\Delta x=$` : String.raw`$\Delta p=$`}</Formula> <output>{fixed(delta)}</output></p>
         </div>;
       })}</div>
-      <p className="scale-note">Les bandes couvrent la moyenne ± un écart-type, soit environ 68.3 % de chaque distribution gaussienne. Les axes horizontaux restent fixes quand la largeur, la phase ou le temps changent. Seule la commande « Fenêtre x » modifie la fenêtre de position.</p>
+      <p className="scale-note">Les bandes couvrent la moyenne ± un écart-type, soit environ 68.3 % de chaque distribution gaussienne. Les axes horizontaux restent fixes quand la largeur, la phase ou le temps changent. Les commandes « Fenêtre x » et « Fenêtre p » règlent indépendamment les deux fenêtres d’affichage.</p>
       {Math.abs(moments.x) + 4 * moments.dx > positionWindow ? <p className="scale-note fourier-window-note" role="status">Une partie du paquet sort de la fenêtre affichée. Il continue son évolution sans réflexion ; augmentez « Fenêtre x » pour le voir davantage.</p> : null}
+      {Math.abs(moments.p) + 4 * moments.dp > momentumWindow ? <p className="scale-note fourier-window-note" role="status">Une partie de la distribution en impulsion sort de la fenêtre affichée. Augmentez « Fenêtre p » pour la voir davantage.</p> : null}
       <div className="fourier-uncertainty" aria-live="off"><div><p className="control-caption">Relation d’incertitude</p><Formula display>{String.raw`$\Delta x\,\Delta p\geq\frac{\hbar}{2}$`}</Formula></div><div><span>Produit actuel</span><p><output>{fixed(moments.product)}</output> <Formula>{String.raw`$\hbar$`}</Formula></p><span>Minimum : <Formula>{String.raw`$0.500\,\hbar$`}</Formula></span></div></div>
-      <p className="fourier-explanation">{Math.abs(current.chirp) < 1e-10 ? <>Le paquet atteint le minimum <Formula>{String.raw`$\hbar/2$`}</Formula>. Diviser <Formula>$\Delta x$</Formula> par deux multiplie <Formula>$\Delta p$</Formula> par deux : le produit reste inchangé.</> : <>La phase quadratique crée une corrélation entre position et impulsion : <Formula>{String.raw`$\Delta x\,\Delta p=\frac{\hbar}{2}\sqrt{1+c^2}>\frac{\hbar}{2}$`}</Formula>. À largeur identique, cette phase ne modifie pas la densité en position.</>}</p>
-      <dl className="measurements"><div><dt>Position moyenne</dt><dd><Formula>{String.raw`$\langle x\rangle=$`}</Formula><output>{fixed(moments.x)}</output></dd></div><div><dt>Impulsion moyenne</dt><dd><Formula>{String.raw`$\langle p\rangle=$`}</Formula><output>{fixed(moments.p)}</output></dd></div>{mode === 'evolution' ? <div><dt>Phase quadratique actuelle</dt><dd><Formula>$c(t)=$</Formula><output>{fixed(current.chirp)}</output></dd></div> : null}</dl>
-      <section className="fourier-physical-note" aria-labelledby="fourier-c-meaning">
+      <p className="fourier-explanation">{Math.abs(current.chirp) < 1e-10 ? <>Le paquet atteint le minimum <Formula>{String.raw`$\hbar/2$`}</Formula>. Diviser <Formula>$\Delta x$</Formula> par deux multiplie <Formula>$\Delta p$</Formula> par deux : le produit reste inchangé.</> : chirpEnabled ? <>La phase quadratique crée une corrélation entre position et impulsion : <Formula>{String.raw`$\Delta x\,\Delta p=\frac{\hbar}{2}\sqrt{1+c^2}>\frac{\hbar}{2}$`}</Formula>. À largeur identique, cette phase ne modifie pas la densité en position.</> : <>En évolution libre, le paquet s’élargit en position tandis que sa distribution en impulsion reste inchangée. Le produit <Formula>{String.raw`$\Delta x\,\Delta p$`}</Formula> augmente donc à partir de sa valeur initiale minimale <Formula>{String.raw`$\hbar/2$`}</Formula>.</>}</p>
+      <dl className="measurements"><div><dt>Position moyenne</dt><dd><Formula>{String.raw`$\langle x\rangle=$`}</Formula><output>{fixed(moments.x)}</output></dd></div><div><dt>Impulsion moyenne</dt><dd><Formula>{String.raw`$\langle p\rangle=$`}</Formula><output>{fixed(moments.p)}</output></dd></div>{chirpEnabled && mode === 'evolution' ? <div><dt>Phase quadratique actuelle</dt><dd><Formula>$c(t)=$</Formula><output>{fixed(current.chirp)}</output></dd></div> : null}</dl>
+      {chirpEnabled ? <section className="fourier-physical-note" aria-labelledby="fourier-c-meaning">
         <h3 id="fourier-c-meaning">Sens physique du paramètre <Formula>$c$</Formula></h3>
         <p>La pente de la phase définit une impulsion locale, liée au courant de probabilité. Dans les unités du labo (<Formula>{String.raw`$\hbar=1$`}</Formula>) :</p>
         <Formula display>{String.raw`$p_{\mathrm{loc}}(x)=\frac{\partial\Phi}{\partial x}=p_0+\frac{c}{2\sigma^2}(x-x_0)$`}</Formula>
@@ -126,15 +132,22 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
           <li><Formula>$c=0$</Formula> : il n’y a pas de corrélation position–impulsion. La largeur est momentanément minimale dans l’évolution libre, mais le paquet n’est pas stationnaire.</li>
         </ul>
         <p>Exemple : un paquet gaussien initialement sans chirp, libéré d’un piège, acquiert une phase quadratique pendant son expansion. Ici, changer <Formula>$c$</Formula> à largeur fixée compare différents états : ce n’est pas faire avancer le temps.</p>
-      </section>
+      </section> : null}
       <details className="theory-notes"><summary>Repères théoriques</summary><div className="theory-grid">
         <div><span>Convention de Fourier</span><Formula display>{String.raw`$\widetilde\psi(p)=\frac{1}{\sqrt{2\pi\hbar}}\int_{-\infty}^{\infty}\psi(x)\,e^{-ipx/\hbar}\,dx$`}</Formula><p>La transformation porte sur l’amplitude complexe, pas sur la densité de probabilité. Les deux représentations décrivent le même état et ont une norme égale à 1.</p></div>
-        <div><span>Mesurer une dispersion</span><Formula display>{String.raw`$\Delta x=\sqrt{\langle x^2\rangle-\langle x\rangle^2}$`}</Formula><Formula display>{String.raw`$\Delta p=\sqrt{\langle p^2\rangle-\langle p\rangle^2}$`}</Formula><p>Ce sont les dispersions des résultats de mesures sur des ensembles préparés dans le même état, pas des erreurs instrumentales.</p></div>
-        <div><span>Sans phase quadratique</span><Formula display>{String.raw`$\Delta x=\sigma,\qquad \Delta p=\frac{\hbar}{2\sigma}$`}</Formula><p>Les translations <Formula>$x_0$</Formula> et <Formula>$p_0$</Formula> déplacent les moyennes sans modifier les dispersions. La gaussienne sans corrélation atteint la borne de Heisenberg.</p></div>
-        <div><span>Avec une phase quadratique</span><Formula display>{String.raw`$\Delta p=\frac{\hbar\sqrt{1+c^2}}{2\sigma}$`}</Formula><p>Un paquet peut être gaussien et avoir un produit strictement supérieur à <Formula>{String.raw`$\hbar/2$`}</Formula>. Les courbes et les moments sont calculés à partir d’une paire de Fourier analytique normalisée.</p></div>
+        <div><span>Mesurer une dispersion</span>
+          <p>Pour un état normalisé, à l’instant considéré :</p>
+          <Formula display>{String.raw`$\langle x\rangle=\int_{-\infty}^{\infty}x\,|\psi(x)|^2\,dx$`}</Formula>
+          <Formula display>{String.raw`$\langle x^2\rangle=\int_{-\infty}^{\infty}x^2\,|\psi(x)|^2\,dx$`}</Formula>
+          <Formula display>{String.raw`$\langle p\rangle=\int_{-\infty}^{\infty}p\,|\widetilde\psi(p)|^2\,dp$`}</Formula>
+          <Formula display>{String.raw`$\langle p^2\rangle=\int_{-\infty}^{\infty}p^2\,|\widetilde\psi(p)|^2\,dp$`}</Formula>
+          <Formula display>{String.raw`$\Delta x=\sqrt{\langle x^2\rangle-\langle x\rangle^2}$`}</Formula><Formula display>{String.raw`$\Delta p=\sqrt{\langle p^2\rangle-\langle p\rangle^2}$`}</Formula><p>Ce sont les dispersions des résultats de mesures sur des ensembles préparés dans le même état, pas des erreurs instrumentales.</p></div>
+        <div><span>État initial sans phase quadratique</span><Formula display>{String.raw`$\Delta x(0)=\sigma_0$`}</Formula><Formula display>{String.raw`$\Delta p(0)=\frac{\hbar}{2\sigma_0}$`}</Formula><p>Les translations <Formula>$x_0$</Formula> et <Formula>$p_0$</Formula> déplacent les moyennes sans modifier les dispersions. Cet état initial atteint la borne de Heisenberg ; la largeur en position augmente ensuite en évolution libre.</p></div>
+        {chirpEnabled ? <><div><span>Avec une phase quadratique</span><Formula display>{String.raw`$\Delta p=\frac{\hbar\sqrt{1+c^2}}{2\sigma}$`}</Formula><p>Un paquet peut être gaussien et avoir un produit strictement supérieur à <Formula>{String.raw`$\hbar/2$`}</Formula>. Les courbes et les moments sont calculés à partir d’une paire de Fourier analytique normalisée.</p></div>
         <div><span>Corrélation et expansion</span><Formula display>{String.raw`$C_{xp}=\frac{\langle xp+px\rangle}{2}-\langle x\rangle\langle p\rangle$`}</Formula><Formula display>{String.raw`$C_{xp}=\frac{\hbar c}{2},\qquad\frac{d(\Delta x)^2}{dt}=\frac{\hbar c}{m}$`}</Formula><p>On rétablit ici <Formula>{String.raw`$\hbar$`}</Formula>. La seconde relation décrit la variation instantanée de la variance en évolution libre. Le signe de <Formula>$c$</Formula> distingue l’expansion de la contraction, même si les deux signes donnent la même densité en impulsion.</p></div>
-        <div><span>Évolution libre, avec ou sans chirp initial</span><Formula display>{String.raw`$\sigma^2(t)=\sigma_0^2+c(0)t+\frac{1+c(0)^2}{4\sigma_0^2}t^2$`}</Formula><Formula display>{String.raw`$\widetilde\psi(p,t)=\widetilde\psi(p,0)\,e^{-ip^2t/2}$`}</Formula><p>Dans les unités du labo, la moyenne suit <Formula>$x_0+p_0t$</Formula>. La distribution en impulsion est conservée ; seule sa phase évolue. Le calcul est analytique sur tout l’espace, sans parois aux bords du graphe.</p></div>
-        <div><span>Exemple : temps de vol libre</span><Formula display>{String.raw`$c(t)=\frac{\hbar t}{2m\sigma_0^2}$`}</Formula><Formula display>{String.raw`$\sigma(t)=\sigma_0\sqrt{1+c(t)^2}$`}</Formula><p>Ces expressions s’appliquent à un paquet gaussien libre de masse <Formula>$m$</Formula>, de largeur initiale <Formula>$\sigma_0$</Formula> et sans phase quadratique à <Formula>$t=0$</Formula>. Dans ce cas particulier, <Formula>$c$</Formula> est le temps écoulé exprimé en unités du temps de dispersion <Formula>{String.raw`$2m\sigma_0^2/\hbar$`}</Formula>.</p></div>
+        </> : null}
+        <div><span>{chirpEnabled ? 'Évolution libre, avec ou sans chirp initial' : 'Évolution libre'}</span><Formula display>{chirpEnabled ? String.raw`$\sigma^2(t)=\sigma_0^2+c(0)t+\frac{1+c(0)^2}{4\sigma_0^2}t^2$` : String.raw`$\sigma^2(t)=\sigma_0^2+\frac{t^2}{4\sigma_0^2}$`}</Formula><Formula display>{String.raw`$\widetilde\psi(p,t)=\widetilde\psi(p,0)\,e^{-ip^2t/2}$`}</Formula><p>Dans les unités du labo, la moyenne suit <Formula>$x_0+p_0t$</Formula>. La distribution en impulsion est conservée ; seule sa phase évolue. Le calcul est analytique sur tout l’espace, sans parois aux bords du graphe.</p></div>
+        {chirpEnabled ? <div><span>Exemple : temps de vol libre</span><Formula display>{String.raw`$c(t)=\frac{\hbar t}{2m\sigma_0^2}$`}</Formula><Formula display>{String.raw`$\sigma(t)=\sigma_0\sqrt{1+c(t)^2}$`}</Formula><p>Ces expressions s’appliquent à un paquet gaussien libre de masse <Formula>$m$</Formula>, de largeur initiale <Formula>$\sigma_0$</Formula> et sans phase quadratique à <Formula>$t=0$</Formula>. Dans ce cas particulier, <Formula>$c$</Formula> est le temps écoulé exprimé en unités du temps de dispersion <Formula>{String.raw`$2m\sigma_0^2/\hbar$`}</Formula>.</p></div> : null}
       </div></details>
     </div>
   </section>;

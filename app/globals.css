@@ -701,7 +701,8 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .fourier-workspace .figure-panel { position: static; }
 .fourier-phase .control-stack { margin-top: 18px; }
 .fourier-workspace .control-panel > .well-perturbation { grid-column: 1 / -1; }
-.fourier-initial-window { margin: 12px 0 18px; }
+.fourier-initial-window { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-width: 18rem; margin: 12px 0 18px; }
+.fourier-workspace .scattering-display-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 37rem; }
 .fourier-window-note { color: var(--accent); }
 .fourier-chirp-control .compact-stepper { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto; align-items: center; gap: 8px; margin-bottom: 16px; font-size: var(--text-ui); }
 .fourier-chirp-control .compact-stepper > label { color: var(--foreground); }
