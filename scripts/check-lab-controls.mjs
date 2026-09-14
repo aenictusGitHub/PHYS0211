@@ -164,7 +164,8 @@ for (const formula of [String.raw`\langle x\rangle=\int_{-\infty}^{\infty}x\,|\p
 }
 assert.match(fourier.html(), /<output>0\.000<\/output>/);
 assert.equal(fourier.plots().length, 2);
-assert.match(fourier.html(), /5\.273/);
+assert.match(fourier.html(), /0\.500/);
+assert.ok(fourier.html().includes(String.raw`0.500\,\hbar</annotation>`));
 assert.equal(fourier.fields().filter(field => field.id === 'fourier-chirp-value').length, 0, 'Initial chirp is optional and off by default');
 fourier.toggle('fourier-chirp-enabled', true);
 assert.match(fourier.html(), /Sens physique du paramètre/);
@@ -196,7 +197,7 @@ const positionDensity = fourier.plots()[0].series[0].values;
 fourier.toggle('fourier-chirp-enabled', true);
 fourier.slider('fourier-chirp', 2);
 assert.deepEqual(fourier.plots()[0].series[0].values, positionDensity, 'Quadratic phase does not change position density');
-assert.match(fourier.html(), /1\.179/);
+assert.ok(fourier.html().includes(String.raw`1.118\,\hbar</annotation>`), 'The SI uncertainty product is displayed in multiples of hbar');
 fourier.click('Parties réelle et imaginaire');
 assert.ok(fourier.plots().every(plot => plot.series.length === 2 && plot.yDomain[0] < 0));
 fourier.command({ fourierSigma: .7, fourierCenter: 1, fourierMomentum: -1, fourierChirp: -1, fourierView: 'density' });
@@ -214,7 +215,7 @@ assert.equal(fourier.sliderProps('fourier-center').value[0], 6.3);
 assert.equal(fourier.sliderProps('fourier-momentum').value[0], -5.1);
 assert.equal(fourier.sliderProps('fourier-sigma').value[0], 1);
 assert.deepEqual(fourier.plots().map(plot => [plot.xDomain, plot.yDomain]), axesBeforeDrag);
-assert.match(fourier.html(), /5\.273/);
+assert.match(fourier.html(), /0\.500/);
 for (const sigma of [.2, 5]) {
   fourier.slider('fourier-sigma', sigma);
   assert.deepEqual(fourier.plots().map(plot => plot.xDomain), initialAxes.map(axes => axes[0]));
@@ -267,11 +268,11 @@ fourier.command({ fourierSigma: 1, fourierCenter: 0, fourierMomentum: 0, fourier
 assert.match(fourier.html(), /Phase quadratique actuelle/);
 assert.equal(fourier.clock().playing, false);
 assert.match(fourier.html(), /<output>0\.707<\/output>/);
-assert.match(fourier.html(), /5\.273/); // minimum reached at the focus
+assert.match(fourier.html(), /0\.500/); // minimum reached at the focus
 fourier.toggle('fourier-chirp-enabled', false); near(fourier.clock().time, 0);
 assertNoChirpDetails();
 assert.equal(fourier.fields().filter(field => field.id === 'fourier-chirp-value').length, 0);
-assert.match(fourier.html(), /5\.273/);
+assert.match(fourier.html(), /0\.500/);
 fourier.toggle('fourier-chirp-enabled', true);
 near(fourier.sliderProps('fourier-chirp').value[0], -1, 1e-10);
 fourier.slider('fourier-time', 2); fourier.slider('fourier-sigma', 2); near(fourier.clock().time, 0);
