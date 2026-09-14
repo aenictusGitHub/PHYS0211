@@ -719,7 +719,8 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .fourier-state-representation .math-display + .math-display { margin-top: 10px; }
 .fourier-uncertainty { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: center; margin: 24px 0 14px; padding: 20px; background: var(--lab-tint); border: 1px solid var(--line); border-left: 3px solid var(--lab-tone); border-radius: 8px; }
 .fourier-uncertainty > div { min-width: 0; }
-.fourier-uncertainty .math-display { margin: 8px 0 0; font-size: clamp(1.5rem, 1.2rem + .6vw, 1.875rem); color: var(--foreground); }
+.fourier-uncertainty .math-display { margin: 8px 0 0; font-size: 1.2rem; color: var(--foreground); }
+.fourier-axis-unit { text-align: center; margin: 6px 8px 0; }
 .fourier-uncertainty > div:last-child { text-align: center; }
 .fourier-uncertainty > div:last-child > span { font-size: var(--text-small); color: var(--muted-foreground); }
 .fourier-uncertainty p:not(.control-caption) { margin: 4px 0; font-size: var(--text-emphasis); }

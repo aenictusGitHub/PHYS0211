@@ -1,7 +1,35 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { FOURIER_DEFAULTS as base, evolveFourier, fourierValue as wave, fourierMoments as moments, fourierDomains as domains, fourierYMax, parseFourier } from '../lib/fourier.ts';
+import { FOURIER_HBAR as hbar, FOURIER_MASS as electronMass, FOURIER_LENGTH_UNIT as xu, FOURIER_MOMENTUM_UNIT as pu, FOURIER_TIME_UNIT as tu, evolveFourierSI, fourierMomentsSI, fourierValueSI } from '../lib/fourier.ts';
 const near = (a, b, tolerance = 1e-9) => assert.ok(Math.abs(a - b) < tolerance, `${a} != ${b}`);
+// Check the SI adapter against dimensional formulas, not the reduced kernel.
+for (const sigma of [.2, 1, 5]) for (const chirp of [-2, 0, 2]) for (const time of [0, 2, 20]) {
+  const initial = { sigma, chirp, center: 1.3, momentum: -1.2 };
+  const evolved = evolveFourierSI(initial, time), measured = fourierMomentsSI(evolved);
+  const width = sigma * xu, t = time * tu, p0 = initial.momentum * pu;
+  const variance = width ** 2 + hbar * chirp * t / electronMass + hbar ** 2 * (1 + chirp ** 2) * t ** 2 / (4 * electronMass ** 2 * width ** 2);
+  near(evolved.center, initial.center + p0 * t / (electronMass * xu));
+  near(evolved.sigma, Math.sqrt(variance) / xu);
+  near(measured.dp, hbar * Math.hypot(1, chirp) / (2 * width * pu));
+  near(measured.product / hbar, measured.dx * xu * measured.dp * pu / hbar);
+  assert.ok(measured.product / hbar >= .5 - 1e-12);
+  for (const space of ['position', 'momentum']) {
+    const mean = space === 'position' ? measured.x : measured.p, delta = space === 'position' ? measured.dx : measured.dp;
+    const step = 18 * delta / 2000;
+    let norm = 0, first = 0, second = 0;
+    for (let i = 0; i < 2000; i++) {
+      const x = mean - 9 * delta + (i + .5) * step, value = fourierValueSI(x, space, initial, time);
+      norm += value.density * step; first += x * value.density * step; second += x * x * value.density * step;
+    }
+    near(norm, 1); near(first, mean); near(second - first ** 2, delta ** 2, 1e-8);
+  }
+  const p = (initial.momentum + .3) * pu, d = 1 + chirp ** 2;
+  const amplitude = (2 * width ** 2 / (Math.PI * hbar ** 2 * d)) ** .25 * Math.exp(-(width ** 2) * (p - p0) ** 2 / (hbar ** 2 * d)) * Math.sqrt(pu);
+  const phase = .5 * Math.atan(chirp) - width ** 2 * (p - p0) ** 2 * chirp / (hbar ** 2 * d) - p * initial.center * xu / hbar - p * p * t / (2 * electronMass * hbar);
+  const value = fourierValueSI(p / pu, 'momentum', initial, time);
+  near(value.real, amplitude * Math.cos(phase)); near(value.imaginary, amplitude * Math.sin(phase));
+}
 for (const sigma of [.2, .5, 1, 2, 5]) for (const chirp of [-2, 0, 2]) {
   const config = { sigma, chirp, center: 1.3, momentum: -1.2 }, m = moments(config);
   near(m.product, Math.hypot(1, chirp) / 2);

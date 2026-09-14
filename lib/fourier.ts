@@ -1,5 +1,42 @@
 import type { ExperimentCommand } from '../components/lab-types';
 
+// SI: exact Planck constant and CODATA 2022 electron mass.
+// https://physics.nist.gov/cuu/pdf/wall_2022.pdf
+export const FOURIER_HBAR = 6.62607015e-34 / (2 * Math.PI);
+export const FOURIER_MASS = 9.1093837139e-31;
+export const FOURIER_LENGTH_UNIT = 1e-9; // nm
+export const FOURIER_MOMENTUM_UNIT = 1e-25; // kg m / s
+export const FOURIER_TIME_UNIT = 1e-15; // fs
+export const FOURIER_P_SCALE = FOURIER_HBAR / (FOURIER_LENGTH_UNIT * FOURIER_MOMENTUM_UNIT);
+export const FOURIER_T_SCALE = FOURIER_MASS * FOURIER_LENGTH_UNIT ** 2 / (FOURIER_HBAR * FOURIER_TIME_UNIT);
+
+// Public coordinates/configuration are in nm, 10^-25 kg m/s, and fs.
+// Only the analytic kernel uses dimensionless variables internally.
+const toKernel = (config: FourierConfig) => ({ ...config, momentum: config.momentum / FOURIER_P_SCALE });
+export function evolveFourierSI(config: FourierConfig, time: number): FourierConfig {
+  const evolved = evolveFourier(toKernel(config), time / FOURIER_T_SCALE);
+  return { ...evolved, momentum: config.momentum };
+}
+export function fourierMomentsSI(config: FourierConfig) {
+  const moments = fourierMoments(toKernel(config));
+  return { ...moments, p: config.momentum, dp: moments.dp * FOURIER_P_SCALE,
+    product: moments.product * FOURIER_HBAR, covariance: moments.covariance * FOURIER_HBAR };
+}
+export function fourierValueSI(coordinate: number, space: 'position' | 'momentum', config: FourierConfig, time = 0) {
+  const scale = space === 'position' ? 1 : FOURIER_P_SCALE;
+  const value = fourierValue(coordinate / scale, space, toKernel(config), time / FOURIER_T_SCALE);
+  // The Jacobian preserves unit area in each displayed coordinate. Thus the
+  // plotted densities are in nm^-1 and (10^-25 kg m/s)^-1, respectively.
+  return { real: value.real / Math.sqrt(scale), imaginary: value.imaginary / Math.sqrt(scale), density: value.density / scale };
+}
+export function fourierYMaxSI(space: 'position' | 'momentum', view: 'density' | 'complex', config: FourierConfig) {
+  const delta = space === 'position' ? config.sigma : fourierMomentsSI(config).dp;
+  const peak = 1 / (Math.sqrt(2 * Math.PI) * delta);
+  const baseline = view === 'density' ? space === 'position' ? .9 : 1.8 : space === 'position' ? 1 : 1.4;
+  return Math.max(baseline, Math.ceil(1.1 * (view === 'density' ? peak : Math.sqrt(peak)) * 10) / 10);
+}
+
+
 export type FourierConfig = { sigma: number; center: number; momentum: number; chirp: number };
 export const FOURIER_DEFAULTS: FourierConfig = { sigma: 1, center: 0, momentum: 0, chirp: 0 };
 export const FOURIER_SIGMA_MIN = .2;
