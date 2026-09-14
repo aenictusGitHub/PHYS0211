@@ -148,6 +148,8 @@ assert.match(fourier.html(), /Fonctions d’ondes en/);
 const assertNoChirpDetails = () => {
   assert.doesNotMatch(fourier.html(), /c\(0\)|Sens physique du paramètre|Corrélation et expansion|Avec une phase quadratique|Phase quadratique actuelle|Exemple : temps de vol libre/);
   assert.ok(fourier.html().includes(String.raw`\Phi(x)=p_0(x-x_0)</annotation>`));
+  assert.ok(fourier.html().includes(String.raw`\widetilde\psi(p,0)=N_p\,e^{-\sigma_0^2(p-p_0)^2-ipx_0}`));
+  assert.ok(fourier.html().includes(String.raw`N_p=\left(\frac{2\sigma_0^2}{\pi}\right)^{1/4}`));
   assert.ok(fourier.html().includes(String.raw`\sigma^2(t)=\sigma_0^2+\frac{t^2}{4\sigma_0^2}`));
 };
 assertNoChirpDetails();
@@ -165,6 +167,8 @@ assert.match(fourier.html(), /temps de vol libre/);
 assert.match(fourier.html(), /ce n’est pas faire avancer le temps/);
 assert.match(fourier.html(), /Corrélation et expansion/);
 assert.match(fourier.html(), /c\(0\)/);
+assert.ok(fourier.html().includes(String.raw`\widetilde\psi(p,0)=N_p\,e^{-\frac{\sigma_0^2(p-p_0)^2}{1-i c(0)}-ipx_0}`));
+assert.ok(fourier.html().includes(String.raw`N_p=\frac{(2\sigma_0^2/\pi)^{1/4}}{\sqrt{1-i c(0)}}`));
 assert.match(fourier.html().split('<details')[0], /id="fourier-chirp-value"/, 'The c input is visible without opening a disclosure');
 assert.equal(fourier.fields().filter(field => field.id === 'fourier-chirp-value').length, 1);
 fourier.enter('fourier-chirp-value', 1.25);

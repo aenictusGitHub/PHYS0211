@@ -89,7 +89,23 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
         <div className="range-labels" aria-hidden="true"><span>−2</span><span>2</span></div>
         <p className="scale-note"><Formula>$c$</Formula> mesure une corrélation position–impulsion, appelée « chirp » spatial : le gradient de phase varie à travers le paquet. Il peut décrire un paquet en expansion ou préparé pour se focaliser.</p>
       </div> : null}</div>
-      <div className="equation-card"><span>État initial normalisé</span><Formula display>{String.raw`$\psi(x,0)=\frac{e^{-\frac{(x-x_0)^2}{4\sigma_0^2}}\,e^{i\Phi(x)}}{(2\pi\sigma_0^2)^{1/4}}$`}</Formula><Formula display>{chirpEnabled ? String.raw`$\Phi(x)=p_0(x-x_0)+\frac{c(0)(x-x_0)^2}{4\sigma_0^2}$` : String.raw`$\Phi(x)=p_0(x-x_0)$`}</Formula><p className="scale-note">Unités réduites : <Formula>{String.raw`$\hbar=m=1$`}</Formula>. Les réglages décrivent l’état à <Formula>$t=0$</Formula>.</p></div>
+      <div className="equation-card fourier-initial-state"><span>État initial normalisé</span>
+        <div className="fourier-state-representation">
+          <p className="control-caption">En position</p>
+          <Formula display>{String.raw`$\psi(x,0)=\frac{e^{-\frac{(x-x_0)^2}{4\sigma_0^2}}\,e^{i\Phi(x)}}{(2\pi\sigma_0^2)^{1/4}}$`}</Formula>
+          <Formula display>{chirpEnabled ? String.raw`$\Phi(x)=p_0(x-x_0)+\frac{c(0)(x-x_0)^2}{4\sigma_0^2}$` : String.raw`$\Phi(x)=p_0(x-x_0)$`}</Formula>
+        </div>
+        <div className="fourier-state-representation">
+          <p className="control-caption">En impulsion</p>
+          <Formula display>{chirpEnabled
+            ? String.raw`$\widetilde\psi(p,0)=N_p\,e^{-\frac{\sigma_0^2(p-p_0)^2}{1-i c(0)}-ipx_0}$`
+            : String.raw`$\widetilde\psi(p,0)=N_p\,e^{-\sigma_0^2(p-p_0)^2-ipx_0}$`}</Formula>
+          <Formula display>{chirpEnabled
+            ? String.raw`$N_p=\frac{(2\sigma_0^2/\pi)^{1/4}}{\sqrt{1-i c(0)}}$`
+            : String.raw`$N_p=\left(\frac{2\sigma_0^2}{\pi}\right)^{1/4}$`}</Formula>
+        </div>
+        <p className="scale-note">Unités réduites : <Formula>{String.raw`$\hbar=m=1$`}</Formula>. Les réglages décrivent l’état à <Formula>$t=0$</Formula>.</p>
+      </div>
       <details className="theory-notes fourier-phase"><summary>Translations</summary><div className="control-stack">
         <QuantumParameter id="fourier-center" label="Position moyenne" symbol="$x_0$" value={config.center} min={-FOURIER_CENTER_LIMIT} max={FOURIER_CENTER_LIMIT} step={.1} onChange={center => change({ center })} />
         <QuantumParameter id="fourier-momentum" label="Impulsion moyenne" symbol="$p_0$" value={config.momentum} min={-FOURIER_CENTER_LIMIT} max={FOURIER_CENTER_LIMIT} step={.1} onChange={momentum => change({ momentum })} />
