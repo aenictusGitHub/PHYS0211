@@ -2,7 +2,107 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { FOURIER_DEFAULTS as base, evolveFourier, fourierValue as wave, fourierMoments as moments, fourierDomains as domains, fourierYMax, parseFourier } from '../lib/fourier.ts';
 import { FOURIER_HBAR as hbar, FOURIER_MASS as electronMass, FOURIER_LENGTH_UNIT as xu, FOURIER_MOMENTUM_UNIT as pu, FOURIER_TIME_UNIT as tu, evolveFourierSI, fourierMomentsSI, fourierValueSI } from '../lib/fourier.ts';
+import { FOURIER_P_SCALE, evolveFourierDisplay, fourierValueDisplay } from '../lib/fourier.ts';
 const near = (a, b, tolerance = 1e-9) => assert.ok(Math.abs(a - b) < tolerance, `${a} != ${b}`);
+// Harmonic-basis preparation: all pure states, interference, Fourier phases,
+// covariance and exact FREE evolution (not exp[-i(n+1/2) omega t]).
+const oscillatorPreparations = [
+  ...Array.from({ length: 6 }, (_, n) => [{ n, amplitude: 1, phase: 0 }]),
+  [{ n: 0, amplitude: 1, phase: 0 }, { n: 1, amplitude: 1, phase: 90 }],
+  [{ n: 0, amplitude: .8, phase: 20 }, { n: 1, amplitude: .6, phase: -70 }, { n: 2, amplitude: .7, phase: -30 }, { n: 5, amplitude: .4, phase: 110 }],
+];
+for (const modes of oscillatorPreparations) for (const b of [.2, 1, 5]) for (const time of [0, .6, 2.315]) {
+  const config = { ...base, shape: 'oscillator', sigma: b, center: .4, momentum: -.7, modes };
+  const m = moments(evolveFourier(config, time));
+  assert.ok(m.product >= .5 - 1e-10);
+  if (modes.length === 1 && time === 0) near(m.product, modes[0].n + .5);
+  for (const space of ['position', 'momentum']) {
+    const mean = space === 'position' ? m.x : m.p, delta = space === 'position' ? m.dx : m.dp;
+    const dx = 24 * delta / 3000;
+    let norm = 0, first = 0, second = 0;
+    for (let i = 0; i < 3000; i++) {
+      const q = mean - 12 * delta + (i + .5) * dx, value = wave(q, space, config, time);
+      norm += value.density * dx; first += q * value.density * dx; second += q ** 2 * value.density * dx;
+      assert.ok(value.density < fourierYMax(space, 'density', config) + 1e-10);
+    }
+    near(norm, 1, 1e-8); near(first, mean, 1e-8); near(second - first ** 2, delta ** 2, 1e-7);
+  }
+}
+const superposition = { ...base, shape: 'oscillator', sigma: .8, center: .7, momentum: .4, modes: oscillatorPreparations.at(-1) };
+for (const time of [0, .8]) for (const x of [-1, .3, 2]) {
+  let re = 0, im = 0;
+  const step = 32 / 12000;
+  for (let j = 0; j < 12000; j++) {
+    const p = -16 + (j + .5) * step, value = wave(p, 'momentum', superposition, time);
+    re += (value.real * Math.cos(p * x) - value.imaginary * Math.sin(p * x)) * step / Math.sqrt(2 * Math.PI);
+    im += (value.real * Math.sin(p * x) + value.imaginary * Math.cos(p * x)) * step / Math.sqrt(2 * Math.PI);
+  }
+  const value = wave(x, 'position', superposition, time);
+  near(value.real, re, 1e-9); near(value.imaginary, im, 1e-9);
+}
+const excited = { ...base, shape: 'oscillator', sigma: 1 };
+near(moments(excited).product, 1.5, 1e-12);
+near(wave(0, 'position', excited).density, 0, 1e-12);
+assert.equal(parseFourier({ lab: 'fourier', fourierShape: 'oscillator' }).fourierShape, 'oscillator');
+assert.throws(() => parseFourier({ lab: 'fourier', fourierModes: [{ n: 0, amplitude: 1 }] }));
+assert.throws(() => parseFourier({ lab: 'fourier', fourierShape: 'oscillator', fourierChirpEnabled: true }));
+
+// Fixed dimensionless axes describe the same physical state as the SI adapter,
+// including amplitude Jacobians, nonzero mean momentum and free evolution.
+for (const shape of ['gaussian', 'exponential', 'lorentzian']) for (const sigma of [.2, 1, 5]) for (const time of [0, 2]) {
+  const display = { ...base, shape, sigma, center: 1.2, momentum: -2 };
+  const physical = { ...display, momentum: display.momentum * FOURIER_P_SCALE };
+  const evolved = evolveFourierDisplay(display, time), si = evolveFourierSI(physical, time);
+  near(evolved.center, si.center); near(evolved.sigma, si.sigma);
+  for (const space of ['position', 'momentum']) {
+    const scale = space === 'position' ? 1 : FOURIER_P_SCALE;
+    const expected = fourierValueSI(.4 * scale, space, physical, time);
+    const value = fourierValueDisplay(.4, space, display, time);
+    near(value.density, expected.density * scale);
+    near(value.real, expected.real * Math.sqrt(scale));
+    near(value.imaginary, expected.imaginary * Math.sqrt(scale));
+  }
+}
+// Non-Gaussian amplitudes: normalization, Fourier phase and exact moments.
+for (const shape of ['exponential', 'lorentzian']) {
+  assert.equal(parseFourier({ lab: 'fourier', fourierShape: shape }).fourierShape, shape);
+  assert.throws(() => parseFourier({ lab: 'fourier', fourierShape: shape, fourierChirpEnabled: true }));
+  for (const sigma of [.2, 1, 5]) {
+    const c = { ...base, shape, sigma, center: 1.3, momentum: -.8 };
+    near(moments(c).product, 1 / Math.SQRT2);
+    for (const time of [0, .7, 2.315]) {
+      const measured = moments(evolveFourier(c, time));
+      near(measured.dx ** 2, sigma ** 2 + time ** 2 / (2 * sigma ** 2));
+      near(measured.dp, 1 / (Math.SQRT2 * sigma));
+      const msi = fourierMomentsSI(evolveFourierSI(c, time));
+      near(msi.dx ** 2, sigma ** 2 + (hbar * time * tu / (electronMass * xu ** 2)) ** 2 / (2 * sigma ** 2));
+      for (const space of ['position', 'momentum']) {
+        const mean = space === 'position' ? measured.x : measured.p;
+        const delta = space === 'position' ? measured.dx : measured.dp;
+        const step = 100 * delta / 16000;
+        let norm = 0;
+        for (let i = 0; i < 16000; i++) norm += wave(mean - 50 * delta + (i + .5) * step, space, c, time).density * step;
+        near(norm, 1, .0003);
+      }
+      near(wave(.3, 'momentum', c, time).density, wave(.3, 'momentum', c).density);
+    }
+  }
+  // Independent inverse Fourier quadrature, including translation and boost.
+  const c = { ...base, shape, center: .4, momentum: .7 }, time = .6;
+  for (const x of [-.7, .4, 1.1]) {
+    const step = 120 / 120000;
+    let re = 0, im = 0;
+    for (let i = 0; i < 120000; i++) {
+      const p = c.momentum - 60 + (i + .5) * step;
+      const v = wave(p, 'momentum', c, time), phase = p * x;
+      re += (v.real * Math.cos(phase) - v.imaginary * Math.sin(phase)) * step / Math.sqrt(2 * Math.PI);
+      im += (v.real * Math.sin(phase) + v.imaginary * Math.cos(phase)) * step / Math.sqrt(2 * Math.PI);
+    }
+    const value = wave(x, 'position', c, time);
+    near(value.real, re, .0001); near(value.imaginary, im, .0001);
+  }
+}
+assert.throws(() => parseFourier({ lab: 'fourier', fourierShape: 'invalid' }));
 // Check the SI adapter against dimensional formulas, not the reduced kernel.
 for (const sigma of [.2, 1, 5]) for (const chirp of [-2, 0, 2]) for (const time of [0, 2, 20]) {
   const initial = { sigma, chirp, center: 1.3, momentum: -1.2 };

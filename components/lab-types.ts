@@ -2,6 +2,7 @@ export type ExperimentCommand = {
   id: number;
   lab: 'fourier' | 'well' | 'oscillator' | 'scattering' | 'double-well' | 'rotor' | 'hydrogen' | 'spin' | 'stern-gerlach';
   fourierSigma?: number;
+  fourierShape?: 'gaussian' | 'exponential' | 'lorentzian' | 'oscillator';
   fourierCenter?: number;
   fourierMomentum?: number;
   fourierChirp?: number;
