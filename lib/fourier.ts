@@ -63,7 +63,7 @@ export const FOURIER_MOMENTUM_LIMIT = 100;
 export const FOURIER_FINAL_TIME_MAX = 20;
 export const FOURIER_WINDOW_DEFAULT = 35;
 export const FOURIER_MOMENTUM_WINDOW_DEFAULT = 40;
-export const FOURIER_BOUNDS = { fourierSigma: [FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX], fourierCenter: [-FOURIER_CENTER_LIMIT, FOURIER_CENTER_LIMIT], fourierMomentum: [-FOURIER_MOMENTUM_LIMIT, FOURIER_MOMENTUM_LIMIT], fourierChirp: [-2, 2] } as const;
+export const FOURIER_BOUNDS = { fourierSigma: [FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX], fourierCenter: [-FOURIER_CENTER_LIMIT, FOURIER_CENTER_LIMIT], fourierMomentum: [-FOURIER_MOMENTUM_LIMIT, FOURIER_MOMENTUM_LIMIT] } as const;
 
 export function fourierModeCoefficients(modes = FOURIER_MODES_DEFAULT) {
   const norm = Math.hypot(...modes.map(mode => mode.amplitude));
@@ -265,7 +265,7 @@ export function fourierYMax(space: 'position' | 'momentum', view: 'density' | 'c
 
 export function parseFourier(data: Record<string, unknown>): Omit<ExperimentCommand, 'id'> {
   if (data.lab !== 'fourier') throw new Error('Laboratoire fourier attendu.');
-  const allowed = ['lab', ...Object.keys(FOURIER_BOUNDS), 'fourierShape', 'fourierView', 'fourierChirpEnabled', 'fourierWindow', 'fourierMomentumWindow', 'mode', 'time', 'finalTime', 'playbackSpeed'];
+  const allowed = ['lab', ...Object.keys(FOURIER_BOUNDS), 'fourierShape', 'fourierNumber', 'fourierView', 'fourierWindow', 'fourierMomentumWindow', 'fourierPositionYMax', 'fourierMomentumYMax', 'mode', 'time', 'finalTime', 'playbackSpeed'];
   for (const key of Object.keys(data)) if (!allowed.includes(key)) throw new Error(`${key} n’est pas utilisé par le laboratoire de Fourier.`);
   for (const [key, [min, max]] of Object.entries(FOURIER_BOUNDS)) {
     const value = data[key];
@@ -273,13 +273,16 @@ export function parseFourier(data: Record<string, unknown>): Omit<ExperimentComm
   }
   if (data.fourierView !== undefined && data.fourierView !== 'density' && data.fourierView !== 'complex') throw new Error('fourierView doit valoir density ou complex.');
   if (data.fourierShape !== undefined && !['gaussian', 'exponential', 'lorentzian', 'oscillator'].includes(String(data.fourierShape))) throw new Error('Forme du paquet invalide.');
-  if (data.fourierShape && data.fourierShape !== 'gaussian' && (data.fourierChirpEnabled === true || (data.fourierChirp !== undefined && data.fourierChirpEnabled !== false))) throw new Error('La phase quadratique est disponible pour la gaussienne uniquement.');
-  if (data.fourierChirpEnabled !== undefined && typeof data.fourierChirpEnabled !== 'boolean') throw new Error('fourierChirpEnabled doit être booléen.');
+  if (data.fourierNumber !== undefined) {
+    if (typeof data.fourierNumber !== 'number' || !Number.isInteger(data.fourierNumber) || data.fourierNumber < 0 || data.fourierNumber > FOURIER_MODE_MAX) throw new Error('n doit être un entier de 0 à 5.');
+    if (data.fourierShape !== undefined && data.fourierShape !== 'oscillator') throw new Error('fourierNumber nécessite la forme oscillator.');
+    data = { ...data, fourierShape: 'oscillator' };
+  }
   if (data.mode !== undefined && data.mode !== 'stationary' && data.mode !== 'evolution') throw new Error('Mode de Fourier invalide.');
-  for (const [key, min, max] of [['time', 0, FOURIER_FINAL_TIME_MAX], ['finalTime', .1, FOURIER_FINAL_TIME_MAX], ['playbackSpeed', .25, 4], ['fourierWindow', 5, 400], ['fourierMomentumWindow', 1, 100]] as const) {
+  for (const [key, min, max] of [['time', 0, FOURIER_FINAL_TIME_MAX], ['finalTime', .1, FOURIER_FINAL_TIME_MAX], ['playbackSpeed', .25, 4], ['fourierWindow', 5, 400], ['fourierMomentumWindow', 1, 100], ['fourierPositionYMax', .05, 100], ['fourierMomentumYMax', .05, 100]] as const) {
     const value = data[key];
     if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max)) throw new Error(`${key} doit être compris entre ${min} et ${max}.`);
   }
   if (typeof data.time === 'number' && typeof data.finalTime === 'number' && data.time > data.finalTime) throw new Error('time doit être inférieur ou égal à finalTime.');
-  return { ...data, lab: 'fourier', ...(data.fourierChirp !== undefined && data.fourierChirpEnabled === undefined ? { fourierChirpEnabled: true } : {}) } as Omit<ExperimentCommand, 'id'>;
+  return { ...data, lab: 'fourier' } as Omit<ExperimentCommand, 'id'>;
 }

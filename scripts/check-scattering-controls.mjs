@@ -68,11 +68,25 @@ for (const potential of scattering.SCATTERING_POTENTIALS) {
   assert.doesNotMatch(html, /katex-error|Double barrière|Résonance|scattering-gap/);
   assert.match(html, /Évolution libre/);
   assert.match(html, /Pesanteur/);
-  assert.match(html, /Montée et chute/);
+  assert.doesNotMatch(html, /Montée et chute/);
+  const presetStart = html.indexOf('class="scattering-toolbar"');
+  const presetControls = html.slice(presetStart, html.indexOf('<span class="simulation-status', presetStart));
+  const presetLabels = [...presetControls.matchAll(/<button\b[^>]*>([^<]+)<\/button>/g)].map(match => match[1]);
+  const expectedLabels = potential === 'free' ? ['Paquet libre'] : potential === 'gravity' ? ['Pesanteur']
+    : potential === 'well' || potential === 'gaussian-well' ? ['Carré', 'Gaussien']
+    : ['Carré', 'Gaussien', 'Effet tunnel', 'Transmission', 'Réflexion'];
+  assert.deepEqual(presetLabels, expectedLabels, 'Only shape choices and presets for the selected family appear');
   assert.match(html, /id="scattering-playback-speed"/);
   assert.match(html, /Vitesse de lecture/);
   assert.match(html, /aria-valuetext="×1"/);
   const sidebar = html.slice(html.indexOf('<aside'), html.indexOf('</aside>'));
+  const choicesStart = sidebar.indexOf('class="potential-choices"');
+  const choices = sidebar.slice(choicesStart, sidebar.indexOf('</div>', choicesStart));
+  assert.equal((choices.match(/<button\b/g) ?? []).length, 4, 'Sidebar has four potential families');
+  assert.doesNotMatch(choices, /Gaussien|Puits gaussien|Carré/);
+  const selectedFamily = potential === 'gaussian' ? 'Barrière' : potential === 'gaussian-well' || potential === 'well' ? 'Puits'
+    : potential === 'barrier' ? 'Barrière' : potential === 'free' ? 'Évolution libre' : 'Pesanteur';
+  assert.ok(choices.match(/<button\b[^>]*aria-pressed="true"[^>]*>[\s\S]*?<\/button>/)?.[0].includes(selectedFamily));
   const timelineStart = html.indexOf('class="scattering-timeline"');
   const timelineControls = html.slice(timelineStart, html.indexOf('<dl', timelineStart));
   assert.doesNotMatch(sidebar, /scattering-scale/, 'Display scale is not a physical parameter');
@@ -87,12 +101,23 @@ for (const potential of scattering.SCATTERING_POTENTIALS) {
   assert.equal(finalTimeInput['aria-valuenow'], scattering.scatteringFinalTime(config));
   assert.equal(finalTimeInput['aria-valuemax'], scattering.scatteringFinalTimeMax(config));
   const uniform = potential === 'free' || potential === 'gravity';
+  assert.equal(html.includes('class="mode-switch scattering-shape-switch"'), !uniform,
+    'Shape choices use a distinct segmented control instead of the preset pills');
   assert.equal(html.includes('id="scattering-height"'), !uniform, 'Only localized potentials have a height slider');
   assert.equal(html.includes('id="scattering-width"'), !uniform, 'Only localized potentials have a width slider');
   assert.equal(html.includes('id="scattering-gravity"'), potential === 'gravity');
   assert.equal(html.includes('Position moyenne'), uniform);
   assert.equal(html.includes('Dans la zone'), !uniform, 'No fictitious collision zone for free/gravitational propagation');
   assert.equal(plots[0].xLabel, potential === 'gravity' ? '$z$' : '$x$');
+  if (potential === 'gaussian-well') {
+    assert.match(sidebar, /Profondeur/);
+    assert.match(html, /Même un puits attractif/);
+    assert.ok(plots[0].yDomain[0] < -config.height, 'The entire attractive well is visible');
+    const profile = plots[0].series[0].values;
+    assert.equal(profile.length, scattering.SAMPLE_X.length, 'Gaussian well uses a smooth profile');
+    assert.ok(profile.every(point => point.y <= 0));
+    assert.ok(Math.min(...profile.map(point => point.y)) < -.99 * config.height);
+  }
   if (potential === 'gravity') {
     assert.equal(plots.length, 2, 'Density and gravitational energy have independent vertical scales');
     assert.ok(plots[1].series[0].values[0].y < 0 && plots[1].series[0].values.at(-1).y > 0);
@@ -157,4 +182,4 @@ for (const finalTime of [0, -1, 121, NaN, Infinity, '28']) assert.throws(() => p
 assert.equal(parse({ lab: 'oscillator', finalTime: 28 }).finalTime, 28);
 assert.throws(() => parse({ lab: 'scattering', potential: 'double-barrier' }));
 for (const preset of ['resonance', 'resonance-1', 'resonance-2']) assert.throws(() => parse({ lab: 'scattering', preset }));
-console.log('Scattering controls: compact steppers, defaults, buttons, keyboard, input limits, physical/display separation, five potentials and command validation pass.');
+console.log('Scattering controls: compact steppers, defaults, buttons, keyboard, input limits, physical/display separation, six potentials and command validation pass.');

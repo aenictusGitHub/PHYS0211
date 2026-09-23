@@ -40,7 +40,7 @@ function Parameter({ id, label, symbol, value, min, max, step, onChange, precisi
 
 function PotentialIcon({ kind }: { kind: PotentialKind }) {
   return <svg viewBox="0 0 44 22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">
-    <path d={kind === 'free' ? 'M1 18H43' : kind === 'gravity' ? 'M1 20L43 2' : kind === 'gaussian' ? 'M1 19C13 19 14 3 22 3S31 19 43 19' : kind === 'well' ? 'M1 4H14V19H30V4H43' : 'M1 19H14V4H30V19H43'} />
+    <path d={kind === 'free' ? 'M1 18H43' : kind === 'gravity' ? 'M1 20L43 2' : kind === 'gaussian' ? 'M1 19C13 19 14 3 22 3S31 19 43 19' : kind === 'gaussian-well' ? 'M1 3C13 3 14 19 22 19S31 3 43 3' : kind === 'well' ? 'M1 4H14V19H30V4H43' : 'M1 19H14V4H30V19H43'} />
   </svg>;
 }
 
@@ -174,25 +174,32 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
   };
   const gravity = config.potential === 'gravity';
   const uniform = isUniformField(config);
+  const attractive = config.potential === 'well' || config.potential === 'gaussian-well';
+  const gaussian = config.potential === 'gaussian' || config.potential === 'gaussian-well';
+  const potentialFamily = uniform ? config.potential : attractive ? 'well' : 'barrier';
+  const visiblePresets = Object.entries(ALL_SCATTERING_PRESETS)
+    .filter(([, preset]) => preset.potential === potentialFamily)
+    .map(([name, preset]) => ({ name, preset: { ...preset, potential: config.potential } }));
   const g = gravitationalAcceleration(config);
   const coordinate = gravity ? 'z' : 'x';
   const moments = uniformFieldMoments(config, availableTimeline ? time : 0);
   const energy = useMemo(() => incidentEnergy(config) + initialPotentialEnergy(config), [config]);
   const edge = interactionEdge(config);
   const maxDensity = timeline?.maxDensity ?? 1 / (Math.sqrt(2 * Math.PI) * config.sigma);
-  const yMax = Math.max(1, uniform ? 0 : energy, uniform || config.potential === 'well' ? 0 : config.height, scale * maxDensity) * 1.16;
-  const yMin = config.potential === 'well' ? -Math.max(0.3, config.height * 1.1) : 0;
+  const yMax = Math.max(1, uniform ? 0 : energy, uniform || attractive ? 0 : config.height, scale * maxDensity) * 1.16;
+  const yMin = attractive ? -Math.max(0.3, config.height * 1.1) : 0;
   const densityValues = useMemo(() => Array.from(SAMPLE_X, (x, i) => ({ x, y: scale * frame.density[i] })), [frame, scale]);
   const potentialValues = useMemo(() => scatteringPotentialProfile(config), [config]);
   const finished = time >= duration;
   const collisionTime = 24 / config.momentum;
   const stateLabel = error ? 'Calcul interrompu' : !timeline ? `Préparation · ${Math.round(progress * 100)} %`
     : finished ? 'Fin de la fenêtre' : playing ? 'Évolution en cours' : time === 0 ? 'Paquet incident prêt' : 'En pause';
-  const boundaryFormula = config.potential === 'gaussian' ? String.raw`$b=3a/2$` : String.raw`$b=a/2$`;
+  const boundaryFormula = config.potential === 'gaussian' || config.potential === 'gaussian-well' ? String.raw`$b=3a/2$` : String.raw`$b=a/2$`;
   const pct = (value: number) => `${(100 * value).toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
   const potentialFormula = gravity ? String.raw`$V(z)=mgz,\qquad F_z=-mg$`
     : config.potential === 'free' ? String.raw`$V(x)=0$`
     : config.potential === 'gaussian' ? String.raw`$V(x)=V_0\,e^{-2x^2/a^2}$`
+    : config.potential === 'gaussian-well' ? String.raw`$V(x)=-V_0\,e^{-2x^2/a^2}$`
     : config.potential === 'well' ? String.raw`$V(x)=\begin{cases}-V_0&\lvert x\rvert<a/2\\0&\lvert x\rvert\ge a/2\end{cases}$`
     : String.raw`$V(x)=\begin{cases}V_0&\lvert x\rvert<a/2\\0&\lvert x\rvert\ge a/2\end{cases}$`;
 
@@ -204,11 +211,11 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
           <h1 id="scattering-title">Diffusion d’un paquet d’ondes</h1>
           <p className="lede">Suivez l’étalement d’un paquet libre, sa chute dans un champ gravitationnel ou sa diffusion par un potentiel.</p>
         </div>
-        <div className="potential-choices" role="group" aria-label="Forme du potentiel">
-          {SCATTERING_POTENTIALS.map(kind => (
-            <Button key={kind} variant="outline" className={config.potential === kind ? 'is-selected' : ''}
-              aria-pressed={config.potential === kind} onClick={() => update({ potential: kind })}>
-              <PotentialIcon kind={kind} />{kind === 'free' ? 'Évolution libre' : kind === 'gravity' ? 'Pesanteur' : kind === 'barrier' ? 'Barrière' : kind === 'gaussian' ? 'Gaussien' : 'Puits'}
+        <div className="potential-choices" role="group" aria-label="Type de potentiel">
+          {(['free', 'gravity', 'barrier', 'well'] as const).map(kind => (
+            <Button key={kind} variant="outline" className={potentialFamily === kind ? 'is-selected' : ''}
+              aria-pressed={potentialFamily === kind} onClick={() => update({ potential: gaussian && kind === 'barrier' ? 'gaussian' : gaussian && kind === 'well' ? 'gaussian-well' : kind })}>
+              <PotentialIcon kind={kind} />{kind === 'free' ? 'Évolution libre' : kind === 'gravity' ? 'Pesanteur' : kind === 'barrier' ? 'Barrière' : 'Puits'}
             </Button>
           ))}
         </div>
@@ -216,7 +223,7 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
           <span>Potentiel</span><Formula display>{potentialFormula}</Formula>
         </div>
         <div className="control-stack">
-          {!uniform ? <><Parameter id="scattering-height" label={config.potential === 'well' ? 'Profondeur' : 'Hauteur'} symbol={String.raw`$V_0$`}
+          {!uniform ? <><Parameter id="scattering-height" label={attractive ? 'Profondeur' : 'Hauteur'} symbol={String.raw`$V_0$`}
             value={config.height} min={0} max={8} step={0.1} onChange={height => update({ height })} />
           <Parameter id="scattering-width" label="Largeur du potentiel" symbol="$a$"
             value={config.width} min={0.5} max={6} step={0.25} onChange={width => update({ width })} />
@@ -248,14 +255,24 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
           </div>
         </div>
         <div className="scattering-toolbar">
-          <div className="scattering-presets" role="group" aria-label="Expériences de diffusion">
-            {Object.entries(ALL_SCATTERING_PRESETS).map(([name, preset]) => (
-              <Button key={name} variant="outline" className={key === scatteringConfigKey(preset) ? 'is-selected' : ''}
-                aria-pressed={key === scatteringConfigKey(preset)} onClick={() => update(preset)}>
-                {name === 'free' ? 'Paquet libre' : name === 'gravity' ? 'Montée et chute' : name === 'tunnel' ? 'Effet tunnel' : name === 'transmission' ? 'Transmission' : 'Réflexion'}
+          {!uniform ? <div className="mode-switch scattering-shape-switch" role="group" aria-label="Forme du potentiel">
+            {([false, true] as const).map(isGaussian => (
+              <Button key={String(isGaussian)} variant="outline" className={gaussian === isGaussian ? 'is-selected' : ''}
+                aria-pressed={gaussian === isGaussian} onClick={() => update({ potential: attractive
+                  ? isGaussian ? 'gaussian-well' : 'well'
+                  : isGaussian ? 'gaussian' : 'barrier' })}>
+                {isGaussian ? 'Gaussien' : 'Carré'}
               </Button>
             ))}
-          </div>
+          </div> : null}
+          {visiblePresets.length > 0 ? <div className="scattering-presets" role="group" aria-label="Expériences de diffusion">
+            {visiblePresets.map(({ name, preset }) => (
+              <Button key={name} variant="outline" className={key === scatteringConfigKey(preset) ? 'is-selected' : ''}
+                aria-pressed={key === scatteringConfigKey(preset)} onClick={() => update(preset)}>
+                {name === 'free' ? 'Paquet libre' : name === 'gravity' ? 'Pesanteur' : name === 'tunnel' ? 'Effet tunnel' : name === 'transmission' ? 'Transmission' : 'Réflexion'}
+              </Button>
+            ))}
+          </div> : null}
           <span className={`simulation-status${timeline ? '' : ' is-computing'}`} role="status">{stateLabel}</span>
         </div>
         {error ? <p role="alert">Le calcul n’a pas abouti. <Button variant="outline" onClick={() => setRetry(value => value + 1)}>Réessayer</Button></p> : null}
@@ -327,7 +344,7 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
           <span className="insight-index"><Formula>{String.raw`$\psi$`}</Formula></span>
           <p>{gravity && g > 0 ? <>Le paquet est lancé vers les <Formula>{'$z$'}</Formula> croissants. La pesanteur le ralentit puis le fait redescendre, tout en conservant son énergie totale.</>
             : uniform || config.height === 0 ? 'Sans potentiel, le paquet avance et s’étale librement.'
-            : config.potential === 'well' ? 'Même un puits attractif peut réfléchir une partie du paquet : la réflexion est un phénomène ondulatoire.'
+            : attractive ? 'Même un puits attractif peut réfléchir une partie du paquet : la réflexion est un phénomène ondulatoire.'
             : energy < config.height ? <>L’énergie moyenne est inférieure au sommet du potentiel. Une partie du paquet peut néanmoins traverser ; son spectre d’énergies intervient aussi dans la transmission.</>
             : 'Au-dessus du potentiel, la transmission domine généralement, mais une réflexion reste possible.'}
             {!uniform && time > collisionTime && frame.center > .03 ? ' L’interaction est encore en cours.' : ''}</p>

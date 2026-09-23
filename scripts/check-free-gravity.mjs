@@ -9,7 +9,7 @@ import {
 } from '../lib/scattering.ts';
 
 const close = (a, b, tolerance, label) => assert.ok(Math.abs(a - b) < tolerance, `${label}: ${a} vs ${b}`);
-assert.deepEqual(SCATTERING_POTENTIALS, ['free', 'gravity', 'barrier', 'gaussian', 'well']);
+assert.deepEqual(SCATTERING_POTENTIALS, ['free', 'gravity', 'barrier', 'gaussian', 'well', 'gaussian-well']);
 assert.deepEqual(Object.keys(ALL_SCATTERING_PRESETS).sort(), ['free', 'gravity', 'reflection', 'transmission', 'tunnel']);
 assert.equal(Object.keys(SCATTERING_PRESETS).length, 3, 'Localized-potential presets are preserved');
 assert.ok(!Object.values(ALL_SCATTERING_PRESETS).some(p => p.potential === 'double-barrier'));

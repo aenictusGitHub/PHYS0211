@@ -3,8 +3,8 @@
  * Free / uniform-gravity packets use the exact Gaussian solution on the line.
  * Localized potentials use distant periodic boundaries outside the time window.
  */
-export type PotentialKind = 'free' | 'gravity' | 'barrier' | 'gaussian' | 'well';
-export const SCATTERING_POTENTIALS: readonly PotentialKind[] = ['free', 'gravity', 'barrier', 'gaussian', 'well'];
+export type PotentialKind = 'free' | 'gravity' | 'barrier' | 'gaussian' | 'well' | 'gaussian-well';
+export const SCATTERING_POTENTIALS: readonly PotentialKind[] = ['free', 'gravity', 'barrier', 'gaussian', 'well', 'gaussian-well'];
 export type ScatteringConfig = {
   potential: PotentialKind;
   height: number;
@@ -34,7 +34,7 @@ export const PROPAGATION_PRESETS = {
   gravity: { ...SCATTERING_DEFAULT, potential: 'gravity' },
 } satisfies Record<string, ScatteringConfig>;
 
-export const ALL_SCATTERING_PRESETS = { ...SCATTERING_PRESETS, ...PROPAGATION_PRESETS };
+export const ALL_SCATTERING_PRESETS = { ...PROPAGATION_PRESETS, ...SCATTERING_PRESETS };
 
 export function isUniformField(config: ScatteringConfig) {
   return config.potential === 'free' || config.potential === 'gravity';
@@ -89,8 +89,8 @@ export function scatteringFinalTime(config: ScatteringConfig, requested?: number
 export function potentialAt(x: number, config: ScatteringConfig) {
   if (config.potential === 'free') return 0;
   if (config.potential === 'gravity') return gravitationalAcceleration(config) * x;
-  if (config.potential === 'gaussian') {
-    return config.height * Math.exp(-2 * (x / config.width) ** 2);
+  if (config.potential === 'gaussian' || config.potential === 'gaussian-well') {
+    return (config.potential === 'gaussian-well' ? -1 : 1) * config.height * Math.exp(-2 * (x / config.width) ** 2);
   }
   return Math.abs(x) < config.width / 2
     ? config.height * (config.potential === 'well' ? -1 : 1)
@@ -99,12 +99,12 @@ export function potentialAt(x: number, config: ScatteringConfig) {
 
 export function interactionEdge(config: ScatteringConfig) {
   if (isUniformField(config)) return 0;
-  return config.width * (config.potential === 'gaussian' ? 1.5 : 0.5);
+  return config.width * (config.potential === 'gaussian' || config.potential === 'gaussian-well' ? 1.5 : 0.5);
 }
 
 /** Exact step geometry for display; uses the same edges as the propagator. */
 export function scatteringPotentialProfile(config: ScatteringConfig) {
-  if (config.potential === 'gaussian') return Array.from(SAMPLE_X, x => ({ x, y: potentialAt(x, config) }));
+  if (config.potential === 'gaussian' || config.potential === 'gaussian-well') return Array.from(SAMPLE_X, x => ({ x, y: potentialAt(x, config) }));
   if (isUniformField(config)) return [{ x: -64, y: potentialAt(-64, config) }, { x: 64, y: potentialAt(64, config) }];
   const edge = interactionEdge(config), height = config.height * (config.potential === 'well' ? -1 : 1);
   return [{ x: -64, y: 0 }, { x: -edge, y: 0 }, { x: -edge, y: height },

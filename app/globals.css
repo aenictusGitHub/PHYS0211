@@ -359,6 +359,11 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .measurements dt { margin-bottom: 0; color: var(--muted-foreground); font-size: var(--text-small); }
 .measurements dd { overflow-wrap: anywhere; margin: 0; font-size: var(--text-ui); }
 .measurements dd .katex { font-size: 1em; }
+.hydrogen-workspace .measurements > div { flex-direction: column; align-items: flex-start; gap: 6px; }
+.hydrogen-workspace .measurements dd { max-width: 100%; overflow-wrap: normal; }
+.hydrogen-workspace .measurements dd:not(:has(.math-formula)) { white-space: nowrap; }
+.hydrogen-state-equation .katex-display > .katex { font-size: var(--text-ui); }
+.hydrogen-circular-control .scale-note { margin: 10px 0 0; }
 
 .figure-panel {
   container-type: inline-size;
@@ -598,6 +603,8 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .scattering-presets { display: flex; flex-wrap: wrap; gap: 7px; }
 .scattering-presets button { height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 18px; color: var(--foreground); background: var(--paper); font-size: var(--text-small); }
 .scattering-presets button.is-selected { border-color: var(--violet); background: var(--lab-tint); }
+.scattering-shape-switch { flex-shrink: 0; }
+.scattering-shape-switch button { height: 32px; padding: 0 12px; font-size: var(--text-small); }
 .simulation-status { display: flex; align-items: center; gap: 8px; font-size: var(--text-small); color: var(--muted-foreground); }
 .simulation-status::before { width: 7px; height: 7px; content: ''; background: var(--teal); border-radius: 50%; }
 .simulation-status.is-computing::before { background: var(--violet); }
@@ -702,12 +709,13 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .fourier-workspace .figure-panel { position: static; }
 .fourier-phase .control-stack { margin-top: 18px; }
 .fourier-workspace .control-panel > .well-perturbation { grid-column: 1 / -1; }
-.fourier-initial-window { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-width: 18rem; margin: 12px 0 18px; }
+.fourier-initial-window { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 12px 0 18px; align-items: stretch; }
+.fourier-initial-window > button { grid-column: 1 / -1; justify-self: start; }
+@media (max-width: 460px) {
+  .fourier-initial-window { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 .fourier-workspace .scattering-display-controls { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 37rem; }
 .fourier-window-note { color: var(--accent); }
-.fourier-chirp-control .compact-stepper { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto; align-items: center; gap: 8px; margin-bottom: 16px; font-size: var(--text-ui); }
-.fourier-chirp-control .compact-stepper > label { color: var(--foreground); }
-.fourier-chirp-control .compact-stepper-field input { font-size: var(--text-ui); }
 .fourier-view { margin: 20px 0; }
 .fourier-plots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .fourier-plot { min-width: 0; padding: 14px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
@@ -721,20 +729,14 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .fourier-uncertainty { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: center; margin: 24px 0 14px; padding: 20px; background: var(--lab-tint); border: 1px solid var(--line); border-left: 3px solid var(--lab-tone); border-radius: 8px; }
 .fourier-uncertainty > div { min-width: 0; }
 .fourier-uncertainty .math-display { margin: 8px 0 0; font-size: 1.2rem; color: var(--foreground); }
-.fourier-axis-unit { text-align: center; margin: 6px 8px 0; }
 .fourier-uncertainty > div:last-child { text-align: center; }
 .fourier-uncertainty > div:last-child > span { font-size: var(--text-small); color: var(--muted-foreground); }
 .fourier-uncertainty p:not(.control-caption) { margin: 4px 0; font-size: var(--text-emphasis); }
-.fourier-explanation { font-size: var(--text-body); line-height: 1.6; }
+.fourier-explanation { margin-bottom: 20px; font-size: var(--text-body); line-height: 1.6; }
 .fourier-workspace .measurements { grid-template-columns: minmax(0, 1fr); }
 .fourier-workspace .measurements > div { min-width: 0; flex-wrap: wrap; column-gap: 1.5rem; row-gap: .5rem; }
 .fourier-workspace .measurements dd { display: flex; align-items: baseline; gap: .45em; white-space: nowrap; }
 .fourier-workspace .measurements output { font-variant-numeric: tabular-nums; }
-.fourier-physical-note { margin-top: 20px; padding: 18px; border: 1px solid var(--line); border-left: 3px solid var(--lab-tone); border-radius: 8px; background: var(--paper); font-size: var(--text-ui); line-height: 1.6; }
-.fourier-physical-note h3 { margin: 0 0 12px; font-size: var(--text-body); font-weight: 400; }
-.fourier-physical-note p { margin: 12px 0 0; }
-.fourier-physical-note ul { margin: 12px 0; padding-left: 1.2em; }
-.fourier-physical-note li + li { margin-top: 8px; }
 @media (min-width: 781px) and (max-width: 1150px), (max-width: 620px) {
   .fourier-plots { grid-template-columns: minmax(0, 1fr); }
 }

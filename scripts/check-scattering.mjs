@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   ScatteringSolver, SCATTERING_DEFAULT, SCATTERING_PRESETS, GRID_SIZE, DOMAIN_LENGTH, DX,
   PACKET_CENTER, SCATTERING_DT, scatteringDuration, computeScatteringTimeline, sampleTimeline,
+  potentialAt, interactionEdge, scatteringPotentialProfile,
 } from '../lib/scattering.ts';
 
 function close(actual, expected, tolerance, message) {
@@ -29,6 +30,22 @@ close(mean, expectedMean, 1e-8, 'Free packet group velocity');
 close(second - mean ** 2, expectedVariance, 1e-7, 'Free packet spreading');
 close(densityError, 0, 1e-8, 'Free Gaussian analytic density');
 console.log('Free Gaussian: norm, velocity, dispersion and analytic density pass.');
+
+const gaussianWell = { ...SCATTERING_DEFAULT, potential: 'gaussian-well', height: 3, width: 2 };
+assert.equal(potentialAt(0, gaussianWell), -3);
+assert.equal(interactionEdge(gaussianWell), 3);
+for (const x of [0, .25, 1, 2, 5]) {
+  assert.equal(potentialAt(x, gaussianWell), potentialAt(-x, gaussianWell), 'Gaussian well is even');
+  assert.equal(potentialAt(x, gaussianWell), -potentialAt(x, { ...gaussianWell, potential: 'gaussian' }));
+}
+assert.ok(scatteringPotentialProfile(gaussianWell).every(({ x, y }) => y === potentialAt(x, gaussianWell)));
+const wellSolver = new ScatteringSolver(gaussianWell);
+wellSolver.step(Math.round(scatteringDuration(gaussianWell) / wellSolver.dt));
+const wellResult = wellSolver.snapshot();
+close(wellResult.norm, 1, 1e-9, 'Gaussian well: norm conservation after scattering');
+close(wellResult.left + wellResult.center + wellResult.right, 1, 1e-9, 'Gaussian well: probability partition');
+assert.ok(wellResult.center < .02 && wellResult.right > .9, 'Smooth shallow well transmits this incident packet');
+console.log('Gaussian well: attractive profile, symmetry, probability conservation and propagation pass.');
 
 // Exact stationary transmission averaged over the incident Gaussian spectrum.
 function expectedTransmission(config) {

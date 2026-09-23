@@ -107,12 +107,13 @@ for (const directory of ['components', 'lib', 'app']) {
     assert.doesNotMatch(readFileSync(new URL(file, root), 'utf8'), /\\(?:wide)?hat\b|\u0302/, `No operator hats anywhere in ${directory}/${file}`);
   }
 }
-const angularTemplate = labFormula('rotor-lab', tex => tex.includes('Y_{${'));
+const angularTemplate = labFormula('rotor-lab', tex => tex.includes('{Y\\,}_{${'));
 for (const [l, m] of [[1, 0], [5, -5], [5, 5]]) {
   const tex = angularTemplate.replaceAll('${l}', String(l)).replaceAll('${m}', String(m));
   const html = render(tex);
   assert.doesNotMatch(html, /katex-error|<merror/);
-  assert.match(html, /<msubsup><mi>Y<\/mi>/, 'Native paired scripts remain attached to Y');
+  assert.match(html, /<msubsup><mrow><mi>Y<\/mi><mtext>\u2009<\/mtext><\/mrow>/,
+    'A thin space clears the italic Y before placing both native scripts');
   assert.match(html, /<\/msubsup><mtext>\u2009<\/mtext><mo[^>]*>\(<\/mo>/, 'Indices are separated from the opening parenthesis by a thin space');
   assert.ok(tex.includes(String.raw`\theta,\,\varphi`), 'Angular arguments are separated');
   assert.ok(tex.includes(String.raw`\left\lvert\,`) && tex.includes(String.raw`\,\right\rvert^{2}`), 'Absolute-value bars have inner breathing room and size to the expression');

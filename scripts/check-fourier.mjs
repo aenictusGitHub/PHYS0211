@@ -40,6 +40,14 @@ for (const time of [0, .8]) for (const x of [-1, .3, 2]) {
   const value = wave(x, 'position', superposition, time);
   near(value.real, re, 1e-9); near(value.imaginary, im, 1e-9);
 }
+for (let n = 0; n <= 5; n++) {
+  const selected = parseFourier({ lab: 'fourier', fourierNumber: n });
+  assert.equal(selected.fourierShape, 'oscillator');
+  assert.equal(selected.fourierNumber, n);
+}
+for (const n of [-1, 6, .5, NaN, Infinity, '2']) assert.throws(() => parseFourier({ lab: 'fourier', fourierNumber: n }));
+assert.throws(() => parseFourier({ lab: 'fourier', fourierNumber: 1, fourierShape: 'gaussian' }));
+assert.throws(() => parseFourier({ lab: 'fourier', fourierNumber: 1, fourierChirpEnabled: true }));
 const excited = { ...base, shape: 'oscillator', sigma: 1 };
 near(moments(excited).product, 1.5, 1e-12);
 near(wave(0, 'position', excited).density, 0, 1e-12);
@@ -238,9 +246,11 @@ for (const center of [-400, -35, 35, 400]) assert.equal(parseFourier({ lab: 'fou
 for (const momentum of [-100, -40, 40, 100]) assert.equal(parseFourier({ lab: 'fourier', fourierMomentum: momentum }).fourierMomentum, momentum);
 assert.equal(parseFourier({ lab: 'fourier', fourierSigma: 1.2, fourierView: 'complex' }).fourierSigma, 1.2);
 assert.equal(parseFourier({ lab: 'fourier', time: 1, mode: 'evolution', finalTime: 4 }).time, 1);
-assert.equal(parseFourier({ lab: 'fourier', fourierChirp: 1 }).fourierChirpEnabled, true);
-assert.equal(parseFourier({ lab: 'fourier', fourierChirp: 1, fourierChirpEnabled: false }).fourierChirpEnabled, false);
-for (const bad of [{ fourierSigma: 0 }, { fourierSigma: .19 }, { fourierSigma: 5.1 }, { fourierSigma: NaN }, { fourierChirp: 3 }, { fourierCenter: -401 }, { fourierMomentum: 101 }, { fourierMomentum: '1' }, { fourierView: 'bad' }, { time: -1 }, { time: 21 }, { finalTime: 21 }, { time: 3, finalTime: 2 }, { fourierChirpEnabled: 'true' }, { fourierWindow: 0 }, { fourierWindow: 401 }, { playbackSpeed: 5 }, { mode: 'bad' }, { scale: 2 }]) assert.throws(() => parseFourier({ lab: 'fourier', ...bad }));
+for (const key of ['fourierPositionYMax', 'fourierMomentumYMax']) {
+  for (const value of [.05, 1, 100]) assert.equal(parseFourier({ lab: 'fourier', [key]: value })[key], value);
+  for (const value of [0, -.1, 100.1, NaN, Infinity, '1']) assert.throws(() => parseFourier({ lab: 'fourier', [key]: value }));
+}
+for (const bad of [{ fourierChirp: 0 }, { fourierChirp: 1 }, { fourierChirpEnabled: false }, { fourierChirpEnabled: true }, { fourierSigma: 0 }, { fourierSigma: .19 }, { fourierSigma: 5.1 }, { fourierSigma: NaN }, { fourierChirp: 3 }, { fourierCenter: -401 }, { fourierMomentum: 101 }, { fourierMomentum: '1' }, { fourierView: 'bad' }, { time: -1 }, { time: 21 }, { finalTime: 21 }, { time: 3, finalTime: 2 }, { fourierChirpEnabled: 'true' }, { fourierWindow: 0 }, { fourierWindow: 401 }, { playbackSpeed: 5 }, { mode: 'bad' }, { scale: 2 }]) assert.throws(() => parseFourier({ lab: 'fourier', ...bad }));
 const app = readFileSync(new URL('../components/quantum-lab.tsx', import.meta.url), 'utf8');
 assert.match(app, /useState<Lab>\('fourier'\)/);
 assert.match(app, /<span>01<\/span><span>Fonctions d’ondes en <Formula>\$x\$<\/Formula> et <Formula>\$p\$<\/Formula>/);

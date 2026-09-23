@@ -9,7 +9,17 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   return nextResolve(['./playback', './rotor-resolution'].includes(specifier) ? `${specifier}.ts` : specifier === './atomic' && context.parentURL?.endsWith('/atomic-dynamics.ts') ? './atomic.ts' : specifier, context);
 } });
 const { parseAtomicExperiment } = await import('../lib/atomic-command.ts');
-const { ROTOR_PRESETS, HYDROGEN_PRESETS, relativeFactors, evolveSamples, basisDensityCeiling, polarSuperposition, radialSuperposition } = await import('../lib/atomic-dynamics.ts');
+const { ROTOR_PRESETS, HYDROGEN_PRESETS, circularRydbergPreset, relativeFactors, evolveSamples, basisDensityCeiling, polarSuperposition, radialSuperposition } = await import('../lib/atomic-dynamics.ts');
+for (const n of [10, 20, 30, 39]) {
+  const pair = circularRydbergPreset(n);
+  assert.deepEqual(pair.terms.map(({ n, l, m }) => [n, l, m]), [[n, n - 1, n - 1], [n + 1, n, n]]);
+  assert.equal(parseAtomicExperiment({ lab: 'hydrogen', preset: 'hydrogen-rydberg', principal: n }).principal, n);
+}
+assert.equal(parseAtomicExperiment({ lab: 'hydrogen', preset: 'hydrogen-rydberg' }).principal, 20);
+for (const n of [9, 40, 20.5]) {
+  assert.throws(() => circularRydbergPreset(n));
+  assert.throws(() => parseAtomicExperiment({ lab: 'hydrogen', preset: 'hydrogen-rydberg', principal: n }));
+}
 const close = (a, b, eps, name) => assert.ok(Math.abs(a - b) < eps, `${name}: ${a} versus ${b}`);
 function integral(f, upper, intervals = 4000) {
   const h = upper / intervals;

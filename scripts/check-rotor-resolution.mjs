@@ -10,9 +10,9 @@ const { solveRotorField, prepareRotorField, evolveRotorField } = await import('.
 const { parseAtomicExperiment } = await import('../lib/atomic-command.ts');
 const near = (a, b, tol = 1e-12) => assert.ok(Math.abs(a - b) < tol, `${a} != ${b}`);
 
-assert.equal(ROTOR_RESOLUTION_DEFAULT, 64);
+assert.equal(ROTOR_RESOLUTION_DEFAULT, 128);
 assert.equal(ROTOR_RESOLUTION_MAX, 192);
-assert.equal(rotorSurfaceGrid().faces.length, 8192);
+assert.equal(rotorSurfaceGrid().faces.length, 32768);
 assert.equal(rotorSurfaceGrid(192).faces.length, 73728);
 for (const value of [undefined, null, NaN, Infinity, 23, 193, 200, 64.5, 25, '64']) {
   assert.equal(validRotorResolution(value), false);

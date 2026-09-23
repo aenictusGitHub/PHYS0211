@@ -3,12 +3,13 @@ export type ExperimentCommand = {
   lab: 'fourier' | 'well' | 'oscillator' | 'scattering' | 'double-well' | 'rotor' | 'hydrogen' | 'spin' | 'stern-gerlach';
   fourierSigma?: number;
   fourierShape?: 'gaussian' | 'exponential' | 'lorentzian' | 'oscillator';
+  fourierNumber?: number;
   fourierCenter?: number;
   fourierMomentum?: number;
-  fourierChirp?: number;
-  fourierChirpEnabled?: boolean;
   fourierWindow?: number;
   fourierMomentumWindow?: number;
+  fourierPositionYMax?: number;
+  fourierMomentumYMax?: number;
   fourierView?: 'density' | 'complex';
   mode?: 'stationary' | 'evolution';
   quantumNumber?: number;
@@ -16,7 +17,7 @@ export type ExperimentCommand = {
   time?: number;
   scale?: number;
   resolution?: number;
-  potential?: 'free' | 'gravity' | 'barrier' | 'gaussian' | 'well';
+  potential?: 'free' | 'gravity' | 'barrier' | 'gaussian' | 'well' | 'gaussian-well';
   height?: number;
   width?: number;
   gravity?: number;

@@ -113,7 +113,7 @@ export function RotorLab({ active, command }: { active: boolean; command: Experi
       <div className="figure-heading"><div><p className="eyebrow">{evolving ? 'Dynamique d’orientation' : 'Probabilité d’orientation'}</p><h2><Formula>{evolving
         ? String.raw`$\left\lvert\,\psi(\theta,\,\varphi,\,t)\,\right\rvert^{2}$`
         : perturbed ? String.raw`$\left\lvert\,\Phi_{${l},${m}}\,(\theta,\,\varphi)\,\right\rvert^{2}$`
-          : String.raw`$\left\lvert\,Y_{${l}}^{${m}}\,(\theta,\,\varphi)\,\right\rvert^{2}$`}</Formula></h2></div><span className="figure-tag">Surface angulaire · 3D</span></div>
+          : String.raw`$\left\lvert\,{Y\,}_{${l}}^{${m}}\,(\theta,\,\varphi)\,\right\rvert^{2}$`}</Formula></h2></div><span className="figure-tag">Surface angulaire · 3D</span></div>
       <AngularSurface l={l} m={m} active={active} phaseColors={phaseColors} resolution={resolution} evolutionTerms={evolving ? preset.terms : undefined} phase={evolving ? clock.phase : 0}
         waveBasis={perturbed ? prepared.basis : undefined} waveCoefficients={perturbed ? wave : undefined} coefficientBounds={perturbed ? prepared.bounds : undefined} />
       {evolving ? perturbed ? <PlaybackControls id="rotor" clock={clock} displayControl={resolutionControl} timeUnit={2 * Math.PI} timeSymbol="$t/T_0$" finalSymbol="$t_f/T_0$"

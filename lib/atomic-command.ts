@@ -29,7 +29,8 @@ export function parseAtomicExperiment(data: Record<string, unknown>): Omit<Exper
     if (data.resolution !== undefined && !validRotorResolution(data.resolution)) throw new Error(`resolution doit aller de ${ROTOR_RESOLUTION_MIN} à ${ROTOR_RESOLUTION_MAX}, par pas de ${ROTOR_RESOLUTION_STEP}.`);
     return { lab: 'rotor', angular: l, magnetic: m, inertia, ...dynamics, resolution: data.resolution as number | undefined };
   }
-  const n = integer('principal', 1, 1, 40), l = integer('angular', n >= 10 ? n - 1 : 0, 0, n - 1), m = integer('magnetic', n >= 10 ? l : 0, -l, l);
+  const circularPair = data.preset === 'hydrogen-rydberg';
+  const n = integer('principal', circularPair ? 20 : 1, circularPair ? 10 : 1, circularPair ? 39 : 40), l = integer('angular', n >= 10 ? n - 1 : 0, 0, n - 1), m = integer('magnetic', n >= 10 ? l : 0, -l, l);
   if (n > 5 && (n < 10 || l !== n - 1 || Math.abs(m) !== l || (data.basis !== undefined && data.basis !== 'complex'))) throw new Error('Pour n de 10 à 40, choisir un état circulaire : ell=n−1, |m|=ell, base complex.');
   if (data.basis !== undefined && data.basis !== 'complex' && data.basis !== 'real') throw new Error('basis doit valoir complex ou real.');
   if (data.atomicView !== undefined && data.atomicView !== 'slice' && data.atomicView !== 'radial') throw new Error('atomicView doit valoir slice ou radial.');

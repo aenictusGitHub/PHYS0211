@@ -1,4 +1,4 @@
-import { angularWave, hydrogenRadial, type AtomicState, type HarmonicBasis } from './atomic';
+import { angularWave, hydrogenRadial, RYDBERG_N_MIN, RYDBERG_N_MAX, type AtomicState, type HarmonicBasis } from './atomic';
 
 export type AtomicTerm = AtomicState & { basis: HarmonicBasis };
 export type AtomicPreset = { id: string; label: string; formula: string; description: string; terms: readonly AtomicTerm[] };
@@ -11,11 +11,21 @@ export const ROTOR_PRESETS: readonly AtomicPreset[] = [
   { id: 'rotor-polar', label: 'Oscillation polaire', formula: String.raw`$\psi(0)=\frac{1}{\sqrt{2}}\,\bigl({Y\,}_{0}^{0}+{Y\,}_{1}^{0}\bigr)$`, terms: [term(1, 0, 0), term(2, 1, 0)], description: 'L’interférence fait osciller la probabilité entre les deux pôles, sans modifier les populations des niveaux.' },
   { id: 'rotor-rotation', label: 'Rotation azimutale', formula: String.raw`$\psi(0)=\frac{1}{\sqrt{2}}\,\bigl({Y\,}_{0}^{0}+{Y\,}_{1}^{1}\bigr)$`, terms: [term(1, 0, 0), term(2, 1, 1)], description: 'La densité tourne autour de l’axe z. Il s’agit du déplacement d’une distribution de probabilité, pas d’une trajectoire classique.' },
 ];
+export function circularRydbergPreset(n = 20): AtomicPreset {
+  if (!Number.isInteger(n) || n < RYDBERG_N_MIN || n >= RYDBERG_N_MAX) throw new Error('Le premier état circulaire doit avoir n entre 10 et 39.');
+  return {
+    id: 'hydrogen-rydberg', label: `Rydberg circulaires · ${n} + ${n + 1}`,
+    formula: String.raw`$\begin{gathered}\psi(0)=\frac{\psi_a+\psi_b}{\sqrt{2}}\\\psi_a=\psi_{${n},${n - 1},${n - 1}}\\\psi_b=\psi_{${n + 1},${n},${n}}\end{gathered}$`,
+    terms: [term(n, n - 1, n - 1), term(n + 1, n, n)],
+    description: 'Deux états circulaires voisins forment une modulation tournante de l’anneau. Avec seulement deux composantes, cette modulation reste étendue : elle ne représente pas un électron ponctuel sur une orbite.',
+  };
+}
+
 export const HYDROGEN_PRESETS: readonly AtomicPreset[] = [
   { id: 'hydrogen-breathing', label: 'Respiration radiale', formula: String.raw`$\psi(0)=\frac{\psi_{100}+\psi_{200}}{\sqrt2}$`, terms: [term(1, 0, 0), term(2, 0, 0)], description: 'L’interférence entre 1s et 2s fait respirer la distribution radiale. La probabilité totale reste égale à 1.' },
   { id: 'hydrogen-dipole', label: 'Oscillation dipolaire', formula: String.raw`$\psi(0)=\frac{\psi_{100}+\psi_{210}}{\sqrt2}$`, terms: [term(1, 0, 0), term(2, 1, 0)], description: 'La densité oscille de part et d’autre du noyau suivant z. La distribution radiale intégrée sur les angles reste constante.' },
   { id: 'hydrogen-rotation', label: 'Rotation de la densité', formula: String.raw`$\psi(0)=\frac{\psi_{211}+\psi_{322}}{\sqrt2}$`, terms: [term(2, 1, 1), term(3, 2, 2)], description: 'L’interférence de deux états de nombres magnétiques différents produit une densité tournante autour de z, sans trajectoire électronique imposée.' },
-  { id: 'hydrogen-rydberg', label: 'Rydberg circulaires · 20 + 21', formula: String.raw`$\begin{aligned}\psi(0)=\tfrac1{\sqrt2}\big(&\psi_{20,19,19}\\&+\psi_{21,20,20}\big).\end{aligned}$`, terms: [term(20, 19, 19), term(21, 20, 20)], description: 'Deux états circulaires voisins forment une modulation tournante de l’anneau. Avec seulement deux composantes, cette modulation reste étendue : elle ne représente pas un électron ponctuel sur une orbite.' },
+  circularRydbergPreset(),
 ];
 
 export function relativeFactors(count: number, phase: number) {

@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Math as Formula } from '@/components/math';
 import { QuantumParameter } from '@/components/quantum-parameter';
+import { CompactStepper } from '@/components/compact-stepper';
 import { HydrogenSlice } from '@/components/hydrogen-slice';
 import { PhaseLegend } from '@/components/angular-surface';
 import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
 import { type ExperimentCommand } from '@/components/lab-types';
-import { HYDROGEN_PRESETS, radialSuperposition } from '@/lib/atomic-dynamics';
+import { HYDROGEN_PRESETS, circularRydbergPreset, radialSuperposition } from '@/lib/atomic-dynamics';
 import { AtomicClock, useAtomicClock } from '@/components/atomic-clock';
 import { EnergyLevels } from '@/components/energy-levels';
 import { DisplayControls } from '@/components/playback-controls';
@@ -24,9 +25,11 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
   const [state, setState] = useState<AtomicState>({ n: 1, l: 0, m: 0 });
   const [mode, setMode] = useState<'stationary' | 'evolution'>('stationary');
   const [presetId, setPresetId] = useState(HYDROGEN_PRESETS[0].id);
+  const [circularN, setCircularN] = useState(20);
+  const circularPreset = useMemo(() => circularRydbergPreset(circularN), [circularN]);
   const clock = useAtomicClock(active, mode === 'evolution', command?.lab === 'hydrogen' ? command : null);
   const { setPhase, setPlaying } = clock;
-  const preset = HYDROGEN_PRESETS.find(item => item.id === presetId) ?? HYDROGEN_PRESETS[0];
+  const preset = presetId === 'hydrogen-rydberg' ? circularPreset : HYDROGEN_PRESETS.find(item => item.id === presetId) ?? HYDROGEN_PRESETS[0];
   const evolving = mode === 'evolution';
   const [basis, setBasis] = useState<HarmonicBasis>('complex');
   const [view, setView] = useState<'slice' | 'radial'>('slice');
@@ -54,6 +57,7 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
     if (command?.lab !== 'hydrogen') return;
     if (command.mode) setMode(command.mode);
     if (command.preset) setPresetId(command.preset);
+    if (command.preset === 'hydrogen-rydberg' && command.principal !== undefined) setCircularN(Math.max(RYDBERG_N_MIN, Math.min(RYDBERG_N_MAX - 1, command.principal)));
     setPhase(command.time ?? 0); setPlaying(false);
     if ((command.principal ?? 1) >= RYDBERG_N_MIN || command.preset === 'hydrogen-rydberg') { setZoom(1.5); setRadialScale(20); setPlane('xy'); }
     else setRadialScale(1);
@@ -68,14 +72,14 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
     if (command.plane) setPlane(command.plane);
   }, [command, setPhase, setPlaying]);
 
-  return <section className="workspace" aria-labelledby="hydrogen-title">
+  return <section className="workspace hydrogen-workspace" aria-labelledby="hydrogen-title">
     <aside className="control-panel">
       <div><p className="eyebrow">07</p><h1 id="hydrogen-title">Atome d’hydrogène</h1><p className="lede">Explorez les orbitales du potentiel coulombien : leur forme, leurs nœuds et la distance de l’électron au noyau.</p></div>
       <div className="mode-switch" role="group" aria-label="Mode de l’hydrogène">
         <Button variant="ghost" className={!evolving ? 'is-selected' : ''} aria-pressed={!evolving} onClick={() => { setMode('stationary'); clock.setPlaying(false); }}>États propres</Button>
         <Button variant="ghost" className={evolving ? 'is-selected' : ''} aria-pressed={evolving} onClick={() => setMode('evolution')}>Évolution</Button>
       </div>
-      <div className="equation-card"><span>{evolving ? 'État initial' : 'Séparation radiale et angulaire'}</span><Formula display>{evolving ? preset.formula : basis === 'complex'
+      <div className="equation-card hydrogen-state-equation"><span>{evolving ? 'État initial' : 'Séparation radiale et angulaire'}</span><Formula display>{evolving ? preset.formula : basis === 'complex'
         ? String.raw`$\psi_{n\ell m}=R_{n\ell}(r)\,Y_\ell^m\,(\theta,\,\varphi)$`
         : String.raw`$\psi^{\mathrm{réel}}_{n\ell m}=R_{n\ell}(r)\,\mathcal Y_{\ell m}\,(\theta,\,\varphi)$`}</Formula></div>
       <div className="mode-switch" role="group" aria-label="Vue de l’atome d’hydrogène">
@@ -83,7 +87,14 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
         <Button variant="ghost" className={view === 'radial' ? 'is-selected' : ''} aria-pressed={view === 'radial'} onClick={() => setView('radial')}>Partie radiale</Button>
       </div>
       <div className="control-stack">
-        {evolving ? <div className="preset-grid atomic-dynamic-presets">{HYDROGEN_PRESETS.map(item => <Button key={item.id} variant="outline" className={presetId === item.id ? 'is-selected' : ''} onClick={() => { const circular = item.id === 'hydrogen-rydberg'; setPresetId(item.id); clock.setPhase(0); clock.setPlaying(false); setZoom(circular ? 1.5 : 1); setRadialScale(circular ? 20 : 1); setPlane(circular ? 'xy' : item.id === 'hydrogen-rotation' ? 'oblique' : 'xz'); }}>{item.label}</Button>)}</div> : <>
+        {evolving ? <><div className="preset-grid atomic-dynamic-presets">{HYDROGEN_PRESETS.map(item => <Button key={item.id} variant="outline" className={presetId === item.id ? 'is-selected' : ''} onClick={() => { const circular = item.id === 'hydrogen-rydberg'; setPresetId(item.id); clock.setPhase(0); clock.setPlaying(false); setZoom(circular ? 1.5 : 1); setRadialScale(circular ? 20 : 1); setPlane(circular ? 'xy' : item.id === 'hydrogen-rotation' ? 'oblique' : 'xz'); }}>{item.id === 'hydrogen-rydberg' ? circularPreset.label : item.label}</Button>)}</div>
+          {presetId === 'hydrogen-rydberg' ? <div className="hydrogen-circular-control">
+            <CompactStepper id="hydrogen-circular-n" label={<>Nombre quantique principal <Formula>$n$</Formula></>} value={circularN} min={RYDBERG_N_MIN} max={RYDBERG_N_MAX - 1} step={1}
+              description="Premier nombre principal de la paire n et n+1 : de 10 à 39. Modifier n remet l’évolution à son état initial."
+              onChange={value => { setCircularN(value); setPhase(0); setPlaying(false); }} />
+            <p className="scale-note">Superposition des états circulaires <Formula>$n$</Formula> et <Formula>$n+1$</Formula>.</p>
+          </div> : null}
+        </> : <>
         <div className="display-switch" role="group" aria-label="Famille d’états de l’hydrogène">
           <Button variant="outline" className={!rydberg ? 'is-selected' : ''} aria-pressed={!rydberg} onClick={() => { setState({ n: 1, l: 0, m: 0 }); setZoom(1); setRadialScale(1); }}>Orbitales usuelles</Button>
           <Button variant="outline" className={rydberg ? 'is-selected' : ''} aria-pressed={rydberg} onClick={() => { setState({ n: 20, l: 19, m: 19 }); setBasis('complex'); setPlane('xy'); setZoom(1.5); setRadialScale(20); }}>Rydberg circulaire</Button>

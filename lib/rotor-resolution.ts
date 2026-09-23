@@ -1,7 +1,7 @@
 export const ROTOR_RESOLUTION_MIN = 24;
 export const ROTOR_RESOLUTION_MAX = 192;
 export const ROTOR_RESOLUTION_STEP = 8;
-export const ROTOR_RESOLUTION_DEFAULT = 64;
+export const ROTOR_RESOLUTION_DEFAULT = 128;
 
 export function validRotorResolution(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= ROTOR_RESOLUTION_MIN
