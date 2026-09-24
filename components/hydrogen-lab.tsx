@@ -5,6 +5,7 @@ import { Math as Formula } from '@/components/math';
 import { QuantumParameter } from '@/components/quantum-parameter';
 import { CompactStepper } from '@/components/compact-stepper';
 import { HydrogenSlice } from '@/components/hydrogen-slice';
+import { HydrogenCloud } from '@/components/hydrogen-cloud';
 import { PhaseLegend } from '@/components/angular-surface';
 import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { type ExperimentCommand } from '@/components/lab-types';
 import { HYDROGEN_PRESETS, circularRydbergPreset, radialSuperposition } from '@/lib/atomic-dynamics';
 import { AtomicClock, useAtomicClock } from '@/components/atomic-clock';
 import { EnergyLevels } from '@/components/energy-levels';
-import { DisplayControls } from '@/components/playback-controls';
+import { DisplayControls, type DisplaySetting } from '@/components/playback-controls';
 import { HYDROGEN_N_MAX, RYDBERG_N_MIN, RYDBERG_N_MAX, hydrogenEnergy, radialDistribution, radialMean, radialExtent, type AtomicState, type HarmonicBasis, type OrbitalPlane } from '@/lib/atomic';
 
 const PRESETS = [
@@ -32,7 +33,9 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
   const preset = presetId === 'hydrogen-rydberg' ? circularPreset : HYDROGEN_PRESETS.find(item => item.id === presetId) ?? HYDROGEN_PRESETS[0];
   const evolving = mode === 'evolution';
   const [basis, setBasis] = useState<HarmonicBasis>('complex');
-  const [view, setView] = useState<'slice' | 'radial'>('slice');
+  const [view, setView] = useState<'slice' | 'radial' | 'cloud'>('slice');
+  const [pointSize, setPointSize] = useState(.5);
+  const [pointCount, setPointCount] = useState(20000);
   const [plane, setPlane] = useState<OrbitalPlane>('xz');
   const [phaseColors, setPhaseColors] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -52,6 +55,12 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
   const energy = evolving ? preset.terms.reduce((sum, term) => sum + hydrogenEnergy(term.n), 0) / 2 : hydrogenEnergy(n);
   const periodFs = 2 * Math.PI * .6582119569 / Math.abs(hydrogenEnergy(preset.terms[1].n) - hydrogenEnergy(preset.terms[0].n));
   const capturedProbability = radial.reduce((sum, point, i) => i === 0 ? sum : sum + (point.y + radial[i - 1].y) / 2 * (point.x - radial[i - 1].x), 0);
+  const cloudTerms = useMemo(() => evolving ? preset.terms : [{ ...state, basis }], [evolving, preset, state, basis]);
+  const displaySetting: DisplaySetting = view === 'cloud' ? { displayControl: <>
+    <CompactStepper id="hydrogen-point-size" label="Taille des points" value={pointSize} min={.5} max={3} step={.1} onChange={setPointSize} description="Taille graphique uniquement, sans modifier la distribution de probabilité." />
+    <CompactStepper id="hydrogen-point-count" label="Nombre de points" value={pointCount} min={1000} max={30000} step={1000} onChange={setPointCount} description="De 1 000 à 30 000 points, sans modifier l’état quantique." />
+  </> }
+    : { scale: radialScale, onScaleChange: setRadialScale, scaleMax: 100, scaleDescription: 'Le facteur s agit sur le contraste de la coupe ou la hauteur de la courbe radiale, sans modifier l’orbitale ni sa normalisation.' };
 
   useEffect(() => {
     if (command?.lab !== 'hydrogen') return;
@@ -82,9 +91,10 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
       <div className="equation-card hydrogen-state-equation"><span>{evolving ? 'État initial' : 'Séparation radiale et angulaire'}</span><Formula display>{evolving ? preset.formula : basis === 'complex'
         ? String.raw`$\psi_{n\ell m}=R_{n\ell}(r)\,Y_\ell^m\,(\theta,\,\varphi)$`
         : String.raw`$\psi^{\mathrm{réel}}_{n\ell m}=R_{n\ell}(r)\,\mathcal Y_{\ell m}\,(\theta,\,\varphi)$`}</Formula></div>
-      <div className="mode-switch" role="group" aria-label="Vue de l’atome d’hydrogène">
+      <div className="mode-switch hydrogen-view-switch" role="group" aria-label="Vue de l’atome d’hydrogène">
         <Button variant="ghost" className={view === 'slice' ? 'is-selected' : ''} aria-pressed={view === 'slice'} onClick={() => setView('slice')}>Coupe spatiale</Button>
         <Button variant="ghost" className={view === 'radial' ? 'is-selected' : ''} aria-pressed={view === 'radial'} onClick={() => setView('radial')}>Partie radiale</Button>
+        <Button variant="ghost" className={view === 'cloud' ? 'is-selected' : ''} aria-pressed={view === 'cloud'} onClick={() => setView('cloud')}>Nuage de points 3D</Button>
       </div>
       <div className="control-stack">
         {evolving ? <><div className="preset-grid atomic-dynamic-presets">{HYDROGEN_PRESETS.map(item => <Button key={item.id} variant="outline" className={presetId === item.id ? 'is-selected' : ''} onClick={() => { const circular = item.id === 'hydrogen-rydberg'; setPresetId(item.id); clock.setPhase(0); clock.setPlaying(false); setZoom(circular ? 1.5 : 1); setRadialScale(circular ? 20 : 1); setPlane(circular ? 'xy' : item.id === 'hydrogen-rotation' ? 'oblique' : 'xz'); }}>{item.id === 'hydrogen-rydberg' ? circularPreset.label : item.label}</Button>)}</div>
@@ -136,11 +146,18 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
       </dl>
     </aside>
     <div className="figure-panel">
-      <div className="figure-heading"><div><p className="eyebrow">{view === 'slice' ? 'Orbitale · coupe au noyau' : 'Distribution radiale'}</p>
-        <h2><Formula>{evolving ? view === 'slice' ? String.raw`$|\psi(\mathbf r,t)|^2$` : '$P(r,t)$' : view === 'slice' ? String.raw`$|\psi_{${n},${l},${m}}|^2$` : String.raw`$P_{${n},${l}}(r)=r^2|R_{${n},${l}}(r)|^2$`}</Formula></h2></div>
+      <div className="figure-heading"><div><p className="eyebrow">{view === 'cloud' ? 'Probabilité de présence · nuage 3D' : view === 'slice' ? 'Orbitale · coupe au noyau' : 'Distribution radiale'}</p>
+        <h2><Formula>{evolving ? view !== 'radial' ? String.raw`$\bigl\lvert\psi(\mathbf r,t)\bigr\rvert{}^2$` : '$P(r,t)$' : view !== 'radial' ? String.raw`$\bigl\lvert\psi_{${n},${l},${m}}\bigr\rvert{}^2$` : String.raw`$P_{${n},${l}}(r)=r^2|R_{${n},${l}}(r)|^2$`}</Formula></h2></div>
         <span className="figure-tag">{evolving ? preset.label : <Formula>{String.raw`$n=${n},\;\ell=${l},\;m=${m}$`}</Formula>}</span>
       </div>
-      {view === 'slice' ? <>
+      {view === 'cloud' ? <>
+        <div className="display-switch" role="group" aria-label="Couleurs du nuage">
+          <Button variant="outline" className={!phaseColors ? 'is-selected' : ''} aria-pressed={!phaseColors} onClick={() => setPhaseColors(false)}>Densité de probabilité</Button>
+          <Button variant="outline" className={phaseColors ? 'is-selected' : ''} aria-pressed={phaseColors} onClick={() => setPhaseColors(true)}>Phase</Button>
+        </div>
+        <HydrogenCloud terms={cloudTerms} phase={evolving ? clock.phase : 0} active={active} phaseColors={phaseColors} pointSize={pointSize} pointCount={pointCount} />
+        {phaseColors ? <PhaseLegend /> : null}
+      </> : view === 'slice' ? <>
         <div className="atomic-view-controls">
           <div className="display-switch slice-plane-switch" role="group" aria-label="Plan de coupe">
             <Button variant="outline" className={plane === 'xz' ? 'is-selected' : ''} aria-pressed={plane === 'xz'} onClick={() => setPlane('xz')}><Formula>{'$xz$'}</Formula></Button>
@@ -162,10 +179,9 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
           verticalLines={[{ value: mean, tone: 'teal', dashed: true, label: String.raw`$\langle r\rangle$` }]} /></div>
         <p className="probability-note">Probabilité intégrée dans le cadre radial : {(100 * capturedProbability).toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 2 })} %. Échelle verticale commune à la famille, à facteur <Formula>{'$s$'}</Formula> fixé. Le facteur agit seulement sur l’affichage.{!evolving ? <> La courbe ne dépend pas de <Formula>{'$m$'}</Formula> ni du choix d’une base réelle ou complexe.</> : null}</p>
       </>}
-      {evolving ? <AtomicClock id="hydrogen" clock={clock} scale={radialScale} onScaleChange={setRadialScale} scaleMax={100}
-        scaleDescription="Le facteur s agit sur le contraste de la coupe ou la hauteur de la courbe radiale, sans modifier l’orbitale ni sa normalisation."
+      {evolving ? <AtomicClock id="hydrogen" clock={clock} {...displaySetting}
         period={String.raw`$T=2\pi\hbar/\Delta E=${periodFs.toFixed(3)}\,\mathrm{fs}$`} />
-        : <DisplayControls id="hydrogen" stationary scale={radialScale} onScaleChange={setRadialScale} scaleMax={100} />}
+        : <DisplayControls id="hydrogen" stationary {...displaySetting} />}
       <EnergyLevels energies={Array.from({ length: lastLevel - firstLevel + 1 }, (_, index) => hydrogenEnergy(index + firstLevel))} selected={evolving ? preset.terms.map(term => term.n - firstLevel) : n - firstLevel} firstIndex={firstLevel} unit={String.raw`$E\;\mathrm{(eV)}$`} label="Niveaux liés de l’hydrogène" />
       <div className="insight-row atomic-insight"><span className="insight-index"><Formula>{'$r$'}</Formula></span><p>{evolving ? preset.description : rydberg ? <>État circulaire <Formula>{String.raw`$n=${n},\;\ell=${l},\;m=${m}$`}</Formula> : le maximum de la probabilité radiale est à <Formula>{`$r=n^2a_0=${n * n}a_0$`}</Formula>. La densité d’un état propre reste stationnaire ; l’anneau n’est pas une trajectoire.</> : n === 1
         ? <>Dans l’état <Formula>{'$1s$'}</Formula>, la densité volumique est maximale au noyau, mais la probabilité radiale est maximale à <Formula>{'$r=a_0$'}</Formula>.</>
@@ -173,9 +189,9 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
       {rydberg ? <p className="scale-note">Les états circulaires maximisent le moment orbital et sa projection pour un <Formula>{'$n$'}</Formula> fixé.</p> : null}
       <details className="theory-notes"><summary>Repères théoriques</summary><div className="theory-grid">
         <div><span>Potentiel et niveaux liés</span><Formula display>{String.raw`$\begin{aligned}V(r)&=-\frac{e^2}{4\pi\varepsilon_0r},\\E_n&\simeq-\frac{13.606\,\mathrm{eV}}{n^2}.\end{aligned}$`}</Formula></div>
-        <div><span>Probabilité radiale</span><Formula display>{String.raw`$\begin{aligned}P_{n\ell}(r)&=r^2|R_{n\ell}(r)|^2,\\\int_0^\infty P_{n\ell}(r)\,dr&=1,\\\langle r\rangle&=\frac{a_0}{2}[3n^2-\ell(\ell+1)].\end{aligned}$`}</Formula></div>
-        <div><span>Fonction radiale normalisée</span><Formula display>{String.raw`$\begin{aligned}R_{n\ell}(r)&=N_{n\ell}e^{-\rho/2}\rho^\ell L_{n-\ell-1}^{2\ell+1}(\rho),\\\rho&=\frac{2r}{na_0},\\N_{n\ell}&=\left(\frac{2}{na_0}\right)^{3/2}\sqrt{\frac{(n-\ell-1)!}{2n(n+\ell)!}}.\end{aligned}$`}</Formula></div>
-      </div><p><Formula>{String.raw`$L_k^\alpha$`}</Formula> désigne un polynôme de Laguerre généralisé. Les orbitales réelles utilisent, pour <Formula>{'$k>0$'}</Formula>, <Formula>{String.raw`$\mathcal Y_{\ell,k}=\sqrt2(-1)^k\Re Y_\ell^k$`}</Formula> et <Formula>{String.raw`$\mathcal Y_{\ell,-k}=\sqrt2(-1)^k\Im Y_\ell^k$`}</Formula>. Le modèle néglige le spin, la structure fine et le mouvement du proton ; les densités des états propres sont stationnaires.</p></details>
+        <div><span>Probabilité radiale</span><Formula display>{String.raw`$\begin{gathered}P_{n\ell}(r)=r^2|R_{n\ell}(r)|^2,\\\int_0^\infty P_{n\ell}(r)\,dr=1,\\\langle r\rangle=\frac{a_0}{2}[3n^2-\ell(\ell+1)].\end{gathered}$`}</Formula></div>
+        <div><span>Fonction radiale normalisée</span><Formula display>{String.raw`$\begin{gathered}R_{n\ell}(r)=N_{n\ell}e^{-\rho/2}\rho^\ell L_{n-\ell-1}^{2\ell+1}(\rho),\\\rho=\frac{2r}{na_0},\\N_{n\ell}=\left(\frac{2}{na_0}\right)^{3/2}\sqrt{\frac{(n-\ell-1)!}{2n(n+\ell)!}}.\end{gathered}$`}</Formula></div>
+      </div><p><Formula>{String.raw`$L_k^\alpha$`}</Formula> désigne un polynôme de Laguerre généralisé. Les orbitales réelles utilisent, pour <Formula>{'$k>0$'}</Formula>, <Formula>{String.raw`$\mathcal Y_{\ell,k}=\sqrt2(-1)^k\operatorname{Re}\left(Y_\ell^k\right)$`}</Formula> et <Formula>{String.raw`$\mathcal Y_{\ell,-k}=\sqrt2(-1)^k\operatorname{Im}\left(Y_\ell^k\right)$`}</Formula>. Le modèle néglige le spin, la structure fine et le mouvement du proton ; les densités des états propres sont stationnaires.</p></details>
     </div>
   </section>;
 }

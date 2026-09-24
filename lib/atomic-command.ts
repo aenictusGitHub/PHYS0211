@@ -33,7 +33,7 @@ export function parseAtomicExperiment(data: Record<string, unknown>): Omit<Exper
   const n = integer('principal', circularPair ? 20 : 1, circularPair ? 10 : 1, circularPair ? 39 : 40), l = integer('angular', n >= 10 ? n - 1 : 0, 0, n - 1), m = integer('magnetic', n >= 10 ? l : 0, -l, l);
   if (n > 5 && (n < 10 || l !== n - 1 || Math.abs(m) !== l || (data.basis !== undefined && data.basis !== 'complex'))) throw new Error('Pour n de 10 à 40, choisir un état circulaire : ell=n−1, |m|=ell, base complex.');
   if (data.basis !== undefined && data.basis !== 'complex' && data.basis !== 'real') throw new Error('basis doit valoir complex ou real.');
-  if (data.atomicView !== undefined && data.atomicView !== 'slice' && data.atomicView !== 'radial') throw new Error('atomicView doit valoir slice ou radial.');
+  if (data.atomicView !== undefined && data.atomicView !== 'slice' && data.atomicView !== 'radial' && data.atomicView !== 'cloud') throw new Error('atomicView doit valoir slice, radial ou cloud.');
   if (data.plane !== undefined && data.plane !== 'xz' && data.plane !== 'xy' && data.plane !== 'yz' && data.plane !== 'oblique') throw new Error('plane doit valoir xz, xy, yz ou oblique.');
   return { lab: 'hydrogen', principal: n, angular: l, magnetic: m, ...dynamics,
     basis: data.basis ?? 'complex', atomicView: data.atomicView ?? 'slice', plane: data.plane ?? (n >= 10 || data.preset === 'hydrogen-rydberg' ? 'xy' : 'xz') };

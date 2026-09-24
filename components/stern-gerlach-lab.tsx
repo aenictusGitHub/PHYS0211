@@ -43,6 +43,10 @@ export function SternGerlachLab({ active, command }: { active: boolean; command:
   const range = sgScreenRange(p), flight = sgFlightTime(p), end = p.length + p.distance;
   const particles = useMemo(() => sgParticles(p, beam, model, time, seed), [p, beam, model, time, seed]);
   const hits = particles.filter(point => point.detected);
+  // Both detector views use the very same atoms, colours and physical extent.
+  const screenImpacts = hits.map(hit => ({ ...hit, value: hit.displacement,
+    spread: .5 + (hit.x * Math.cos(p.angle * Math.PI / 180) - hit.z * Math.sin(p.angle * Math.PI / 180)) / (2 * range),
+    tone: model === 'quantum' ? tone(hit.mu) : 'ink' as const }));
   const counts = channels.map((_, index) => hits.filter(hit => hit.channel === index).length);
   const resolved = channels.length === 1 || Math.abs(channels[1].position - channels[0].position) >= 4 * SG_SIGMA_MM;
   const trajectories = useMemo<PlotSeries[]>(() => {
@@ -50,7 +54,7 @@ export function SternGerlachLab({ active, command }: { active: boolean; command:
     const positions = [-2, 0, p.length, end, ...Array.from({ length: 81 }, (_, i) => -2 + (end + 2) * i / 80)].sort((a, b) => a - b);
     return branches.map(c => ({ values: positions.map(y => ({ x: y, y: sgDeflection(c.mu, p, y / 100) })),
       tone: model === 'quantum' ? tone(c.mu) : 'muted', width: model === 'quantum' ? 1.8 : 1,
-      opacity: c.probability > 1e-10 ? model === 'quantum' ? .65 : .28 : .18, dashed: c.probability < 1e-10 }));
+      opacity: c.probability > 1e-10 ? model === 'quantum' ? .85 : .28 : .18, dashed: c.probability < 1e-10 }));
   }, [channels, end, model, p]);
   const profiles = useMemo<PlotSeries[]>(() => {
     // Resolve narrow peaks even when the selected apparatus separates them widely.
@@ -73,6 +77,29 @@ export function SternGerlachLab({ active, command }: { active: boolean; command:
       label: showProjection ? `Projection du moment cinétique : Jₙ/ℏ = ${point.spinProjection.toFixed(model === 'quantum' ? 1 : 2)}` : 'Atome incident — aucune projection de canal affichée' };
   });
   const transverseRatio = 2 * Math.abs(sgDeflection(sgClassicalMoment(p), p, p.length / 100)) / (10 * p.length);
+  // Qualitative B_n shading: +xi is at the top, G = dB_n/dxi.
+  // Keep a uniform tint at G=0, since zero gradient need not mean zero field.
+  const fieldColor = '#8195aa';
+  // A smooth, bounded visual gain makes even moderate gradients legible.
+  const fieldContrast = .38 * Math.tanh(p.gradient / 400);
+  const fieldShade = { topOpacity: .4 + fieldContrast, bottomOpacity: .4 - fieldContrast };
+  const fieldBackground = `linear-gradient(to bottom, color-mix(in srgb, ${fieldColor} ${100 * fieldShade.topOpacity}%, transparent), color-mix(in srgb, ${fieldColor} ${100 * fieldShade.bottomOpacity}%, transparent))`;
+  const projectionSymbol = p.angle === 0 ? 'J_z' : p.angle === 90 ? 'J_x' : 'J_n';
+  const legendChannels = model === 'quantum'
+    ? [...channels].sort((a, b) => b.position - a.position).map(c => ({ tone: tone(c.mu), probability: c.probability }))
+    : [{ tone: 'muted' as const, probability: 1 }, { tone: 'muted' as const, probability: 1 }];
+  const axisChannels = model === 'quantum' ? channels : (p.j === 0 ? [0] : [-1, 0, 1]).map(sign => {
+    const m = sign * Math.sqrt(p.j * (p.j + 1)), mu = -p.g * m;
+    return { m, mu, position: sgDeflection(mu, p, end / 100) };
+  });
+  const channelAxis = p.j === 0 || (p.gradient !== 0 && resolved) ? {
+    label: `$${projectionSymbol}/\\hbar$`,
+    ticks: axisChannels.map(c => ({ value: c.position, label: `$${model === 'quantum' ? numberTex(c.m) : signed(c.m)}$`, tone: tone(c.mu) })),
+  } : undefined;
+  const gradientArrow = { x: p.length / 2,
+    from: range * (p.gradient < 0 ? .72 : .3),
+    to: range * (p.gradient > 0 ? .72 : .3),
+    label: p.gradient === 0 ? '$G=0$' : String.raw`$\nabla B_n$` };
 
   return <section className="workspace sg-workspace" aria-labelledby="sg-title">
     <aside className="control-panel">
@@ -99,13 +126,18 @@ export function SternGerlachLab({ active, command }: { active: boolean; command:
 
     <div className="figure-panel">
       <div className="figure-heading"><div><p className="eyebrow">Expérience de Stern–Gerlach</p><h2>{p.j === 0 || p.gradient === 0 ? 'Une seule trace non déviée' : model === 'quantum' ? 'Un nombre discret de traces' : 'La prédiction classique continue'}</h2></div><span className="figure-tag">{model === 'quantum' ? `${2 * p.j + 1} canaux possibles` : 'Orientations isotropes'}</span></div>
-      <ol className="sg-stages"><li>Four d’atomes neutres</li><li>Collimateur</li><li>Aimant à gradient</li><li>Écran</li></ol>
-      <div className="plot-legend"><span><i className="legend-swatch" />{model === 'quantum' ? 'centres des canaux' : 'quelques déviations classiques'}</span><span><i className="legend-swatch sg-magnet-swatch" />région de l’aimant</span><span><Formula>{String.raw`$\uparrow\!\downarrow$`}</Formula> projection du moment cinétique <Formula>$J_n$</Formula></span></div>
-      <div className="plot-shell sg-apparatus"><ScientificPlot ariaLabel="Propagation du faisceau avec flèches du moment cinétique projeté sur l’axe de mesure : flèche vers le haut pour Jₙ positif, vers le bas pour Jₙ négatif" xDomain={[-2.4, end + 1.5]} yDomain={[-range, range]} xLabel={String.raw`$y\;(\mathrm{cm})$`} yLabel={String.raw`$\xi\;(\mathrm{mm})$`}
-        series={trajectories} markers={markers} bands={[{ from: 0, to: p.length, tone: 'teal', opacity: .18 }]} xTicks={[0, p.length, end]}
-        horizontalLines={[{ value: 0, tone: 'muted' }]} verticalLines={[{ value: 0, label: '$0$', labelAbove: true }, { value: p.length, label: '$L$', labelAbove: true }, { value: end, label: '$L+D$', labelAbove: true, tone: 'ink', dashed: false }]} /></div>
-      <p className="scale-note">Coupe dans le plan du faisceau et de l’axe <Formula>{String.raw`$\boldsymbol n=\sin\alpha\,\boldsymbol e_x+\cos\alpha\,\boldsymbol e_z$`}</Formula>. <Formula>{String.raw`$\xi=\boldsymbol r\cdot\boldsymbol n$`}</Formula> est la déviation transverse. Les traits suivent les centres des faisceaux, pas des trajectoires quantiques individuelles. Les axes s’adaptent aux paramètres, pas au temps.</p>
-      <p className="scale-note sg-spin-note">{model === 'quantum' ? <>Après l’aimant, les flèches représentent <Formula>{String.raw`$J_n=m\hbar$`}</Formula> dans chaque canal, pas une orientation classique du spin. Avant la sortie, ou sans gradient, aucune flèche de canal n’est attribuée. Pour l’argent, <Formula>$J=S$</Formula>.</> : <>Les flèches représentent la projection continue du moment cinétique classique sur l’axe de mesure.</>} Leur longueur est proportionnelle à <Formula>{String.raw`$|J_n|$`}</Formula>, à une échelle graphique indépendante des axes. Le moment magnétique est opposé : <Formula>{String.raw`$\mu_n=-g\mu_B J_n/\hbar$`}</Formula>.</p>
+      <p className="scale-note sg-source-note">Le faisceau arrive de la gauche, après le four et le collimateur (non représentés). Il traverse l’aimant, puis laisse des impacts sur la plaque de détection à droite.</p>
+      <ul className="sg-apparatus-legend" aria-label="Légende du schéma">
+        <li><span className="sg-channel-key" aria-hidden="true">{legendChannels.map((channel, index) => <span key={index} data-channel-tone={channel.tone} style={{ borderTop: `2px ${channel.probability > 1e-10 ? 'solid' : 'dashed'} var(--${channel.tone === 'ink' ? 'foreground' : channel.tone === 'muted' ? 'muted-foreground' : channel.tone})`, opacity: channel.probability > 1e-10 ? 1 : .3 }} />)}</span><div><strong>{model === 'quantum' ? 'Canaux' : 'Déviations'}</strong><span>{model === 'quantum' ? 'Centres des faisceaux' : 'Quelques trajectoires classiques'}</span></div></li>
+        <li><i className="legend-swatch sg-field-swatch" style={{ background: fieldBackground }} aria-hidden="true" /><div><strong>Aimant</strong><span><Formula>{String.raw`$0\le y\le L$`}</Formula></span></div></li>
+        <li><span className="sg-spin-key" aria-hidden="true"><Formula>{String.raw`$\uparrow\!\downarrow$`}</Formula></span><div><strong>Moment cinétique</strong><span>Projection <Formula>{`$${projectionSymbol}$`}</Formula></span></div></li>
+      </ul>
+      <div className="plot-shell sg-apparatus"><ScientificPlot ariaLabel={`Propagation du faisceau. Gradient de B : ${p.gradient > 0 ? 'vers le haut' : p.gradient < 0 ? 'vers le bas' : 'nul'}. ${channelAxis ? `Axe droit ${projectionSymbol}/ℏ : ${axisChannels.map(c => c.m).join(', ')}.` : 'Canaux superposés ou non résolus.'} Les flèches des atomes indiquent la projection du moment cinétique.`} xDomain={[-2.4, end]} yDomain={[-range, range]} xLabel={String.raw`$y\;(\mathrm{cm})$`} yLabel={String.raw`$\xi\;(\mathrm{mm})$`}
+        verticalArrows={[gradientArrow]} rightAxis={channelAxis}
+        detectorScreen={{ impacts: screenImpacts, scale }}
+        series={trajectories} markers={markers} bands={[{ from: 0, to: p.length, color: fieldColor, verticalGradient: fieldShade }]} xTicks={[0, p.length, end]}
+        horizontalLines={[{ value: 0, tone: 'muted' }]} verticalLines={[{ value: 0, label: '$0$', labelAbove: true }, { value: p.length, label: '$L$', labelAbove: true }]} /></div>
+      {!channelAxis ? <p className="scale-note">{p.gradient === 0 ? 'Gradient nul : canaux superposés.' : 'Canaux trop proches pour graduer séparément leurs projections.'}</p> : null}
       {transverseRatio > .1 ? <p className="nodal-notice">Forte déviation : l’approximation de faisceau étroit devient peu fiable. Réduisez le gradient ou augmentez la vitesse pour retrouver le régime du modèle.</p> : null}
       <PlaybackControls id="sg" clock={clock} scale={scale} onScaleChange={setScale} scaleMax={4}
         timeSymbol={String.raw`$t\;(\mathrm{ms})$`} finalSymbol={String.raw`$t_f\;(\mathrm{ms})$`} finalMin={1} finalMax={20} finalStep={1}
@@ -113,7 +145,7 @@ export function SternGerlachLab({ active, command }: { active: boolean; command:
         note={<>Temps de vol jusqu’à l’écran : {flight.toFixed(3)} ms. À vitesse ×1, 1 ms physique est représentée en 1 seconde. Les atomes arrivent progressivement ; la largeur initiale du faisceau est {SG_SIGMA_MM} mm.</>} />
       <div className="sg-detector-heading"><h3>Impacts sur l’écran</h3><span aria-live="off">{hits.length} atomes détectés</span><Button variant="outline" onClick={() => { setSeed(value => value + 1); reset(); }}>Nouvelle série</Button></div>
       <div className="sg-detector-grid">
-        <SternGerlachScreen points={hits} range={range} scale={scale} />
+        <SternGerlachScreen points={screenImpacts} range={range} scale={scale} />
         <div className="sg-profile"><h3>Distribution attendue</h3><div className="plot-legend"><span><i className="legend-swatch sg-magnet-swatch" />{model === 'quantum' ? 'quantique' : 'classique'}</span>{beam === 'mixed' ? <span><i className="legend-swatch dashed" />{model === 'quantum' ? 'classique' : 'quantique'}</span> : null}</div>
           <div className="plot-shell"><ScientificPlot ariaLabel="Distribution normalisée des positions attendues à l’écran" xDomain={[-range, range]} yDomain={[0, peak * 1.12]} xLabel={String.raw`$\xi\;(\mathrm{mm})$`} yLabel={String.raw`$p(\xi)\;(\mathrm{mm}^{-1})$`} series={profiles} /></div><p className="scale-note">Prévision pour un grand nombre d’atomes ; l’aire vaut 1. L’élargissement des pics représente la largeur du faisceau, pas des valeurs intermédiaires du spin.</p></div>
       </div>
@@ -123,6 +155,7 @@ export function SternGerlachLab({ active, command }: { active: boolean; command:
         {!resolved ? <p className="scale-note">¹ Pas de comptage par canal lorsque les impacts ne permettent pas de les distinguer.</p> : <p className="scale-note">Comptages de la série simulée : ils fluctuent autour des probabilités. Les canaux sont identifiés dans le modèle ; une faible superposition des taches reste possible.</p>}
       </> : <div className="insight-row atomic-insight"><span className="insight-index">∞</span><p>Une orientation isotrope d’un moment classique non nul donne toutes les projections entre <Formula>{String.raw`$-|\boldsymbol\mu|$`}</Formula> et <Formula>{String.raw`$+|\boldsymbol\mu|$`}</Formula>. Avec un gradient non nul, on prédit une bande continue, contrairement au résultat observé avec l’argent.</p></div>}
       <details className="theory-notes sg-theory"><summary>Repères théoriques</summary><div className="theory-grid">
+        <div><span>Lecture du schéma</span><p>Le dégradé indique qualitativement la variation de <Formula>$B_n$</Formula> ; la flèche pointe vers les valeurs croissantes. La coordonnée transverse est <Formula>{String.raw`$\xi=\boldsymbol r\cdot\boldsymbol n$`}</Formula>, avec <Formula>{String.raw`$\boldsymbol n=\sin\alpha\,\boldsymbol e_x+\cos\alpha\,\boldsymbol e_z$`}</Formula>. Les courbes représentent les centres des faisceaux, pas des trajectoires quantiques individuelles.</p><p>Après l’aimant, les flèches des atomes indiquent <Formula>{String.raw`$J_n=m\hbar$`}</Formula>, pas une orientation classique du spin. Leur longueur est une indication graphique, indépendante des axes. Le moment magnétique est opposé : <Formula>{String.raw`$\mu_n=-g\mu_B J_n/\hbar$`}</Formula>. Sans gradient, les canaux se superposent et ne définissent pas de graduation spatiale distincte.</p></div>
         <div><span>Force sur un atome neutre</span><Formula display>{String.raw`$U=-\boldsymbol\mu\cdot\boldsymbol B$`}</Formula><Formula display>{String.raw`$F_\xi\simeq\mu_n G,\qquad G=\frac{\partial B_n}{\partial\xi}$`}</Formula><p>Un champ homogène ne sépare pas le faisceau. La force vient du gradient du champ, et non d’une force de Lorentz sur une charge nette.</p></div>
         <div><span>De la force à la trace</span><Formula display>{String.raw`$Z_m=\frac{\mu_n G L}{M v_y^2}\left(D+\frac L2\right)$`}</Formula><p>Accélération constante dans l’aimant, puis dérive libre. Doubler la vitesse divise la déviation par quatre, à paramètres fixés.</p></div>
         <div><span>Quantification spatiale</span><Formula display>{String.raw`$J_n=m\hbar,\qquad m=-j,\ldots,j$`}</Formula><Formula display>{String.raw`$\mu_n=-g\,m\,\mu_B$`}</Formula><p>Il existe <Formula>{String.raw`$2j+1$`}</Formula> résultats possibles. Pour <Formula>{String.raw`$j=\frac12,\ g=2$`}</Formula>, <Formula>{String.raw`$\mu_n=\pm\mu_B$`}</Formula>. Le signe moins vient de la charge négative de l’électron : un spin positif est dévié vers <Formula>{String.raw`$-\boldsymbol n$`}</Formula> si <Formula>$G&gt;0$</Formula>.</p></div>

@@ -5,7 +5,7 @@ const { SPIN_PRESETS, SPIN_TIME_MAX, blochVector, evolveSpin, fieldVector, parse
 
 const close = (actual, expected, label) => assert.ok(Math.abs(actual - expected) < 1e-12, `${label}: ${actual} versus ${expected}`);
 const dot = (a, b) => a.reduce((sum, value, i) => sum + value * b[i], 0);
-for (const field of ['x', 'y', 'z', 'tilted']) {
+for (const field of ['x', 'y', 'z', 'tilted', [.2, -.7, .4], [-3, 2, -1], [0, 0, 0]]) {
   const b = fieldVector(field);
   close(dot(b, b), 1, 'Field normalized');
   for (const theta of [0, .37, Math.PI / 2, 2.47, Math.PI]) for (const phi of [0, .4, 1.5, 4.7, 2 * Math.PI]) {

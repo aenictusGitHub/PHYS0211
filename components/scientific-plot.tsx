@@ -45,8 +45,11 @@ export type PlotBand = {
   from: number;
   to: number;
   tone?: 'accent' | 'teal' | 'ink' | 'muted';
+  color?: string;
   fadeToward?: 'left' | 'right';
   opacity?: number;
+  /** Opacity at the upper/lower y-domain boundary, constant along x. */
+  verticalGradient?: { topOpacity: number; bottomOpacity: number };
 };
 
 type ScientificPlotProps = {
@@ -63,6 +66,10 @@ type ScientificPlotProps = {
   yTicks?: number[];
   progressX?: number;
   markers?: PlotMarker[];
+  verticalArrows?: { x: number; from: number; to: number; label: string }[];
+  rightAxis?: { label: string; ticks: { value: number; label: string; tone?: PlotMarker['tone'] }[] };
+  /** Stylized detector plate at the right boundary; spread is a normalized transverse position. */
+  detectorScreen?: { impacts: { id: number; value: number; spread: number; tone?: PlotMarker['tone'] }[]; scale?: number };
   xDrag?: { value: number; min: number; max: number; step: number; label: string; onChange: (value: number) => void };
 };
 
@@ -88,6 +95,9 @@ export function ScientificPlot({
   yTicks,
   progressX,
   markers = [],
+  verticalArrows = [],
+  rightAxis,
+  detectorScreen,
   xDrag,
 }: ScientificPlotProps) {
   const clipId = `plot-${useId().replaceAll(':', '')}`;
@@ -110,14 +120,17 @@ export function ScientificPlot({
   const textScale = WIDTH / size.width;
   const tickFont = size.labelFont * .85;
   const HEIGHT = WIDTH * size.height / size.width;
+  const detectorWidth = detectorScreen ? 28 * textScale : 0;
+  const rightAxisOffset = detectorScreen ? 32 * textScale : 0;
   const MARGIN = {
     left: Math.max(72, (size.labelFont * 1.4 + tickFont * 2.6 + 10) * textScale),
-    right: Math.max(24, (horizontalLines.some(line => line.label && line.labelOutside) ? size.labelFont * 2.3 + 18 : 14) * textScale),
+    right: rightAxisOffset + Math.max(24, (rightAxis ? size.labelFont * 3.2 + 18 : horizontalLines.some(line => line.label && line.labelOutside) ? size.labelFont * 2.3 + 18 : 14) * textScale),
     top: Math.max(26, (verticalLines.some(line => line.label && line.labelAbove) ? size.labelFont * 1.3 + 10 : 18) * textScale),
     bottom: Math.max(60, (size.labelFont * 1.4 + tickFont + 20) * textScale),
   };
   const innerWidth = WIDTH - MARGIN.left - MARGIN.right;
   const innerHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
+  const rightAxisX = MARGIN.left + innerWidth + rightAxisOffset;
   const mapX = (x: number) =>
     MARGIN.left +
     ((x - xDomain[0]) / (xDomain[1] - xDomain[0])) * innerWidth;
@@ -207,20 +220,20 @@ export function ScientificPlot({
           <linearGradient
             key={`band-gradient-${index}`}
             id={`${clipId}-band-gradient-${index}`}
-            x1={band.fadeToward === 'left' ? '1' : '0'}
-            x2={band.fadeToward === 'left' ? '0' : '1'}
+            x1={band.verticalGradient ? '0' : band.fadeToward === 'left' ? '1' : '0'}
+            x2={band.verticalGradient ? '0' : band.fadeToward === 'left' ? '0' : '1'}
             y1="0"
-            y2="0"
+            y2={band.verticalGradient ? '1' : '0'}
           >
             <stop
               offset="0%"
-              stopColor={toneColor[band.tone ?? 'ink']}
-              stopOpacity={band.opacity ?? 0.18}
+              stopColor={band.color ?? toneColor[band.tone ?? 'ink']}
+              stopOpacity={band.verticalGradient?.topOpacity ?? band.opacity ?? 0.18}
             />
             <stop
               offset="100%"
-              stopColor={toneColor[band.tone ?? 'ink']}
-              stopOpacity="0.015"
+              stopColor={band.color ?? toneColor[band.tone ?? 'ink']}
+              stopOpacity={band.verticalGradient?.bottomOpacity ?? 0.015}
             />
           </linearGradient>
         ))}
@@ -316,6 +329,38 @@ export function ScientificPlot({
         })}
       </g>
 
+      {verticalArrows.map((arrow, index) => {
+        const x = mapX(arrow.x), from = mapY(arrow.from), to = mapY(arrow.to), head = 6 * textScale;
+        const direction = Math.sign(to - from);
+        return direction !== 0 ? <path key={`annotation-arrow-${index}`} data-plot-annotation="vertical-arrow"
+          d={`M${x},${from} V${to} M${x - head},${to - direction * head} L${x},${to} L${x + head},${to - direction * head}`}
+          fill="none" stroke="var(--foreground)" strokeWidth={1.8 * textScale} strokeLinejoin="round" strokeLinecap="round" /> : null;
+      })}
+      {detectorScreen ? <g data-plot-detector="screen">
+        <title>{`Écran de détection : ${detectorScreen.impacts.length} impacts`}</title>
+        {/* The screen crosses y=L+D at its centre. Apply the same oblique
+            projection to the surface and its impacts, keeping channel heights
+            unchanged on the central meridian. */}
+        <g transform={`translate(${MARGIN.left + innerWidth} ${MARGIN.top})`}>
+          <g data-detector-surface="true" transform="matrix(1 0.45 0 1 0 0)">
+            <defs>
+              <clipPath id={`${clipId}-detector`}><rect x={-detectorWidth / 2} y="0" width={detectorWidth} height={innerHeight} /></clipPath>
+              <linearGradient id={`${clipId}-screen-face`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#f3f6f9" /><stop offset="1" stopColor="#d8e3ec" /></linearGradient>
+            </defs>
+            <path d={`M${-detectorWidth / 2},0 l${3 * textScale},${-2 * textScale} h${detectorWidth} v${innerHeight} l${-3 * textScale},${2 * textScale} Z`} fill="#9aafc1" stroke="#687e93" strokeWidth={textScale} />
+            <rect data-detector-face="true" x={-detectorWidth / 2} y="0" width={detectorWidth} height={innerHeight} fill={`url(#${clipId}-screen-face)`} stroke="#687e93" strokeWidth={1.2 * textScale} />
+            <g clipPath={`url(#${clipId}-detector)`}>
+              {detectorScreen.impacts.map(impact => <circle key={impact.id} data-detector-impact="true"
+                cx={(impact.spread - .5) * detectorWidth}
+                cy={mapY(impact.value) - MARGIN.top} r={1.6 * (detectorScreen.scale ?? 1) * textScale} fill={toneColor[impact.tone ?? 'ink']} opacity=".6" />)}
+            </g>
+          </g>
+        </g>
+      </g> : null}
+      {rightAxis ? <g data-plot-axis="right" stroke="var(--foreground)" strokeWidth="1">
+        <line x1={rightAxisX} x2={rightAxisX} y1={MARGIN.top} y2={MARGIN.top + innerHeight} />
+        {rightAxis.ticks.map((tick, index) => <line key={index} x1={rightAxisX} x2={rightAxisX + 6 * textScale} y1={mapY(tick.value)} y2={mapY(tick.value)} stroke={toneColor[tick.tone ?? 'ink']} />)}
+      </g> : null}
       <g className="axis-layer" aria-hidden="true" style={{ '--plot-tick-scale': textScale } as React.CSSProperties}>
         <line
           x1={MARGIN.left}
@@ -405,6 +450,12 @@ export function ScientificPlot({
       </svg>
 
       <div className="plot-guide-labels" aria-hidden="true">
+        {verticalArrows.map((arrow, index) => <div key={`arrow-label-${index}`} className="plot-arrow-label"
+          style={{ left: `${mapX(arrow.x) / WIDTH * 100}%`, top: `${(mapY(Math.max(arrow.from, arrow.to)) - 9 * textScale) / HEIGHT * 100}%` }}><Formula>{arrow.label}</Formula></div>)}
+        {rightAxis ? <>
+          <div className="plot-right-title" style={{ left: `${(rightAxisX + 12 * textScale) / WIDTH * 100}%`, top: `${MARGIN.top / HEIGHT * 100}%` }}><Formula>{rightAxis.label}</Formula></div>
+          {rightAxis.ticks.map((tick, index) => <div key={`right-tick-${index}`} className="plot-right-tick" style={{ left: `${(rightAxisX + 10 * textScale) / WIDTH * 100}%`, top: `${mapY(tick.value) / HEIGHT * 100}%`, color: toneColor[tick.tone ?? 'ink'] }}><Formula>{tick.label.replaceAll('\\frac', '\\dfrac')}</Formula></div>)}
+        </> : null}
         {verticalLines.map((line, index) => {
           if (!line.label) return null;
           const guideX = mapX(line.value);

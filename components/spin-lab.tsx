@@ -9,7 +9,8 @@ import { QuantumParameter } from '@/components/quantum-parameter';
 import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
 import { type ExperimentCommand } from '@/components/lab-types';
-import { SPIN_PRESETS, SPIN_TIME_MAX, blochVector, evolveSpin, fieldVector, probabilityPlus, type Complex, type SpinAxis, type SpinField } from '@/lib/spin';
+import { SPIN_PRESETS, SPIN_TIME_MAX, blochVector, evolveSpin, fieldVector, probabilityPlus, type Complex, type SpinAxis, type SpinField, type Vector3 } from '@/lib/spin';
+import { spinAngles } from '@/lib/bloch-interaction';
 
 const axes: SpinAxis[] = ['x', 'y', 'z'];
 const fields: { id: SpinField; formula: string }[] = [
@@ -23,7 +24,7 @@ function complexLabel({ re, im }: Complex) {
 
 export function SpinLab({ active, command }: { active: boolean; command: ExperimentCommand | null }) {
   const [theta, setTheta] = useState(90), [phi, setPhi] = useState(0);
-  const [field, setField] = useState<SpinField>('z'), [measure, setMeasure] = useState<SpinAxis>('x');
+  const [field, setField] = useState<SpinField | Vector3>('z'), [measure, setMeasure] = useState<SpinAxis>('x');
   const [omega, setOmega] = useState(1), [time, setTime] = useState(0), [playing, setPlaying] = useState(false);
   const [scale, setScale] = useState(1);
   const clock = useLabPlayback({ active, enabled: true, time, setTime, playing, setPlaying, defaultFinalTime: SPIN_TIME_MAX, rate: SPIN_TIME_MAX / 16, command: command?.lab === 'spin' ? command : null });
@@ -51,6 +52,8 @@ export function SpinLab({ active, command }: { active: boolean; command: Experim
     return [plus, plus.map(p => ({ x: p.x, y: 1 - p.y }))];
   }, [initialTheta, initialPhi, field, omega, measure, clock.finalTime]);
   const reset = () => { setTime(0); setPlaying(false); };
+  const prepareVector = (value: Vector3) => { const angles = spinAngles(value); setTheta(angles.theta); setPhi(angles.phi); reset(); };
+  const orientField = (value: Vector3) => { setField(value); reset(); };
 
   return <section className="workspace spin-workspace" aria-labelledby="spin-title">
     <aside className="control-panel">
@@ -63,17 +66,26 @@ export function SpinLab({ active, command }: { active: boolean; command: Experim
         })}</div></div>
         <QuantumParameter id="spin-theta" label="Angle polaire initial" symbol={String.raw`$\theta_0\;(^{\circ})$`} value={theta} min={0} max={180} onChange={v => { setTheta(v); reset(); }} />
         <QuantumParameter id="spin-phi" label="Azimut initial" symbol={String.raw`$\varphi_0\;(^{\circ})$`} value={phi} min={0} max={360} onChange={v => { setPhi(v); reset(); }} />
-        <div className="control-block"><p className="control-caption">Axe du champ <Formula>{String.raw`$\boldsymbol b$`}</Formula></p><div className="spin-fields" role="group" aria-label="Axe du champ">{fields.map(f => <Button key={f.id} variant="outline" className={field === f.id ? 'is-selected' : ''} aria-pressed={field === f.id} onClick={() => { setField(f.id); reset(); }}><Formula>{f.formula}</Formula></Button>)}</div></div>
+        <div className="control-block">
+          <p className="control-caption">Axe du champ <Formula className="spin-vector-formula">{String.raw`$\mathbf{B}$`}</Formula></p>
+          <div className="spin-fields" role="group" aria-label="Axe du champ">{fields.map(f => <Button key={f.id} variant="outline" className={field === f.id ? 'is-selected' : ''} aria-pressed={field === f.id} onClick={() => { setField(f.id); reset(); }}><Formula>{f.formula}</Formula></Button>)}</div>
+          {Array.isArray(field) ? <p className="scale-note">Direction personnalisée : ({b.map(fixed).join(', ')}).</p> : null}
+        </div>
         <QuantumParameter id="spin-omega" label="Fréquence relative" symbol={String.raw`$\Omega/\Omega_0$`} value={omega} min={.25} max={3} step={.05} onChange={v => { setOmega(v); reset(); }} />
       </div>
-      <div className="equation-card"><span>Hamiltonien</span><Formula display>{String.raw`$H=\frac{\hbar\Omega}{2}\,\boldsymbol b\cdot\boldsymbol\sigma$`}</Formula><p className="scale-note">Le signe de la précession est fixé par ce Hamiltonien ; <Formula>{String.raw`$|\boldsymbol b|=1$`}</Formula>.</p></div>
+      <div className="equation-card spin-hamiltonian">
+        <span>Hamiltonien</span>
+        <Formula display className="spin-vector-formula">{String.raw`$H=-\gamma\,\mathbf{B}\cdot\mathbf{S}$`}</Formula>
+        <p className="scale-note"><Formula>{String.raw`$\gamma$`}</Formula> : rapport gyromagnétique ; <Formula className="spin-vector-formula">{String.raw`$B=|\mathbf{B}|$`}</Formula>.</p>
+        <p className="scale-note">Ici, <Formula>{String.raw`$\gamma<0$`}</Formula> et <Formula>{String.raw`$\Omega=-\gamma B>0$`}</Formula>.</p>
+      </div>
       <dl className="measurements spin-measurements">{axes.map((axis, i) => <div key={axis}><dt><Formula>{String.raw`$\langle S_${axis}\rangle/\hbar$`}</Formula></dt><dd>{fixed(vector[i] / 2)}</dd></div>)}</dl>
       <p className="scale-note">Chaque composante mesurée vaut <Formula>{String.raw`$+\hbar/2$`}</Formula> ou <Formula>{String.raw`$-\hbar/2$`}</Formula>. Sa valeur moyenne peut être intermédiaire.</p>
     </aside>
 
     <div className="figure-panel">
-      <div className="figure-heading"><div><p className="eyebrow">Sphère de Bloch</p><h2><Formula>{String.raw`$\boldsymbol r(t)=\langle\boldsymbol\sigma\rangle$`}</Formula></h2></div><div className="plot-legend"><span><i className="legend-swatch spin-swatch" />état du spin</span><span><i className="legend-swatch dashed" />axe du champ</span></div></div>
-      <div className="spin-visual"><BlochSphere vector={vector} field={field} orbit={orbit} /><div className="spin-state-card"><span>Spineur à cet instant</span><Formula display>{String.raw`$|\psi(t)\rangle=\begin{pmatrix}${complexLabel(spinor[0])}\\${complexLabel(spinor[1])}\end{pmatrix}$`}</Formula><p>Base <Formula>{String.raw`$\{|+z\rangle,|-z\rangle\}$`}</Formula></p><p className="scale-note">Le cercle indique la précession possible. La sphère représente l’état quantique, pas la position d’une particule.</p></div></div>
+      <div className="figure-heading"><div><p className="eyebrow">Sphère de Bloch</p><h2><Formula>{String.raw`$\boldsymbol r(t)=\langle\boldsymbol\sigma\rangle$`}</Formula></h2></div><div className="plot-legend"><span><i className="legend-swatch spin-swatch" />état du spin</span><span><i className="legend-swatch spin-field-swatch" />champ magnétique</span></div></div>
+      <div className="spin-visual"><BlochSphere vector={vector} field={field} orbit={orbit} onVectorChange={prepareVector} onFieldChange={orientField} /><div className="spin-state-card"><span>Spineur à cet instant</span><Formula display>{String.raw`$|\psi(t)\rangle=\begin{pmatrix}${complexLabel(spinor[0])}\\${complexLabel(spinor[1])}\end{pmatrix}$`}</Formula><p>Base <Formula>{String.raw`$\{|+z\rangle,|-z\rangle\}$`}</Formula></p><p className="scale-note">Le cercle indique la précession possible. La sphère représente l’état quantique, pas la position d’une particule.</p></div></div>
       <PlaybackControls id="spin" clock={clock} scale={scale} onScaleChange={setScale} timeUnit={2 * Math.PI}
         timeSymbol="$t/T_0$" finalSymbol="$t_f/T_0$" scaleDescription="Le facteur s multiplie seulement les courbes de probabilité ; les pourcentages et la sphère de Bloch restent inchangés."
         note={<><Formula>{String.raw`$T_0=2\pi/\Omega_0$`}</Formula> ; période de précession <Formula>{String.raw`$T/T_0=${fixed(1 / omega)}$`}</Formula>. La vitesse de lecture est indépendante du champ et de la durée choisie.</>} />
@@ -91,7 +103,7 @@ export function SpinLab({ active, command }: { active: boolean; command: Experim
         <div><span>Spin et matrices de Pauli</span><Formula display>{String.raw`$\begin{aligned}\boldsymbol S&=\frac{\hbar}{2}\boldsymbol\sigma,\\S^2&=\frac34\hbar^2\mathbb I.\end{aligned}$`}</Formula></div>
         <div><span>Probabilités de mesure</span><Formula display>{String.raw`$\begin{aligned}P_\pm^{(j)}&=\frac{1\pm r_j}{2},\\\langle S_j\rangle&=\frac{\hbar}{2}r_j.\end{aligned}$`}</Formula></div>
         <div><span>Évolution unitaire exacte</span><Formula display>{String.raw`$\begin{aligned}|\psi(t)\rangle&=U(t)\,|\psi(0)\rangle,\\U(t)&=\cos(\Omega t/2)\,\mathbb I-i\sin(\Omega t/2)\,\boldsymbol b\cdot\boldsymbol\sigma,\\\dot{\boldsymbol r}&=\Omega\,\boldsymbol b\times\boldsymbol r.\end{aligned}$`}</Formula></div>
-      </div><p>Un état pur vérifie <Formula>{String.raw`$|\boldsymbol r|=1$`}</Formula>. La phase globale est conservée dans le spineur affiché.</p></details>
+      </div><p>La direction du champ est <Formula className="spin-vector-formula">{String.raw`$\mathbf{b}=\mathbf{B}/B$`}</Formula>. Un état pur vérifie <Formula>{String.raw`$|\boldsymbol r|=1$`}</Formula>. La phase globale est conservée dans le spineur affiché.</p></details>
     </div>
   </section>;
 }

@@ -134,7 +134,14 @@ export function FourierLab({ active, command }: { active: boolean; command: Expe
           <Formula display>{String.raw`$N_p=\left(\frac{2\sigma_0^2}{\pi\hbar^2}\right)^{1/4}$`}</Formula>
         </div>
         </>}
-        <p className="scale-note">Grandeurs sans dimension : <Formula>{String.raw`$x/\ell$`}</Formula>, <Formula>{String.raw`$p\ell/\hbar$`}</Formula>, <Formula>{harmonic ? String.raw`$b/\ell$` : String.raw`$\sigma_0/\ell$`}</Formula> (<Formula>{String.raw`$\ell=1\,\mathrm{nm}$`}</Formula> fixe). Électron (<Formula>$m=m_e$</Formula>), temps en <Formula>{String.raw`$\mathrm{fs}$`}</Formula>.</p>
+        <p className="scale-note">Grandeurs sans dimension :<br />
+          <Formula>{String.raw`$x/\ell$`}</Formula>, <Formula>{String.raw`$p\ell/\hbar$`}</Formula>, <Formula>{harmonic ? String.raw`$b/\ell$` : String.raw`$\sigma_0/\ell$`}</Formula>.
+        </p>
+        <ul className="scale-note fourier-unit-list">
+          <li><Formula>{String.raw`$\ell=1\,\mathrm{nm}$`}</Formula></li>
+          <li><Formula>{String.raw`$m=m_e\simeq9.109\times10^{-31}\,\mathrm{kg}$`}</Formula></li>
+          <li><Formula>$t$</Formula> en <Formula>{String.raw`$\mathrm{fs}$`}</Formula></li>
+        </ul>
       </div>
       <details className="theory-notes fourier-phase"><summary>Translations</summary><div className="control-stack">
         <QuantumParameter id="fourier-center" label={'Position moyenne'} symbol={String.raw`$x_0/\ell$`} value={config.center} min={-FOURIER_CENTER_LIMIT} max={FOURIER_CENTER_LIMIT} step={.1} onChange={center => change({ center })} />

@@ -12,8 +12,8 @@ export const SG_CASCADE_DEFAULTS: SGCascadeConfig = { beam: 'mixed', angles: [0,
 export const SG_CASCADE_INTERVAL = .08;
 export const SG_CASCADE_ARRIVAL = 3.3;
 export const SG_CASCADE_PRESETS = [
-  { label: 'z → x → z', angles: [0, 90, 0], filters: ['plus', 'plus'], middle: true },
-  { label: 'z → z → z', angles: [0, 0, 0], filters: ['plus', 'plus'], middle: true },
+  { label: 'z → x → z', formula: String.raw`$z\to x\to z$`, angles: [0, 90, 0], filters: ['plus', 'plus'], middle: true },
+  { label: 'z → z → z', formula: String.raw`$z\to z\to z$`, angles: [0, 0, 0], filters: ['plus', 'plus'], middle: true },
   { label: 'Sans l’analyseur B', angles: [0, 90, 0], filters: ['plus', 'plus'], middle: false },
   { label: 'Deux sorties de B', angles: [0, 90, 0], filters: ['plus', 'both'], middle: true },
 ] as const;

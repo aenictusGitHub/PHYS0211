@@ -33,7 +33,7 @@ export type ExperimentCommand = {
   magnetic?: number;
   inertia?: number;
   basis?: 'complex' | 'real';
-  atomicView?: 'slice' | 'radial';
+  atomicView?: 'slice' | 'radial' | 'cloud';
   plane?: 'xz' | 'xy' | 'yz' | 'oblique';
   spinTheta?: number;
   spinPhi?: number;

@@ -20,7 +20,7 @@ const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
 function harness(file, exported, lab, initialProps = {}) {
   const cache = new Map(), slots = [], callbacks = new Map(), timers = new Map(), workers = [];
   let cursor = 0, effects = [], dirty = false, nextId = 0, now = 0, props = { active: true, command: null, ...initialProps };
-  let buttons = [], sliders = [], fields = [], plots = [], settings = [], elements = [], switches = [], surfaces = [], html = '';
+  let buttons = [], sliders = [], fields = [], plots = [], settings = [], elements = [], switches = [], surfaces = [], blochs = [], html = '';
   const hooks = {
     ...React,
     useState(initial) {
@@ -68,13 +68,14 @@ function harness(file, exported, lab, initialProps = {}) {
     '@/components/stern-gerlach-lab': { SternGerlachLab: props => React.createElement('div', { 'data-single-active': props.active, 'data-single-command': props.command?.id }) },
     '@/components/stern-gerlach-cascade-lab': { SternGerlachCascadeLab: props => React.createElement('div', { 'data-cascade-active': props.active, 'data-cascade-command': props.command?.id }) },
     '@/components/angular-surface': { AngularSurface(props) { surfaces.push(props); return null; }, PhaseLegend: () => null },
-    '@/components/bloch-sphere': { BlochSphere: () => null },
+    '@/components/bloch-sphere': { BlochSphere(props) { blochs.push(props); return null; } },
     '@/components/hydrogen-slice': { HydrogenSlice: () => null },
+    '@/components/hydrogen-cloud': { HydrogenCloud: props => React.createElement('div', { 'data-hydrogen-cloud': true, 'data-cloud-terms': props.terms.length, 'data-cloud-phase': props.phase }) },
   };
   function load(path) {
     if (cache.has(path)) return cache.get(path).exports;
     const mod = { exports: {} }; cache.set(path, mod);
-    const useHooks = /(?:lab|stern-gerlach-experiment|use-lab-playback|atomic-clock|coherent-state-editor|angular-surface|scientific-plot)\.tsx?$/.test(path);
+    const useHooks = path === resolve(root, file) || /(?:lab|stern-gerlach-experiment|use-lab-playback|atomic-clock|coherent-state-editor|angular-surface|scientific-plot)\.tsx?$/.test(path);
     new Function('exports', 'require', 'module', compile(readFileSync(path, 'utf8')))(mod.exports, name => {
       if (name === 'react' && useHooks) return hooks;
       if (name in mocks) return mocks[name];
@@ -95,7 +96,7 @@ function harness(file, exported, lab, initialProps = {}) {
     globalThis.window = { requestAnimationFrame(fn) { callbacks.set(++nextId, fn); return nextId; }, cancelAnimationFrame(id) { callbacks.delete(id); },
       setTimeout(fn) { timers.set(++nextId, fn); return nextId; }, clearTimeout(id) { timers.delete(id); } };
     for (let attempt = 0; attempt < 12; attempt++) {
-      dirty = false; cursor = 0; effects = []; buttons = []; sliders = []; fields = []; plots = []; settings = []; elements = []; switches = []; surfaces = [];
+      dirty = false; cursor = 0; effects = []; buttons = []; sliders = []; fields = []; plots = []; settings = []; elements = []; switches = []; surfaces = []; blochs = [];
       const element = Component(props);
       const visit = value => { if (Array.isArray(value)) value.forEach(visit); else if (React.isValidElement(value)) { if (typeof value.type === 'string') elements.push(value); visit(value.props.children); } };
       visit(element);
@@ -107,7 +108,7 @@ function harness(file, exported, lab, initialProps = {}) {
   }
   render();
   return {
-    render, html: () => html, plots: () => plots, fields: () => fields, elements: () => elements, surfaces: () => surfaces,
+    render, html: () => html, plots: () => plots, fields: () => fields, elements: () => elements, surfaces: () => surfaces, blochs: () => blochs,
     step(id, direction) { const button = buttons.find(b => b['aria-describedby'] === `${id}-label` && b['aria-label'] === (direction > 0 ? 'Augmenter' : 'Diminuer')); assert.ok(button && !button.disabled); button.onClick(); render(); },
     toggle(id, enabled) { const control = switches.find(s => s.id === id); assert.ok(control, `Missing ${id}`); control.onCheckedChange(enabled); render(); },
     setProps(patch) { props = { ...props, ...patch }; render(); },
@@ -144,11 +145,36 @@ const labs = [
   ['components/hydrogen-lab.tsx', 'HydrogenLab', 'hydrogen', 2 * Math.PI],
   ['components/spin-lab.tsx', 'SpinLab', 'spin', 2 * Math.PI],
 ];
+const spinDrag = harness('components/spin-lab.tsx', 'SpinLab', 'spin');
+assert.ok(spinDrag.html().includes(String.raw`H=-\gamma\,\mathbf{B}\cdot\mathbf{S}`), 'Hamiltonian uses the gyromagnetic ratio and bold physical vectors');
+assert.ok(spinDrag.html().includes(String.raw`\Omega=-\gamma B&gt;0`), 'Signed gyromagnetic convention agrees with the simulated positive precession');
+spinDrag.command({ time: 2 });
+spinDrag.click('Animer');
+assert.equal(spinDrag.clock().playing, true);
+spinDrag.blochs()[0].onVectorChange([0, -1, 0]);
+spinDrag.render();
+spinDrag.blochs()[0].vector.forEach((value, i) => near(value, [0, -1, 0][i]));
+near(spinDrag.clock().time, 0);
+assert.equal(spinDrag.clock().playing, false);
+spinDrag.command({ time: 1 });
+spinDrag.blochs()[0].onFieldChange([.6, 0, -.8]);
+spinDrag.render();
+assert.deepEqual(spinDrag.blochs()[0].field, [.6, 0, -.8]);
+near(spinDrag.clock().time, 0);
+assert.match(spinDrag.html(), /Direction personnalisée/);
+spinDrag.blochs()[0].vector.forEach((value, i) => near(value, [0, -1, 0][i]));
+spinDrag.dispose();
+
 const fourier = harness('components/fourier-lab.tsx', 'FourierLab', 'fourier');
 assert.match(fourier.html(), /Fonctions d’ondes en/);
 assert.doesNotMatch(fourier.html(), /Unités réduites|sans phase quadratique|katex-error/);
 assert.match(fourier.html(), /Grandeurs sans dimension/);
-assert.match(fourier.html(), /Électron/);
+assert.match(fourier.html(), /Grandeurs sans dimension :<br\s*\/>/);
+const unitList = fourier.html().match(/<ul class="scale-note fourier-unit-list">([\s\S]*?)<\/ul>/)?.[1];
+assert.ok(unitList);
+assert.equal((unitList.match(/<li>/g) ?? []).length, 3);
+assert.doesNotMatch(unitList, /fixe|Électron|Temps/);
+assert.match(fourier.html(), /m=m_e\\simeq9\.109\\times10\^\{-31\}/);
 assert.ok(fourier.html().includes(String.raw`\hbar^2`));
 assert.equal(fourier.plots()[0].xLabel, String.raw`$x/\ell$`);
 assert.equal(fourier.plots()[1].xLabel, String.raw`$p\ell/\hbar$`);
@@ -422,6 +448,39 @@ hit().onKeyDown({ key: 'Home', preventDefault() {} }); near(translated, -8);
 hit().onKeyDown({ key: 'End', preventDefault() {} }); near(translated, 8);
 interactive.setProps({ xDrag: undefined });
 assert.equal(interactive.elements().some(el => el.props.role === 'slider'), false, 'Other laboratories stay noninteractive');
+interactive.setProps({ bands: [{ from: -2, to: 2, color: '#8654bd', verticalGradient: { topOpacity: .4, bottomOpacity: .08 } }] });
+const bandGradient = () => interactive.elements().find(el => el.type === 'linearGradient' && el.props.id.endsWith('-band-gradient-0'));
+assert.equal(bandGradient().props.x1, '0');
+assert.equal(bandGradient().props.x2, '0');
+assert.equal(bandGradient().props.y1, '0');
+assert.equal(bandGradient().props.y2, '1');
+assert.deepEqual(bandGradient().props.children.map(el => el.props.stopOpacity), [.4, .08]);
+assert.ok(bandGradient().props.children.every(el => el.props.stopColor === '#8654bd'), 'Custom band color is applied to both stops');
+interactive.setProps({ bands: [{ from: -2, to: 2, fadeToward: 'left' }] });
+assert.equal(bandGradient().props.x1, '1');
+assert.equal(bandGradient().props.x2, '0');
+assert.equal(bandGradient().props.y2, '0');
+interactive.setProps({ rightAxis: { label: '$J_z/\\hbar$', ticks: [{ value: .25, label: '$-\\frac{1}{2}$' }, { value: .75, label: '$\\frac{1}{2}$' }] }, verticalArrows: [{ x: 0, from: .2, to: .8, label: '$\\nabla B_n$' }] });
+assert.ok(interactive.elements().some(el => el.props['data-plot-axis'] === 'right'));
+assert.equal(interactive.elements().filter(el => el.props.className === 'plot-right-tick').length, 2);
+assert.ok(interactive.elements().some(el => el.props['data-plot-annotation'] === 'vertical-arrow'));
+assert.ok(interactive.html().includes(String.raw`\dfrac{1}{2}`), 'Channel fractions remain readable');
+interactive.setProps({ verticalArrows: [{ x: 0, from: .5, to: .5, label: '$G=0$' }] });
+assert.ok(!interactive.elements().some(el => el.props['data-plot-annotation'] === 'vertical-arrow'), 'No directional arrow for a zero gradient');
+assert.ok(!interactive.elements().some(el => el.props['data-plot-detector'] === 'screen'), 'Detector is opt-in');
+interactive.setProps({ detectorScreen: { impacts: [{ id: 0, value: .25, spread: .5, tone: 'teal' }] } });
+assert.ok(interactive.elements().some(el => el.props['data-plot-detector'] === 'screen'));
+assert.equal(interactive.elements().filter(el => el.props['data-detector-impact']).length, 1);
+const detectorAxis = interactive.elements().find(el => el.props['data-plot-axis'] === 'right');
+const detectorPlate = interactive.elements().find(el => el.props['data-plot-detector'] === 'screen');
+const detectorFace = interactive.elements().find(el => el.props['data-detector-face']);
+const detectorSurface = interactive.elements().find(el => el.props['data-detector-surface']);
+assert.equal(detectorSurface.props.transform, 'matrix(1 0.45 0 1 0 0)', 'Face and impacts share the same oblique projection');
+assert.equal(detectorFace.props.x, -detectorFace.props.width / 2, 'Detector is centred on the physical detection plane');
+const detectorTranslation = detectorPlate.props.children.find(el => el?.type === 'g').props.transform;
+const detectorCenter = Number(detectorTranslation.match(/translate\(([^ ]+)/)[1]);
+assert.ok(detectorAxis.props.children[0].props.x1 > detectorCenter + detectorFace.props.width / 2, 'Projection axis stays clear of the detector plate');
+assert.equal(interactive.elements().find(el => el.props['data-detector-impact']).props.cx, 0, 'Central impacts retain the channel heights under projection');
 interactive.dispose();
 console.log('Plot dragging: pointer capture, no initial jump, coordinate mapping, rerender continuity, bounds, cancellation, keyboard and opt-in behavior pass.');
 for (const [file, component, lab, unit] of labs) {
@@ -639,7 +698,45 @@ double.slider('double-well-relative-phase', -90);
 assert.match(double.html(), /-90/);
 double.dispose();
 
+const cloudView = harness('components/hydrogen-cloud.tsx', 'HydrogenCloud', 'hydrogen-cloud', { terms: [{ n: 2, l: 1, m: 0, basis: 'real' }], phase: 0, phaseColors: false, pointSize: 1.2 });
+const cloudCanvas = () => cloudView.elements().find(el => el.type === 'canvas').props;
+const cloudCount = cloudCanvas()['data-cloud-points'];
+assert.equal(cloudCount, 20000);
+let cloudCapture = null;
+const cloudTarget = { setPointerCapture(id) { cloudCapture = id; }, releasePointerCapture() { cloudCapture = null; }, focus() {} };
+cloudCanvas().onPointerDown({ button: 0, pointerId: 1, clientX: 0, clientY: 0, currentTarget: cloudTarget });
+assert.equal(cloudCapture, 1);
+cloudCanvas().onPointerMove({ pointerId: 1, clientX: 40, clientY: 20 }); cloudView.render();
+near(cloudCanvas()['data-yaw'], .65 + .36);
+near(cloudCanvas()['data-pitch'], .35 + .18);
+assert.equal(cloudCanvas()['data-cloud-points'], cloudCount, 'Rotation never resamples the cloud');
+cloudCanvas().onPointerUp({ pointerId: 1, currentTarget: cloudTarget }); assert.equal(cloudCapture, null);
+cloudCanvas().onKeyDown({ key: 'ArrowLeft', preventDefault() {} }); cloudView.render();
+near(cloudCanvas()['data-yaw'], .65 + .24);
+cloudCanvas().onLostPointerCapture();
+cloudCanvas().onPointerMove({ pointerId: 1, clientX: 80, clientY: 30 }); cloudView.render();
+near(cloudCanvas()['data-yaw'], .65 + .24);
+cloudView.setProps({ pointSize: 2 }); assert.equal(cloudCanvas()['data-cloud-points'], cloudCount);
+cloudView.setProps({ pointCount: 5000 }); assert.equal(cloudCanvas()['data-cloud-points'], 5000);
+near(cloudCanvas()['data-yaw'], .65 + .24, 'Point count preserves the camera');
+cloudView.click('Réinitialiser la vue du nuage'); near(cloudCanvas()['data-yaw'], .65);
+cloudView.setProps({ active: false }); assert.equal(cloudCanvas()['data-cloud-points'], 0, 'Hidden cloud does no sampling work');
+cloudView.dispose();
+console.log('Hydrogen cloud controls: drag, capture/release, keyboard, reset, stable samples, point size and inactive state pass.');
 const circularHydrogen = harness('components/hydrogen-lab.tsx', 'HydrogenLab', 'hydrogen');
+circularHydrogen.click('Nuage de points 3D');
+assert.match(circularHydrogen.html(), /data-hydrogen-cloud="true"/);
+assert.ok(circularHydrogen.fields().some(f => f.id === 'hydrogen-point-size'));
+assert.equal(circularHydrogen.fields().find(f => f.id === 'hydrogen-point-count')['aria-valuenow'], 20000);
+assert.equal(circularHydrogen.fields().find(f => f.id === 'hydrogen-point-size')['aria-valuenow'], .5);
+circularHydrogen.enter('hydrogen-point-count', 5000);
+assert.equal(circularHydrogen.fields().find(f => f.id === 'hydrogen-point-count')['aria-valuenow'], 5000);
+circularHydrogen.enter('hydrogen-point-count', 99999);
+assert.equal(circularHydrogen.fields().find(f => f.id === 'hydrogen-point-count')['aria-valuenow'], 30000);
+circularHydrogen.enter('hydrogen-point-count', 0);
+assert.equal(circularHydrogen.fields().find(f => f.id === 'hydrogen-point-count')['aria-valuenow'], 1000);
+circularHydrogen.click('Coupe spatiale');
+assert.doesNotMatch(circularHydrogen.html(), /data-hydrogen-cloud="true"/);
 circularHydrogen.click('Évolution');
 circularHydrogen.click('Rydberg circulaires · 20 + 21');
 circularHydrogen.click('Partie radiale');
@@ -721,17 +818,59 @@ assert.doesNotMatch(scattering.html(), />Paquet libre<|>Carré<|>Gaussien<|>Effe
 scattering.dispose();
 const sg = harness('components/stern-gerlach-lab.tsx', 'SternGerlachLab', 'stern-gerlach');
 assert.match(sg.html(), /Stern–Gerlach/);
+assert.doesNotMatch(sg.html(), /class="sg-stages"/);
+assert.match(sg.html(), /four et le collimateur \(non représentés\)/);
+assert.match(sg.html(), /<ul class="sg-apparatus-legend" aria-label="Légende du schéma">/);
+assert.equal((sg.html().match(/<ul class="sg-apparatus-legend"[\s\S]*?<\/ul>/)[0].match(/<li>/g) ?? []).length, 3, 'Three distinct legend groups');
+assert.ok(sg.html().includes(String.raw`0\le y\le L`), 'Magnet legend matches the shaded interval');
+assert.ok(sg.plots()[0].verticalLines.every(line => !line.label?.includes(String.raw`\text{Écran}`)), 'No redundant screen heading');
+assert.deepEqual(sg.plots()[0].detectorScreen.impacts, [], 'No artificial impacts before detection');
 assert.equal(sg.clock().time, 0); assert.equal(sg.clock().finalTime, 8);
 assert.equal(sg.plots().length, 2);
+assert.equal(sg.plots()[0].rightAxis.label, String.raw`$J_z/\hbar$`);
+assert.deepEqual(sg.plots()[0].rightAxis.ticks.map(t => t.label), [String.raw`$-\frac{1}{2}$`, String.raw`$\frac{1}{2}$`]);
+const positiveChannelPositions = sg.plots()[0].rightAxis.ticks.map(t => t.value);
+const legendTones = () => sg.elements().filter(el => el.props['data-channel-tone']).map(el => el.props['data-channel-tone']);
+assert.deepEqual(legendTones(), ['teal', 'accent']);
+assert.ok(positiveChannelPositions[0] > positiveChannelPositions[1], 'Positive gradient: negative spin is the upper channel');
+assert.ok(sg.plots()[0].verticalArrows[0].to > sg.plots()[0].verticalArrows[0].from);
+const positiveFieldShade = { ...sg.plots()[0].bands[0].verticalGradient };
+assert.ok(positiveFieldShade.topOpacity > positiveFieldShade.bottomOpacity, 'Positive gradient: B_n increases upward, not along the beam');
+assert.ok(positiveFieldShade.topOpacity - positiveFieldShade.bottomOpacity > .6, 'Default gradient is clearly visible');
+assert.equal(sg.plots()[0].bands[0].color, '#8195aa');
+assert.doesNotMatch(sg.html(), /zone violette/);
 assert.ok(sg.plots()[0].markers.every(atom => atom.verticalArrow === undefined), 'No channel projection assigned to the incident mixed beam');
 sg.click('Animer'); sg.tick(); sg.tick(); assert.ok(sg.clock().time > 0);
 sg.enter('sg-playback-speed', 2); sg.enter('sg-scale', 3);
 assert.equal(sg.clock().playing, true, 'Display settings do not reset the experiment');
 sg.slider('sg-gradient', 0); assert.equal(sg.clock().time, 0); assert.equal(sg.clock().playing, false);
+assert.equal(sg.plots()[0].rightAxis, undefined, 'No misleading separate spin ticks for coincident channels');
+assert.equal(sg.plots()[0].verticalArrows[0].to, sg.plots()[0].verticalArrows[0].from);
+assert.equal(sg.plots()[0].verticalArrows[0].label, '$G=0$');
+assert.equal(sg.plots()[0].bands[0].verticalGradient.topOpacity, sg.plots()[0].bands[0].verticalGradient.bottomOpacity, 'Uniform shading at zero gradient');
 assert.match(sg.html(), /Sans gradient, aucune séparation/);
 sg.command({ sgGradient: 0, time: 2 });
 assert.ok(sg.plots()[0].markers.every(atom => atom.verticalArrow === undefined), 'No channel spin arrows without a measuring gradient');
 sg.command({ sgJ: .5, sgGradient: 500, sgBeam: 'z-plus', sgAngle: 0, time: 2 });
+assert.ok(sg.plots()[0].detectorScreen.impacts.length > 0, 'Detected atoms accumulate on the apparatus screen');
+assert.ok(sg.plots()[0].detectorScreen.impacts.every(hit => hit.tone === 'accent' && Number.isFinite(hit.value) && Number.isFinite(hit.spread)));
+const verifyScreenConsistency = angleDegrees => {
+  const apparatus = sg.plots()[0], impacts = apparatus.detectorScreen.impacts, range = apparatus.yDomain[1];
+  assert.equal((sg.html().match(/data-screen-impact=/g) ?? []).length, impacts.length, 'Both screens contain the same number of detected atoms');
+  const front = harness('components/stern-gerlach-screen.tsx', 'SternGerlachScreen', 'screen', { points: impacts, range, scale: apparatus.detectorScreen.scale });
+  const circles = front.elements().filter(el => el.props['data-screen-impact'] !== undefined);
+  assert.deepEqual(circles.map(el => el.props['data-screen-impact']), impacts.map(hit => hit.id));
+  circles.forEach((circle, index) => {
+    const hit = impacts[index], angle = angleDegrees * Math.PI / 180;
+    near(circle.props.cx, 150 + 150 * hit.x / range);
+    near(circle.props.cy, 150 - 150 * hit.z / range);
+    assert.equal(circle.props['data-channel-tone'], hit.tone);
+    near(hit.value, hit.x * Math.sin(angle) + hit.z * Math.cos(angle));
+    near(hit.spread, .5 + (hit.x * Math.cos(angle) - hit.z * Math.sin(angle)) / (2 * range));
+  });
+  front.dispose();
+};
+verifyScreenConsistency(0);
 assert.match(sg.html(), /100\.0 %/);
 const outgoing = () => sg.plots()[0].markers.filter(atom => atom.verticalArrow !== undefined);
 assert.ok(outgoing().length > 0);
@@ -741,13 +880,24 @@ const arrowLengths = outgoing().map(atom => atom.verticalArrow);
 sg.enter('sg-scale', 4);
 assert.deepEqual(outgoing().map(atom => atom.verticalArrow), arrowLengths, 'Dot-size control does not change spin glyph scale');
 sg.command({ sgGradient: -500, time: 2 });
+assert.deepEqual(legendTones(), ['accent', 'teal'], 'Legend swatches follow channel order when the gradient is reversed');
+sg.plots()[0].rightAxis.ticks.forEach((tick, i) => near(tick.value, -positiveChannelPositions[i]));
+assert.ok(sg.plots()[0].verticalArrows[0].to < sg.plots()[0].verticalArrows[0].from);
+assert.deepEqual(sg.plots()[0].bands[0].verticalGradient, { topOpacity: positiveFieldShade.bottomOpacity, bottomOpacity: positiveFieldShade.topOpacity }, 'Reversing G reverses the shading');
 assert.ok(outgoing().every(atom => atom.verticalArrow === 14), 'Reversing the gradient reverses force, not the spin projection');
 sg.slider('sg-angle', 90); assert.equal(sg.clock().time, 0); assert.match(sg.html(), /50\.0 %/);
+assert.equal(sg.plots()[0].rightAxis.label, String.raw`$J_x/\hbar$`);
 sg.command({ sgJ: 1.5, sgModel: 'quantum', time: 3, finalTime: 6 });
+assert.equal(sg.plots()[0].rightAxis.ticks.length, 4);
+verifyScreenConsistency(90);
+assert.deepEqual(legendTones(), ['accent', 'accent', 'teal', 'teal'], 'Spin 3/2 has four legend strokes matching the negative-gradient channel order');
 assert.match(sg.html(), /4 canaux possibles/); assert.match(sg.html(), /25\.0 %/);
 assert.ok(outgoing().every(atom => [-42, -14, 14, 42].includes(atom.verticalArrow)));
 sg.command({ sgJ: 0, time: 2 });
+assert.deepEqual(legendTones(), ['ink'], 'Spin zero has a single central channel');
 assert.ok(outgoing().every(atom => atom.verticalArrow === 0), 'Zero angular momentum has no arrow');
+sg.command({ sgJ: 1, sgGradient: 500, time: 2 });
+assert.deepEqual(legendTones(), ['teal', 'ink', 'accent'], 'Spin one has three ordered channels');
 sg.command({ sgJ: 1.5, time: 2 });
 sg.click('Classique'); assert.equal(sg.clock().time, 0); assert.match(sg.html(), /Moments classiques isotropes/);
 assert.ok(sg.plots()[0].markers.every(atom => Number.isFinite(atom.verticalArrow)), 'Classical projections are defined even in the incident beam');
@@ -755,11 +905,13 @@ sg.command({ sgGradient: 1500, sgVelocity: 100, sgLength: 10, sgDistance: 30, sg
 assert.match(sg.html(), /Forte déviation/);
 for (const plot of sg.plots()) for (const curve of plot.series) assert.ok(curve.values.every(p => Number.isFinite(p.x) && Number.isFinite(p.y)));
 sg.click('Nouvelle série'); assert.equal(sg.clock().time, 0); assert.match(sg.html(), /0 atomes détectés/);
+assert.deepEqual(sg.plots()[0].detectorScreen.impacts, [], 'A new series clears the apparatus screen too');
 sg.enter('sg-final-time', 1); assert.equal(sg.clock().finalTime, 1);
 sg.dispose();
 console.log('Stern–Gerlach: preparations, model/axis/geometry changes, zero gradient, high-deflection warning, playback and detector reset pass.');
 const cascade = harness('components/stern-gerlach-cascade-lab.tsx', 'SternGerlachCascadeLab', 'stern-gerlach');
 assert.match(cascade.html(), /Stern–Gerlach en cascade/);
+for (const sequence of [String.raw`z\to x\to z`, String.raw`z\to z\to z`]) assert.ok(cascade.html().includes(`${sequence}</annotation>`), 'Cascade axis presets use mathematical typography');
 assert.match(cascade.html(), /12\.5 %/);
 assert.equal(cascade.clock().finalTime, 12);
 assert.doesNotMatch(cascade.html(), /NaN|Infinity|katex-error/);

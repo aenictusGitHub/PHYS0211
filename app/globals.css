@@ -402,6 +402,10 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .legend-swatch.dashed::before { height: 2px; background: repeating-linear-gradient(90deg, var(--teal) 0 4px, transparent 4px 7px); }
 
 .scientific-plot { width: 100%; overflow: visible; }
+.plot-arrow-label, .plot-right-title, .plot-right-tick { position: absolute; white-space: nowrap; color: var(--foreground); font-size: var(--text-small); }
+.plot-arrow-label { transform: translate(-50%, -100%); }
+.plot-right-title { transform: translateY(calc(-100% - 10px)); }
+.plot-right-tick { transform: translateY(-50%); }
 .scientific-plot .series-line { fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
 .scientific-plot .series-fill { stroke: none; }
 .plot-drag-surface { cursor: ew-resize; touch-action: pan-y; }
@@ -576,6 +580,8 @@ footer { display: flex; justify-content: space-between; max-width: 1440px; margi
 .katex { font-size: 1.04em; }
 .plot-axis-label .katex { font-size: 1em; }
 .math-formula { max-width: 100%; }
+.fourier-unit-list { list-style: "– "; padding-left: 1em; margin-bottom: 0; }
+.fourier-unit-list li + li { margin-top: .3em; }
 /* A single native mathematical layout at every zoom, including inline labels.
    Size only the expression root: the math font handles fractions and indices.
    There is no HTML copy to hide or expose through competing CSS rules. */
@@ -655,6 +661,10 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .angular-surface canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; border-radius: 10px; }
 .angular-surface canvas:active { cursor: grabbing; }
 .angular-surface canvas:focus-visible { outline: 2px solid var(--lab-tone); outline-offset: 3px; }
+.hydrogen-view-switch button:last-child { grid-column: 1 / -1; }
+.hydrogen-cloud { height: clamp(330px, 44vw, 520px); overflow: hidden; }
+.hydrogen-workspace .scattering-display-controls:has(#hydrogen-point-count) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.compact-stepper-field:has(#hydrogen-point-count) { width: 6.5rem; }
 .surface-axis { position: absolute; transform: translate(-50%, -50%); color: var(--foreground); font-size: var(--text-body); pointer-events: none; }
 .surface-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .surface-toolbar .scale-note { margin: 0; flex: 1 1 180px; }
@@ -748,11 +758,25 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
   .fourier-workspace .measurements { grid-template-columns: minmax(0, 1fr); }
 }
 .sg-workspace .figure-panel { position: static; }
+.sg-workspace[aria-labelledby="sg-title"] .control-panel > .control-block > .control-caption,
+.sg-workspace[aria-labelledby="sg-title"] .control-panel > .sg-preparation > .control-caption { margin-bottom: 10px; }
+.sg-apparatus, .sg-apparatus-legend, .sg-screen-wrap { --accent: #b36c43; --teal: #285f88; }
 .sg-stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; gap: 8px; padding: 0; margin: 18px 0; counter-reset: sg-stage; }
 .sg-stages li { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: var(--text-small); line-height: 1.4; }
 .sg-stages li::before { counter-increment: sg-stage; content: counter(sg-stage) ". "; color: var(--lab-tone); }
 .sg-stages li:nth-child(3) { background: var(--lab-tint); border-color: var(--lab-tone); }
 .sg-magnet-swatch { background: var(--teal); }
+.legend-swatch.sg-field-swatch::before { display: none; }
+.sg-apparatus-legend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; list-style: none; margin: 18px 0 8px; padding: 16px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: var(--text-small); line-height: 1.45; }
+.sg-apparatus-legend > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: start; gap: 10px; }
+.sg-apparatus-legend strong { display: block; color: var(--foreground); font-weight: 700; margin-bottom: 3px; }
+.sg-apparatus-legend li > div > span { color: var(--muted-foreground); }
+.sg-apparatus-legend .legend-swatch, .sg-spin-key { margin-top: 3px; }
+.sg-channel-key { display: flex; flex-direction: column; justify-content: center; gap: 3px; width: 24px; min-height: 1em; margin-top: 3px; }
+.sg-channel-key > span { display: block; width: 100%; }
+@media (max-width: 560px) {
+  .sg-apparatus-legend { grid-template-columns: 1fr; gap: 12px; }
+}
 .sg-apparatus .scientific-plot-frame { height: clamp(290px, 37vw, 380px); aspect-ratio: auto; }
 .sg-beams { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .sg-beams button:first-child { grid-column: 1 / -1; }
@@ -763,7 +787,7 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .sg-detector-heading button { margin-left: auto; font-size: var(--text-small); }
 .sg-detector-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.3fr); gap: 22px; align-items: start; }
 .sg-screen-wrap { min-width: 0; text-align: center; padding: 18px 18px 0; }
-.sg-screen { position: relative; max-width: 340px; margin: 0 auto 18px; border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(145deg, #eef9fa, #fff); }
+.sg-screen { position: relative; max-width: 340px; margin: 0 auto 18px; border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(to right, #f3f6f9, #d8e3ec); }
 .sg-screen svg { display: block; width: 100%; height: auto; }
 .sg-screen-x, .sg-screen-z { position: absolute; color: var(--foreground); font-size: var(--text-ui); }
 .sg-screen-x { left: calc(100% + 6px); top: 50%; transform: translateY(-50%); }
@@ -883,7 +907,15 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .spin-visual { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 20px 0; }
 .bloch-frame { width: 100%; max-width: 470px; position: relative; margin: 0 auto; aspect-ratio: 440 / 410; }
 .bloch-frame svg { width: 100%; height: 100%; display: block; }
-.bloch-axis { position: absolute; transform: translate(-50%, -50%); padding: 2px 5px; background: var(--card); border-radius: 4px; pointer-events: none; font-size: var(--text-body); }
+.bloch-drag-handle { cursor: grab; touch-action: none; }
+.bloch-drag-handle:hover, .bloch-drag-handle:focus-visible { stroke-width: 2.5; outline: none; }
+.bloch-drag-handle:active { cursor: grabbing; }
+.bloch-field-label { color: var(--accent); }
+/* Use the real bold roman face: the math face has no separate bold weight. */
+.bloch-field-symbol mi { font-family: 'Atelier Latin Modern'; text-transform: none; font-style: normal; font-weight: 700; }
+.spin-vector-formula mi[mathvariant="bold"] { font-family: 'Atelier Latin Modern'; text-transform: none; font-style: normal; font-weight: 700; }
+.bloch-interactive { min-width: 0; }
+.bloch-axis { position: absolute; transform: translate(-50%, -50%); padding: 2px 5px; pointer-events: none; font-size: var(--text-body); }
 .spin-state-card { min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 18px; background: var(--lab-tint); }
 .spin-state-card > span:first-child { font-size: var(--text-small); color: var(--muted-foreground); }
 .spin-state-card .katex-display { margin: 14px 0; overflow-x: auto; }
@@ -897,6 +929,7 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .spin-probability-plot .scientific-plot-frame { height: 270px; aspect-ratio: auto; }
 .spin-energy .scientific-plot-frame { height: 240px; aspect-ratio: auto; }
 .legend-swatch.spin-swatch::before { background: var(--lab-tone); }
+.legend-swatch.spin-field-swatch::before { background: var(--accent); height: 2px; }
 .legend-swatch.spin-minus-swatch::before { height: 3px; background: repeating-linear-gradient(90deg, var(--teal) 0 5px, transparent 5px 9px); }
 @media (min-width: 1350px) {
   .spin-visual { grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr); align-items: center; }

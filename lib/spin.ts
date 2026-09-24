@@ -16,12 +16,16 @@ export const SPIN_PRESETS = [
   { id: 'spin-z-minus', label: '$-z$', theta: 180, phi: 0 },
 ] as const;
 
-export function fieldVector(axis: SpinField): Vector3 {
+export function fieldVector(axis: SpinField | Vector3): Vector3 {
+  if (Array.isArray(axis)) {
+    const length = Math.hypot(...axis);
+    return Number.isFinite(length) && length > 0 ? axis.map(value => value / length) as Vector3 : [0, 0, 1];
+  }
   return axis === 'x' ? [1, 0, 0] : axis === 'y' ? [0, 1, 0] : axis === 'z' ? [0, 0, 1] : [Math.SQRT1_2, 0, Math.SQRT1_2];
 }
 
 /** Angles in radians; phase is Ωt. Exact unitary evolution retains the global phase. */
-export function evolveSpin(theta: number, phi: number, field: SpinField, phase: number): Spinor {
+export function evolveSpin(theta: number, phi: number, field: SpinField | Vector3, phase: number): Spinor {
   const a = Math.cos(theta / 2), br = Math.sin(theta / 2) * Math.cos(phi), bi = Math.sin(theta / 2) * Math.sin(phi);
   const [x, y, z] = fieldVector(field), c = Math.cos(phase / 2), s = Math.sin(phase / 2);
   const qa = { re: z * a + x * br + y * bi, im: x * bi - y * br };

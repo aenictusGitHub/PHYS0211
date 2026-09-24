@@ -6,13 +6,13 @@ const cross = (a: Vector3, b: Vector3): Vector3 => [a[1] * b[2] - a[2] * b[1], a
 const unit = (v: Vector3): Vector3 => v.map(value => value / Math.hypot(...v)) as Vector3;
 
 /** Cylinder and cone in the sphere's coordinates; the tip is the actual Bloch vector. */
-export function blochArrowMesh(vector: Vector3): ArrowFace[] {
+export function blochArrowMesh(vector: Vector3, widthScale = 1, headFraction = .22): ArrowFace[] {
   const length = Math.hypot(...vector);
   if (!Number.isFinite(length) || length < 1e-10) return [];
   const axis = unit(vector);
   const u = unit(cross(axis, Math.abs(axis[2]) < .9 ? [0, 0, 1] : [0, 1, 0]));
   const v = cross(axis, u);
-  const segments = 32, neck = .78 * length, headRadius = .085 * length, shaftRadius = .027 * length;
+  const segments = 32, neck = (1 - headFraction) * length, headRadius = .085 * length * widthScale, shaftRadius = .027 * length * widthScale;
   const ring = (distance: number, radius: number) => Array.from({ length: segments }, (_, i): Vector3 => {
     const angle = 2 * Math.PI * i / segments;
     return axis.map((value, j) => distance * value + radius * (Math.cos(angle) * u[j] + Math.sin(angle) * v[j])) as Vector3;
