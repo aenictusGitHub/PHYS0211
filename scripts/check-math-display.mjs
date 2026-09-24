@@ -123,6 +123,10 @@ const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8')
 const legendRule = css.match(/\.plot-legend\s*\{([^}]+)\}/)?.[1];
 assert.match(legendRule ?? '', /font-size:\s*var\(--text-small\)/,
   'Plot legends use the same shared type scale as display choices, compact controls and simulation status');
+assert.match(css, /--text-small:\s*1rem;/, 'Shared labels remain at least the body text size');
+assert.match(legendRule, /align-self:\s*center/, 'Legends are vertically centered in figure headings');
+assert.match(css, /\.plot-legend \.legend-swatch\s*\{[^}]*vertical-align:\s*middle/,
+  'Legend strokes align with the text x-height instead of the line box');
 assert.match(css, /\.plot-legend \.katex\s*\{\s*font-size:\s*1em;/,
   'Mathematical legend labels retain the surrounding text size');
 const choiceRule = css.match(/\.preset-grid button,\s*\.display-switch button\s*\{([^}]+)\}/)?.[1];
