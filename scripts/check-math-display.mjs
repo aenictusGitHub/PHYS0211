@@ -31,6 +31,7 @@ const expressions = [
   String.raw`\langle E\rangle=2.01`,
   String.raw`x_i=-24`,
   String.raw`\hbar=m=1`,
+  String.raw`\int|\psi(x)|^2\,dx=\int|\overbar{\psi}(p)|^2\,dp=1`,
 ];
 
 for (const expression of expressions) {
@@ -49,6 +50,10 @@ for (const expression of expressions) {
   }
 }
 const cases = renderToStaticMarkup(createElement(Formula, { display: true }, expressions[0]));
+const overbar = renderToStaticMarkup(createElement(Formula, null, String.raw`\overbar{\psi}(p)`));
+assert.match(overbar, /<mover accent="true"><mrow><mtext>\u200a<\/mtext><mi>ψ<\/mi><mtext>\u200a<\/mtext><\/mrow><mo stretchy="false" mathsize="70%">⎯<\/mo><\/mover><mo stretchy="false">\(<\/mo>/,
+  'The momentum overbar uses an intermediate-length rule with 1mu spacing and leaves the argument outside');
+assert.doesNotMatch(overbar, /katex-error|mathcolor|>[ˉ‾]<\/mo>/);
 assert.match(cases, /<mtable\b/);
 assert.equal((cases.match(/<mtr\b/g) ?? []).length, 2, 'Potential has two mathematical rows');
 assert.match(cases, /<mo[^>]*>\{<\/mo>/, 'Brace belongs to the same native expression');

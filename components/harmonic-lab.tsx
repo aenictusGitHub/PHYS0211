@@ -105,7 +105,7 @@ export function HarmonicLab({
   const [alphaMagnitude, setAlphaMagnitude] = useState(2);
   const [alphaPhase, setAlphaPhase] = useState(Math.PI / 2);
   const [time, setTime] = useState(0);
-  const [psiScale, setPsiScale] = useState(2);
+  const [psiScale, setPsiScale] = useState(1);
   const [playing, setPlaying] = useState(false);
   const clock = useLabPlayback({ active, enabled: mode === 'evolution', time, setTime, playing, setPlaying, defaultFinalTime: TAU_MAX, rate: 1, command: command?.lab === 'oscillator' ? command : null });
 
@@ -121,13 +121,7 @@ export function HarmonicLab({
       command.preset === 'custom-coherent'
     ) {
       setPreset(command.preset);
-      setPsiScale(
-        command.preset === 'coherent'
-          ? 5
-          : command.preset === 'mixture'
-            ? 2
-            : 1.5,
-      );
+      setPsiScale(1);
     }
     if (command.time !== undefined) setTime(command.time);
     if (command.scale !== undefined) {
@@ -172,7 +166,7 @@ export function HarmonicLab({
         x,
         y:
           baseline +
-          stationaryScale * (display === 'wave' ? phi : phi * phi),
+          2 * stationaryScale * (display === 'wave' ? phi : phi * phi),
       };
     });
   }, [display, n, stationaryScale, energies, stationaryStates]);
@@ -198,25 +192,27 @@ export function HarmonicLab({
     () =>
       probabilityValues.map((point) => ({
         x: point.x,
-        y: meanEnergy + psiScale * point.density,
+        y: meanEnergy + 2 * psiScale * point.density,
       })),
     [meanEnergy, probabilityValues, psiScale],
   );
   const meanX = oscillatorMeanPosition(evolvedCoefficients, spectrum.frequency);
-  const stationaryDomain = useMemo(() => eigenstateDomain(energies, stationaryStates, stationaryScale, 9), [energies, stationaryStates, stationaryScale]);
+  // Reference framing uses s=1; changing graphical gain must not zoom back out.
+  const stationaryDomain = useMemo(() => eigenstateDomain(energies, stationaryStates, 2, 9), [energies, stationaryStates]);
   // A time-independent upper envelope avoids clipping interference peaks or a moving vertical scale.
   const densityBound = useMemo(() => Math.max(...OSCILLATOR_COORDINATES.map((_, index) => {
     const envelope = spatialStates.reduce((sum, state, j) => sum + Math.hypot(projected[j].re, projected[j].im) * Math.abs(state[index]), 0);
     return envelope * envelope;
   })), [spatialStates, projected]);
-  const evolutionMaximum = Math.max(13.4, meanEnergy + 1.08 * psiScale * densityBound);
+  const evolutionMaximum = Math.max(13.4, meanEnergy + 1.08 * 2 * densityBound);
+  const displayedValues = mode === 'stationary' ? stationaryValues : evolutionValues;
+  const displayedDomain = mode === 'stationary' ? stationaryDomain : [0, evolutionMaximum];
+  const displayClipped = displayedValues.some(point => point.y < displayedDomain[0] || point.y > displayedDomain[1]);
   const restart = () => { setTime(0); setPlaying(false); };
 
   const selectPreset = (nextPreset: InitialPreset) => {
     setPreset(nextPreset);
-    setPsiScale(
-      nextPreset === 'coherent' ? 5 : nextPreset === 'mixture' ? 2 : 1.5,
-    );
+    setPsiScale(1);
     setTime(0);
     setPlaying(false);
     if (nextPreset === 'coherent') {
@@ -276,14 +272,18 @@ export function HarmonicLab({
         </section>
 
         <div className="equation-card">
-          <span>{mode === 'stationary' ? 'Fonction propre' : 'État initial'}</span>
+          <span>{mode === 'stationary' ? 'Fonction propre sans dimension' : 'État initial'}</span>
           <Formula display>
             {mode === 'stationary'
               ? strength > 0
-                ? String.raw`$H\phi_n=E_n\phi_n$`
-                : String.raw`$\phi_n(\xi)=\frac{e^{-\xi^2/2}H_n(\xi)}{\pi^{1/4}\sqrt{2^n n!}}$`
+                ? String.raw`$\frac{H}{\hbar\omega}\widetilde\phi_n=\frac{E_n}{\hbar\omega}\widetilde\phi_n$`
+                : String.raw`$\widetilde\phi_n(\xi)=\frac{e^{-\xi^2/2}H_n(\xi)}{\pi^{1/4}\sqrt{2^n n!}}$`
               : presetFormula(preset)}
           </Formula>
+          {mode === 'stationary' ? <div className="oscillator-reduced-definition">
+            <Formula display>{String.raw`$\widetilde\phi_n(\xi)=\sqrt{x_0}\,\phi_n(x_0\xi)$`}</Formula>
+            <Formula display>{String.raw`$\xi=\frac{x}{x_0},\qquad x_0=\sqrt{\frac{\hbar}{m\omega}}$`}</Formula>
+          </div> : null}
         </div>
 
         {mode === 'stationary' ? (
@@ -307,10 +307,10 @@ export function HarmonicLab({
 
             <div className="display-switch" role="group" aria-label="Grandeur représentée">
               <Button variant="outline" className={display === 'wave' ? 'is-selected' : ''} onClick={() => setDisplay('wave')} aria-pressed={display === 'wave'}>
-                <Formula>{String.raw`$\phi_n(\xi)$`}</Formula>
+                <Formula>{String.raw`$\widetilde\phi_n(\xi)$`}</Formula>
               </Button>
               <Button variant="outline" className={display === 'density' ? 'is-selected' : ''} onClick={() => setDisplay('density')} aria-pressed={display === 'density'}>
-                <Formula>{String.raw`$|\phi_n(\xi)|^2$`}</Formula>
+                <Formula>{String.raw`$|\widetilde\phi_n(\xi)|^2$`}</Formula>
               </Button>
             </div>
 
@@ -397,9 +397,9 @@ export function HarmonicLab({
               <Formula>
                 {mode === 'stationary'
                   ? display === 'wave'
-                    ? String.raw`$s\,\phi_${n}(\xi)+\frac{E_${n}}{\hbar\omega}$`
-                    : String.raw`$s\,|\phi_${n}(\xi)|^2+\frac{E_${n}}{\hbar\omega}$`
-                  : String.raw`$s\,|\psi(\xi,\tau)|^2+\frac{\langle E\rangle}{\hbar\omega}$`}
+                    ? String.raw`$2s\,\widetilde\phi_${n}(\xi)+\frac{E_${n}}{\hbar\omega}$`
+                    : String.raw`$2s\,|\widetilde\phi_${n}(\xi)|^2+\frac{E_${n}}{\hbar\omega}$`
+                  : String.raw`$2s\,|\widetilde\psi(\xi,\tau)|^2+\frac{\langle E\rangle}{\hbar\omega}$`}
               </Formula>
             </h2>
           </div>
@@ -421,8 +421,8 @@ export function HarmonicLab({
               xLabel={String.raw`$\xi=x/x_0$`}
               yLabel={
                 display === 'wave'
-                  ? String.raw`$\frac{E}{\hbar\omega}+s\,\phi_n(\xi)$`
-                  : String.raw`$\frac{E}{\hbar\omega}+s\,|\phi_n(\xi)|^2$`
+                  ? String.raw`$\frac{E_n}{\hbar\omega}+2s\,\widetilde\phi_n(\xi)$`
+                  : String.raw`$\frac{E_n}{\hbar\omega}+2s\,|\widetilde\phi_n(\xi)|^2$`
               }
               series={[
                 { values: potential, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
@@ -437,12 +437,12 @@ export function HarmonicLab({
               yDomain={[0, evolutionMaximum]}
               xTicks={[-4, -2, 0, 2, 4]}
               xLabel={String.raw`$\xi=x/x_0$`}
-              yLabel={String.raw`$\frac{E}{\hbar\omega}+s\,|\psi(\xi,\tau)|^2$`}
+              yLabel={String.raw`$\frac{\langle E\rangle}{\hbar\omega}+2s\,|\widetilde\psi(\xi,\tau)|^2$`}
               series={[
                 { values: potential, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
                 { values: evolutionValues, tone: 'accent', width: 2.8, fillTo: meanEnergy, fillOpacity: 0.3 },
               ]}
-              horizontalLines={[{ value: meanEnergy, label: String.raw`$\langle E\rangle$`, tone: 'teal', dashed: true, labelOutside: true }]}
+              horizontalLines={[{ value: meanEnergy, label: String.raw`$\langle E\rangle/(\hbar\omega)$`, tone: 'teal', dashed: true, labelOutside: true }]}
             />
           )}
         </div>
@@ -450,7 +450,9 @@ export function HarmonicLab({
         {mode === 'evolution' ? <PlaybackControls id="oscillator" clock={clock} scale={psiScale} onScaleChange={setPsiScale}
           timeSymbol={String.raw`$\tau=\omega t$`} finalSymbol={String.raw`$\tau_f$`} />
           : <DisplayControls id="oscillator-stationary" stationary scale={stationaryScale} onScaleChange={setStationaryScale} />}
-        {mode === 'stationary' ? <p className="scale-note">Échelle commune aux états <Formula>{'$n=0,\\ldots,8$'}</Formula> à potentiel et facteur <Formula>{'$s$'}</Formula> fixés. Tous les niveaux sont indiqués en pointillés ; le niveau sélectionné est en vert.</p> : null}
+        <p className="scale-note">L’axe vertical reste fixe quand <Formula>{'$s$'}</Formula> change.{mode === 'stationary' ? <> Échelle commune aux états <Formula>{'$n=0,\\ldots,8$'}</Formula> à potentiel fixé. Le niveau sélectionné est en vert.</> : null}</p>
+        {displayClipped ? <p className="scale-note" role="status">Une partie de la courbe dépasse le cadre. Diminuez <Formula>{'$s$'}</Formula> pour la voir entièrement.</p> : null}
+        <p className="scale-note">Fonctions réduites : <Formula>{String.raw`$\widetilde\phi_n(\xi)=\sqrt{x_0}\,\phi_n(x_0\xi)$`}</Formula>, <Formula>{String.raw`$\widetilde\psi(\xi,\tau)=\sqrt{x_0}\,\psi(x_0\xi,\tau/\omega)$`}</Formula>, avec <Formula>{String.raw`$x_0=\sqrt{\hbar/(m\omega)}$`}</Formula>. Les ordonnées sont sans dimension ; le gain <Formula>{'$2s$'}</Formula> est uniquement graphique, avec <Formula>{'$s=1$'}</Formula> par défaut.</p>
         {mode === 'evolution' ? <OscillatorObservables spectrum={spectrum} projected={projected} time={time} finalTime={clock.finalTime} /> : null}
         <div className="insight-row">
           <span className="insight-index">{mode === 'stationary' ? String(n).padStart(2, '0') : 'τ'}</span>
@@ -470,6 +472,10 @@ export function HarmonicLab({
             <div>
               <span>Hamiltonien</span>
               <Formula display>{String.raw`$\frac{H}{\hbar\omega}=-\frac12\frac{\mathrm d^2}{\mathrm d\xi^2}+\frac{\xi^2}{2}+\lambda\xi^4$`}</Formula>
+            </div>
+            <div>
+              <span>Normalisation sans dimension</span>
+              <Formula display>{String.raw`$\int_{-\infty}^{\infty}|\widetilde\phi_n(\xi)|^2\,d\xi=\int_{-\infty}^{\infty}|\widetilde\psi(\xi,\tau)|^2\,d\xi=1$`}</Formula>
             </div>
             <div>
               <span>Base harmonique non perturbée</span>

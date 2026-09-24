@@ -54,7 +54,7 @@ function harness(file, exported, lab, initialProps = {}) {
       }
     }
     for (const domain of [props.xDomain, props.yDomain]) assert.ok(domain.every(Number.isFinite) && domain[1] > domain[0], 'Finite nonempty axes');
-    for (const label of [props.xLabel, props.yLabel]) if (label) katex.renderToString(label.slice(1, -1), { throwOnError: true, strict: 'ignore' });
+    for (const label of [props.xLabel, props.yLabel]) if (label) katex.renderToString(label.slice(1, -1), { throwOnError: true, strict: 'ignore', macros: { '\\overbar': '\\overline{\\mkern1mu#1\\mkern1mu}' } });
     return React.createElement('div', { 'data-plot': props.ariaLabel });
   }
   const mocks = {
@@ -179,7 +179,9 @@ assert.ok(fourier.html().includes(String.raw`\hbar^2`));
 assert.equal(fourier.plots()[0].xLabel, String.raw`$x/\ell$`);
 assert.equal(fourier.plots()[1].xLabel, String.raw`$p\ell/\hbar$`);
 assert.equal(fourier.plots()[0].yLabel, String.raw`$\ell\,|\psi(x)|^2$`);
-assert.equal(fourier.plots()[1].yLabel, String.raw`$\frac{\hbar}{\ell}|\widetilde\psi(p)|^2$`);
+assert.ok(fourier.html().includes(String.raw`\int|\psi(x)|^2\,dx=\int|\overbar{\psi}(p)|^2\,dp=1`));
+assert.ok(!fourier.html().includes(String.raw`\widetilde\psi`), 'Fourier momentum wavefunctions consistently use an overbar');
+assert.equal(fourier.plots()[1].yLabel, String.raw`$\frac{\hbar}{\ell}|\overbar{\psi}(p)|^2$`);
 assert.doesNotMatch(fourier.html(), /Axes sans dimension|Formules en SI|faites glisser horizontalement|Densité sans dimension, normalisée|Amplitude sans dimension, dans|Les axes horizontaux restent fixes|Les commandes « Fenêtre/);
 assert.match(fourier.html(), /Les bandes couvrent/);
 assert.match(fourier.html(), /Échelles des axes/);
@@ -195,12 +197,12 @@ for (const plot of fourier.plots()) {
 const assertNoChirpDetails = () => {
   assert.doesNotMatch(fourier.html(), /[Pp]hase quadratique|chirp|c\(0\)|Sens physique du paramètre|Corrélation et expansion|Avec une phase quadratique|Phase quadratique actuelle|Exemple : temps de vol libre/);
   assert.ok(fourier.html().includes(String.raw`\Phi(x)=\frac{p_0(x-x_0)}{\hbar}</annotation>`));
-  assert.ok(fourier.html().includes(String.raw`\widetilde\psi(p,0)=N_p\,e^{-\frac{\sigma_0^2(p-p_0)^2}{\hbar^2}-\frac{ipx_0}{\hbar}}`));
+  assert.ok(fourier.html().includes(String.raw`\overbar{\psi}(p,0)=N_p\,e^{-\frac{\sigma_0^2(p-p_0)^2}{\hbar^2}-\frac{ipx_0}{\hbar}}`));
   assert.ok(fourier.html().includes(String.raw`N_p=\left(\frac{2\sigma_0^2}{\pi\hbar^2}\right)^{1/4}`));
   assert.ok(fourier.html().includes(String.raw`\sigma^2(t)=\sigma_0^2+\frac{\hbar^2t^2}{4m^2\sigma_0^2}`));
 };
 assertNoChirpDetails();
-for (const formula of [String.raw`\langle x\rangle=\int_{-\infty}^{\infty}x\,|\psi(x)|^2\,dx`, String.raw`\langle x^2\rangle=\int_{-\infty}^{\infty}x^2\,|\psi(x)|^2\,dx`, String.raw`\langle p\rangle=\int_{-\infty}^{\infty}p\,|\widetilde\psi(p)|^2\,dp`, String.raw`\langle p^2\rangle=\int_{-\infty}^{\infty}p^2\,|\widetilde\psi(p)|^2\,dp`]) {
+for (const formula of [String.raw`\langle x\rangle=\int_{-\infty}^{\infty}x\,|\psi(x)|^2\,dx`, String.raw`\langle x^2\rangle=\int_{-\infty}^{\infty}x^2\,|\psi(x)|^2\,dx`, String.raw`\langle p\rangle=\int_{-\infty}^{\infty}p\,|\overbar{\psi}(p)|^2\,dp`, String.raw`\langle p^2\rangle=\int_{-\infty}^{\infty}p^2\,|\overbar{\psi}(p)|^2\,dp`]) {
   assert.ok(fourier.html().includes(formula), 'Moment definition is rendered in LaTeX');
 }
 assert.match(fourier.html(), /<output>0\.000<\/output>/);
@@ -536,6 +538,36 @@ for (const [file, component, lab, unit] of labs) {
 }
 
 const oscillator = harness('components/harmonic-lab.tsx', 'HarmonicLab', 'oscillator');
+const oscillatorArea = values => values.slice(1).reduce((sum, p, i) => sum + (p.x - values[i].x) * (p.y + values[i].y) / 2, 0);
+const initialOscillatorPlot = oscillator.plots()[0];
+near(oscillator.fields().find(f => f.id === 'oscillator-stationary-scale').value, 1);
+near(initialOscillatorPlot.series[1].values.find(p => p.x === 0).y, .5 + 2 * Math.PI ** -.25);
+near(oscillatorArea(initialOscillatorPlot.series[1].values.map(p => ({ x: p.x, y: ((p.y - .5) / 2) ** 2 }))), 1, 1e-6);
+assert.ok(initialOscillatorPlot.yLabel.includes(String.raw`2s\,\widetilde\phi`), 'Axis reports the actual graphical gain and reduced eigenfunction');
+for (const scale of [.5, 2, 5, 20, 1]) {
+  oscillator.enter('oscillator-stationary-scale', scale);
+  assert.deepEqual(oscillator.plots()[0].yDomain, initialOscillatorPlot.yDomain, 'Stationary gain never rescales the vertical axis');
+  near(oscillator.plots()[0].series[1].values.find(p => p.x === 0).y, .5 + 2 * scale * Math.PI ** -.25);
+  if (scale === 20) assert.match(oscillator.html(), /Une partie de la courbe dépasse le cadre/);
+}
+assert.doesNotMatch(oscillator.html(), /Une partie de la courbe dépasse le cadre/);
+oscillator.command({ mode: 'evolution', preset: 'mixture', time: 0 });
+near(oscillator.fields().find(f => f.id === 'oscillator-scale').value, 1);
+const initialDensityPlot = oscillator.plots()[0];
+const initialMeanEnergy = initialDensityPlot.horizontalLines[0].value;
+near(oscillatorArea(initialDensityPlot.series[1].values.map(p => ({ x: p.x, y: p.y - initialMeanEnergy }))), 2, 1e-6);
+oscillator.enter('oscillator-scale', 2);
+oscillator.plots()[0].series[1].values.forEach((p, i) => near(p.y - initialMeanEnergy, 2 * (initialDensityPlot.series[1].values[i].y - initialMeanEnergy)));
+for (const scale of [.5, 5, 20, 1]) {
+  oscillator.enter('oscillator-scale', scale);
+  assert.deepEqual(oscillator.plots()[0].yDomain, initialDensityPlot.yDomain, 'Evolution gain never rescales the vertical axis');
+  if (scale === 20) assert.match(oscillator.html(), /Une partie de la courbe dépasse le cadre/);
+}
+for (const preset of ['coherent', 'opposite', 'quadrature', 'mixture']) {
+  oscillator.command({ mode: 'evolution', preset });
+  near(oscillator.fields().find(f => f.id === 'oscillator-scale').value, 1);
+}
+oscillator.command({ mode: 'stationary' });
 const momentPlots = () => oscillator.plots().filter(p => p.ariaLabel.includes('au cours du temps réduit'));
 assert.equal(momentPlots().length, 0);
 const originalEnergies = oscillator.plots()[0].horizontalLines.map(g => g.value);

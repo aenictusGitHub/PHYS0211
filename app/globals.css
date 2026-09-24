@@ -282,6 +282,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .equation-card > span:first-child { display: block; margin-bottom: 10px; color: var(--muted-foreground); font-size: var(--text-small); }
 .equation-card .katex-display { margin: 0; text-align: left; }
 .equation-card .katex-display > .katex { text-align: left; }
+.oscillator-reduced-definition { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 
 .mode-switch {
   display: grid;
