@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 registerHooks({ resolve(specifier, context, nextResolve) { return nextResolve(['./atomic', './atomic-dynamics'].includes(specifier) ? `${specifier}.ts` : specifier, context); } });
-const { sampleHydrogenCloud, hydrogenCloudAtPhase, projectCloudPoint } = await import('../lib/hydrogen-cloud.ts');
+const { sampleHydrogenCloud, hydrogenCloudAtPhase, projectCloudPoint, cloudAxisGraduations } = await import('../lib/hydrogen-cloud.ts');
 const { HYDROGEN_PRESETS, circularRydbergPreset, radialSuperposition } = await import('../lib/atomic-dynamics.ts');
 const { radialMean, radialExtent } = await import('../lib/atomic.ts');
 const close = (a, b, tolerance, label) => assert.ok(Math.abs(a - b) < tolerance, `${label}: ${a} vs ${b}`);
@@ -47,4 +47,20 @@ for (const count of [1000, 30000]) {
   for (let step = 0; step <= 24; step++) assert.equal(hydrogenCloudAtPhase(samples, step * Math.PI / 12).length, count);
 }
 close(radius(projectCloudPoint(p, .8, -.3)), radius(p), 1e-12, 'Camera rotation preserves distances');
+for (const extent of [8, 50, 2000]) for (const zoom of [.6, 1, 2.4]) for (const [yaw, pitch] of [[.65, .35], [0, 0], [1.5, 1.55]]) {
+  const width = 640, height = 440, factor = Math.min(width, height) * .43 * zoom / extent;
+  const ticks = cloudAxisGraduations(extent, zoom, yaw, pitch, width, height);
+  assert.ok(ticks.length >= 4 && ticks.length <= 12, 'Sparse graduations on visible axes');
+  for (const tick of ticks) {
+    const point = { x: 0, y: 0, z: 0, [tick.axis]: tick.value };
+    const projected = projectCloudPoint(point, yaw, pitch);
+    close(tick.x, width / 2 + factor * projected.x, 1e-9, 'Tick x matches cloud projection');
+    close(tick.y, height / 2 + factor * projected.y, 1e-9, 'Tick y matches cloud projection');
+    assert.ok(Math.abs(tick.value) <= .85 * extent / zoom);
+    assert.ok(ticks.some(other => other.axis === tick.axis && other.value === -tick.value), 'Symmetric signed values');
+    assert.ok(Number.isFinite(tick.labelX) && Number.isFinite(tick.labelY));
+  }
+}
+assert.deepEqual([...new Set(cloudAxisGraduations(10, 1, .65, .35, 640, 440).map(t => t.value))], [-5, 5]);
+assert.deepEqual([...new Set(cloudAxisGraduations(10, 2, .65, .35, 640, 440).map(t => t.value))], [-4, -2, 2, 4]);
 console.log('Hydrogen cloud: normalization, isotropy, radial Jacobian/nodes, real orbitals, Rydberg, coherent evolution, replay and projection pass.');

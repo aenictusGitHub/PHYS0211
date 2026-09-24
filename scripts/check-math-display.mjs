@@ -50,6 +50,18 @@ for (const expression of expressions) {
   }
 }
 const cases = renderToStaticMarkup(createElement(Formula, { display: true }, expressions[0]));
+// Check the actual reduced-unit definitions, including both Jacobians.
+const reducedSource = readFileSync(new URL('../components/reduced-units.tsx', import.meta.url), 'utf8');
+for (const match of reducedSource.matchAll(/String\.raw`([^`]*)`/g)) {
+  const html = renderToStaticMarkup(createElement(Formula, { display: true }, match[1].replace('${potentialLength}', '1.5')));
+  assert.doesNotMatch(html, /katex-error|<merror/);
+}
+for (const definition of [String.raw`\sqrt L\,\psi_{\mathrm{phys}}(Lx,t_0t)`,
+  String.raw`\sqrt{\frac{\hbar}{L}}`, String.raw`E_{\mathrm{ref}}=\frac{\hbar^2}{mL^2}`,
+  String.raw`t_0=\frac{mL^2}{\hbar}`]) assert.ok(reducedSource.includes(definition));
+const hydrogenSource = readFileSync(new URL('../components/hydrogen-lab.tsx', import.meta.url), 'utf8');
+assert.ok(hydrogenSource.includes(String.raw`a_0^{3/2}\psi(a_0\mathbf u,t)`));
+assert.ok(hydrogenSource.includes(String.raw`\int_0^\infty a_0P(a_0u,t)\,du=1`));
 const overbar = renderToStaticMarkup(createElement(Formula, null, String.raw`\overbar{\psi}(p)`));
 assert.match(overbar, /<mover accent="true"><mrow><mtext>\u200a<\/mtext><mi>ψ<\/mi><mtext>\u200a<\/mtext><\/mrow><mo stretchy="false" mathsize="70%">⎯<\/mo><\/mover><mo stretchy="false">\(<\/mo>/,
   'The momentum overbar uses an intermediate-length rule with 1mu spacing and leaves the argument outside');
@@ -83,8 +95,8 @@ for (const tex of [spin, hydrogen, realHydrogen]) {
   assert.doesNotMatch(render(tex), /<mtable|<mspace[^>]*linebreak/, 'One equation, one mathematical row');
   assert.ok(tex.includes('\\,'), 'Products have deliberate thin spacing');
 }
-const well = labFormula('infinite-well-lab', tex => tex.startsWith('$\\phi_n(x)=\\sqrt'));
-assert.match(render(well), /<\/msqrt><mtext>\u2009<\/mtext><mi>sin<\/mi>/,
+const well = labFormula('infinite-well-lab', tex => tex.startsWith('$\\widetilde\\phi_n(u)=\\sqrt'));
+assert.match(render(well), /<msqrt><mn>2<\/mn><\/msqrt><mtext>\u2009<\/mtext><mi>sin<\/mi>/,
   'The normalization factor is separated from the sine');
 assert.ok(!well.includes('\\!') && !well.includes('\\bigl'), 'No negative gap or oversized parentheses');
 const rotor = labFormula('rotor-lab', tex => tex.startsWith('$H='));
@@ -121,7 +133,8 @@ for (const [l, m] of [[1, 0], [5, -5], [5, 5]]) {
     'A thin space clears the italic Y before placing both native scripts');
   assert.match(html, /<\/msubsup><mtext>\u2009<\/mtext><mo[^>]*>\(<\/mo>/, 'Indices are separated from the opening parenthesis by a thin space');
   assert.ok(tex.includes(String.raw`\theta,\,\varphi`), 'Angular arguments are separated');
-  assert.ok(tex.includes(String.raw`\left\lvert\,`) && tex.includes(String.raw`\,\right\rvert^{2}`), 'Absolute-value bars have inner breathing room and size to the expression');
+  assert.ok(tex.includes(String.raw`\left\lvert`) && tex.includes(String.raw`\right\rvert^{2}`), 'Absolute-value bars size to the expression');
+  assert.ok(!tex.includes(String.raw`\left\lvert\,`) && !tex.includes(String.raw`\,\right\rvert`), 'No extra gap just inside the modulus bars');
   assert.equal((html.match(/<math\b/g) ?? []).length, 1);
 }
 const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');

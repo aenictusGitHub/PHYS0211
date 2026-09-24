@@ -129,6 +129,7 @@ function harness(file, exported, lab, initialProps = {}) {
         duration: finalTime ?? scatteringFinalTimeMax(config), automaticFinalTime: finalTime === null ? automaticFinalTime : undefined,
         scatteringComplete, analyticalConfig: { ...config, potential: 'free' },
         maxDensity: 1, maxAmplitude: 1, real: new Float32Array(0), imaginary: new Float32Array(0), probabilities: new Float64Array(0),
+        momentumDensities: new Float32Array(0), maxMomentumDensity: Math.sqrt(2 / Math.PI) * config.sigma,
       } } }); render();
     },
     enter(id, value) { const field = fields.find(f => f.id === id); assert.ok(field, `Missing ${id}`); field.onKeyDown({ key: 'Enter', currentTarget: { value: String(value) }, preventDefault() {} }); render(); },
@@ -537,6 +538,44 @@ for (const [file, component, lab, unit] of labs) {
   console.log(`${lab}: shared steppers, defaults, speed changes, endpoint, replay, pause, commands and stationary display setting pass.`);
 }
 
+const reducedWell = harness('components/infinite-well-lab.tsx', 'InfiniteWellLab', 'well');
+const wellArea = values => values.slice(1).reduce((sum, p, i) => sum + (p.x - values[i].x) * (p.y + values[i].y) / 2, 0);
+assert.equal(reducedWell.plots()[0].xLabel, '$u=x/a$');
+assert.equal(reducedWell.plots()[0].yLabel, String.raw`$s\,\widetilde\phi_n(u)$`);
+assert.ok(reducedWell.html().includes(String.raw`\widetilde\phi_n(u)=\sqrt a\,\phi_n(au)`));
+assert.doesNotMatch(reducedWell.html(), /Seule l’abscisse est réduite/);
+for (const wellLinear of [0, 6]) {
+  for (const quantumNumber of [1, 3, 8]) {
+    let reference;
+    for (const wellWidth of [.5, 1, 4]) {
+      reducedWell.command({ mode: 'stationary', quantumNumber, wellWidth, wellLinear, scale: 1 });
+      const plot = reducedWell.plots()[0];
+      const values = plot.series[0].values;
+      near(wellArea(values.map(p => ({ x: p.x, y: p.y ** 2 }))), 1);
+      if (reference) assert.deepEqual(values, reference, 'Reduced eigenfunctions do not depend on physical width');
+      reference = values;
+      assert.ok(values.every(p => p.y >= plot.yDomain[0] && p.y <= plot.yDomain[1]));
+    }
+  }
+  for (const preset of ['low-pair', 'high-pair', 'parabola']) {
+    for (const time of [0, .4]) {
+      let reference;
+      for (const wellWidth of [1, 4]) {
+        reducedWell.command({ mode: 'evolution', preset, wellWidth, wellLinear, scale: 2, time });
+        const plot = reducedWell.plots()[0];
+        assert.equal(plot.yLabel, String.raw`$s\,|\widetilde\psi(u,\tau)|^2$`);
+        const values = plot.series[0].values;
+        assert.ok(Math.abs(wellArea(values) / 2 - 1) < 1e-6, 'Reduced probability integrates to one in du after removing graphical gain');
+        if (reference) assert.deepEqual(values, reference, 'Reduced dynamics are width independent at fixed reduced time');
+        reference = values;
+        assert.ok(values.every(p => p.y <= plot.yDomain[1]));
+      }
+    }
+  }
+}
+reducedWell.dispose();
+console.log('Infinite well: dimensionless amplitudes and densities, unit normalization in du, width independence and perturbed modes pass.');
+
 const oscillator = harness('components/harmonic-lab.tsx', 'HarmonicLab', 'oscillator');
 const oscillatorArea = values => values.slice(1).reduce((sum, p, i) => sum + (p.x - values[i].x) * (p.y + values[i].y) / 2, 0);
 const initialOscillatorPlot = oscillator.plots()[0];
@@ -715,6 +754,13 @@ editor.dispose();
 console.log('Oscillator: perturbation toggle, levels, shared scale, coherent plane add/drag/keyboard, amplitude/phase inputs, cancellation, limits, apply and time reset pass.');
 
 const double = harness('components/double-well-lab.tsx', 'DoubleWellLab', 'double-well');
+assert.equal(double.plots()[0].yLabel, String.raw`$E+s\,|\widetilde\Psi|^2$`);
+assert.match(double.html(), /Définition des unités réduites/);
+assert.match(double.html(), /Période réduite/);
+assert.ok(double.html().includes(String.raw`L=\frac{a_{\mathrm{phys}}}{1.5}`));
+double.slider('double-well-separation', 2);
+assert.ok(double.html().includes(String.raw`L=\frac{a_{\mathrm{phys}}}{2}`));
+double.slider('double-well-separation', 1.5);
 double.slider('double-well-time', 1);
 double.click('À droite'); near(double.clock().time, 0);
 for (const label of ['À gauche', 'À droite', 'En quadrature', 'État n = 0', 'État n = 1']) {
@@ -729,6 +775,34 @@ double.slider('double-well-population', .25); near(double.clock().time, 0);
 double.slider('double-well-relative-phase', -90);
 assert.match(double.html(), /-90/);
 double.dispose();
+
+const doubleUnits = harness('components/double-well-lab.tsx', 'DoubleWellLab', 'double-well');
+function checkDoubleUnits(density, separation) {
+  const plot = doubleUnits.plots()[0], curve = plot.series[1].values;
+  assert.equal(plot.xLabel, '$u=x/a$');
+  assert.deepEqual(plot.xTicks, [-1, 0, 1]);
+  const baseline = curve[0].y;
+  const probability = point => density ? (point.y - baseline) / 2 : ((point.y - baseline) / 2) ** 2;
+  const area = curve.slice(1).reduce((sum, point, j) => sum + (point.x - curve[j].x) * (probability(point) + probability(curve[j])) / 2, 0);
+  near(area, 1);
+  near(curve[0].x, -8 / separation);
+  for (const point of plot.series[0].values) near(point.y, 3 * (point.x ** 2 - 1) ** 2);
+  assert.ok(curve.every(point => point.y >= plot.yDomain[0] && point.y <= plot.yDomain[1]), 'Normalized curves fit the vertical frame');
+  for (const guide of plot.horizontalLines) if (guide.xRange) assert.ok(guide.xRange.every(x => x >= curve[0].x && x <= curve.at(-1).x));
+}
+for (const separation of [.8, 1.5, 2.5]) {
+  for (let quantumNumber = 0; quantumNumber < 9; quantumNumber++) {
+    doubleUnits.command({ mode: 'stationary', quantumNumber, separation, barrier: 3, scale: 2 });
+    doubleUnits.click('Fonction propre réduite'); checkDoubleUnits(false, separation);
+    doubleUnits.click('Densité propre réduite'); checkDoubleUnits(true, separation);
+  }
+  for (const time of [0, 1, Math.PI]) {
+    doubleUnits.command({ mode: 'evolution', separation, scale: 2, time });
+    checkDoubleUnits(true, separation);
+  }
+}
+doubleUnits.dispose();
+console.log('Double well: x/a coordinates, potential minima, normalized amplitudes/densities in du and unclipped frames pass.');
 
 const cloudView = harness('components/hydrogen-cloud.tsx', 'HydrogenCloud', 'hydrogen-cloud', { terms: [{ n: 2, l: 1, m: 0, basis: 'real' }], phase: 0, phaseColors: false, pointSize: 1.2 });
 const cloudCanvas = () => cloudView.elements().find(el => el.type === 'canvas').props;
@@ -756,6 +830,8 @@ cloudView.setProps({ active: false }); assert.equal(cloudCanvas()['data-cloud-po
 cloudView.dispose();
 console.log('Hydrogen cloud controls: drag, capture/release, keyboard, reset, stable samples, point size and inactive state pass.');
 const circularHydrogen = harness('components/hydrogen-lab.tsx', 'HydrogenLab', 'hydrogen');
+assert.ok(circularHydrogen.html().includes(String.raw`a_0^3\bigl\lvert\psi_`));
+assert.match(circularHydrogen.html(), /Densités sans dimension/);
 circularHydrogen.click('Nuage de points 3D');
 assert.match(circularHydrogen.html(), /data-hydrogen-cloud="true"/);
 assert.ok(circularHydrogen.fields().some(f => f.id === 'hydrogen-point-size'));
@@ -789,12 +865,39 @@ assert.match(circularHydrogen.html(), /Rydberg circulaires · 25 \+ 26/);
 circularHydrogen.dispose();
 
 const scattering = harness('components/scattering-lab.tsx', 'ScatteringLab', 'scattering');
+assert.equal(scattering.plots()[0].yLabel, String.raw`$s\,|\Psi|^2,\;V$`);
+assert.match(scattering.html(), /Définition des unités réduites/);
 const endpoint = () => scattering.fields().find(f => f.id === 'scattering-final-time')['aria-valuenow'];
+assert.equal(scattering.plots().length, 1, 'Momentum view is optional and off initially');
+scattering.click('Position et impulsion');
+assert.equal(scattering.plots().length, 2);
+assert.match(scattering.plots()[1].ariaLabel, /impulsion/);
+assert.equal(scattering.plots()[1].yLabel, String.raw`$|\overbar{\Psi}(p,t)|^2$`);
+assert.ok(scattering.plots()[1].xTicks.includes(0), 'The momentum axis retains a zero tick');
+near(scattering.plots()[1].verticalLines[0].value, 2);
+assert.equal(scattering.plots()[1].verticalLines[0].label, String.raw`$\langle p\rangle$`);
+assert.ok(scattering.plots()[1].series[0].values.every(point => Number.isFinite(point.y)));
+scattering.click('Position seule');
 assert.match(scattering.html(), /Recherche d’un temps final/);
 scattering.completeWorker(23);
 assert.equal(scattering.workerRequests().at(-1).finalTime, null, 'Automatic duration is requested by default');
 assert.equal(endpoint(), 23, 'Calculated post-scattering endpoint is displayed');
 assert.equal(scattering.sliderProps('scattering-time').max, 23);
+scattering.slider('scattering-time', 5);
+const momentumRequests = scattering.workerRequests().length;
+scattering.click('Position et impulsion');
+assert.equal(scattering.sliderProps('scattering-time').value[0], 5, 'Opening momentum view preserves time');
+assert.equal(scattering.workerRequests().length, momentumRequests, 'Display choice does not restart the solver');
+const momentumLimits = scattering.plots()[1].yDomain;
+const momentumCurve = scattering.plots()[1].series[0].values;
+scattering.enter('scattering-scale', 12);
+assert.deepEqual(scattering.plots()[1].series[0].values, momentumCurve, 'Momentum density remains normalized and unscaled');
+scattering.slider('scattering-time', 6);
+assert.deepEqual(scattering.plots()[1].yDomain, momentumLimits, 'Momentum vertical axis is time independent');
+scattering.click('Animer');
+scattering.click('Position seule');
+assert.ok(scattering.button('Pause'), 'Switching views does not interrupt playback');
+scattering.click('Pause');
 scattering.enter('scattering-final-time', 10);
 assert.match(scattering.html(), /Temps final manuel/);
 scattering.enter('scattering-playback-speed', 2); scattering.enter('scattering-scale', 7.5);
@@ -844,9 +947,20 @@ assert.equal(scattering.workerRequests().at(-1).config.potential, 'barrier');
 scattering.click('Évolution libre'); scattering.completeWorker(23);
 assert.doesNotMatch(scattering.html(), />Carré<|>Gaussien<|>Effet tunnel</);
 assert.ok(scattering.button('Paquet libre'));
+scattering.click('Position et impulsion');
+scattering.slider('scattering-momentum', 1.70688);
+assert.ok(scattering.plots()[1].xTicks.includes(0), 'Noninteger incident momentum must not hide the zero tick');
+assert.ok(scattering.plots()[1].xTicks.every(Number.isInteger));
+near(scattering.plots()[1].verticalLines[0].value, 1.70688);
+assert.equal(scattering.plots()[1].verticalLines[0].label, String.raw`$\langle p\rangle$`);
 scattering.click('Pesanteur'); scattering.completeWorker(23);
 assert.equal(scattering.workerRequests().at(-1).config.potential, 'gravity');
 assert.doesNotMatch(scattering.html(), />Paquet libre<|>Carré<|>Gaussien<|>Effet tunnel</);
+assert.equal(scattering.plots()[2].verticalLines[0].label, String.raw`$\langle p_z\rangle$`);
+const incidentMomentum = scattering.plots()[2].verticalLines[0].value;
+scattering.slider('scattering-time', 2);
+near(scattering.plots()[2].verticalLines[0].value, incidentMomentum - .3);
+assert.ok(scattering.plots()[2].xTicks.includes(0));
 scattering.dispose();
 const sg = harness('components/stern-gerlach-lab.tsx', 'SternGerlachLab', 'stern-gerlach');
 assert.match(sg.html(), /Stern–Gerlach/);

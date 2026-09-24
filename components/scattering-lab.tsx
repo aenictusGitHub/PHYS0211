@@ -5,6 +5,7 @@ import { Pause, Play, RotateCcw } from 'lucide-react';
 
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Math as Formula } from '@/components/math';
+import { ReducedUnits } from '@/components/reduced-units';
 import { DisplayControls } from '@/components/playback-controls';
 import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import {
   SCATTERING_MOMENTUM_MIN, SCATTERING_MOMENTUM_MAX, SCATTERING_MOMENTUM_STEP,
   SCATTERING_FINAL_TIME_MIN, scatteringFinalTime, scatteringFinalTimeMax,
   incidentEnergy, initialPotentialEnergy, interactionEdge, scatteringPotentialProfile, sampleTimeline, scatteringDuration,
+  sampleMomentumTimeline, uniformFieldMomentumValues, momentumExpectation,
   type PotentialKind, type ScatteringConfig, type ScatteringTimeline,
 } from '@/lib/scattering';
 
@@ -57,6 +59,7 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
   const [componentsOpen, setComponentsOpen] = useState(false);
+  const [momentumVisible, setMomentumVisible] = useState(false);
   const [configuredCommandId, setConfiguredCommandId] = useState<number | null>(null);
   const appliedProgressCommand = useRef<number | null>(null);
   const [result, setResult] = useState<{ key: string; timeline: ScatteringTimeline } | null>(null);
@@ -190,6 +193,21 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
   const yMin = attractive ? -Math.max(0.3, config.height * 1.1) : 0;
   const densityValues = useMemo(() => Array.from(SAMPLE_X, (x, i) => ({ x, y: scale * frame.density[i] })), [frame, scale]);
   const potentialValues = useMemo(() => scatteringPotentialProfile(config), [config]);
+  const momentumDomain: [number, number] = uniform
+    ? [Math.min(-2, config.momentum - g * duration - 2), Math.max(2, config.momentum + 2)]
+    : [-8, 8];
+  const momentumTickStep = [1, 2, 5, 10, 20].find(step => (momentumDomain[1] - momentumDomain[0]) / step <= 6) ?? 20;
+  const firstMomentumTick = Math.ceil(momentumDomain[0] / momentumTickStep);
+  const momentumTicks = uniform ? Array.from({ length: Math.floor(momentumDomain[1] / momentumTickStep) - firstMomentumTick + 1 },
+    (_, i) => (firstMomentumTick + i) * momentumTickStep) : [-8, -4, 0, 4, 8];
+  const fullMomentumValues = useMemo(() => {
+    if (!momentumVisible) return [];
+    return availableTimeline ? sampleMomentumTimeline(availableTimeline, time) : uniformFieldMomentumValues(config, 0);
+  }, [momentumVisible, availableTimeline, config, time]);
+  const meanMomentum = uniform ? moments.momentum : momentumExpectation(fullMomentumValues);
+  // Compute the mean from the full spectrum; only the drawn curve is cropped.
+  const momentumValues = useMemo(() => uniform ? fullMomentumValues : fullMomentumValues.filter(point => Math.abs(point.x) <= 8), [fullMomentumValues, uniform]);
+  const momentumMaximum = 1.15 * (availableTimeline?.maxMomentumDensity ?? Math.sqrt(2 / Math.PI) * config.sigma);
   const finished = time >= duration;
   const collisionTime = 24 / config.momentum;
   const stateLabel = error ? 'Calcul interrompu' : !timeline ? `Préparation · ${Math.round(progress * 100)} %`
@@ -247,13 +265,14 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
 
       <div className="figure-panel">
         <div className="figure-heading">
-          <div><p className="eyebrow">{gravity ? 'Paquet dans un champ gravitationnel' : uniform ? 'Évolution libre' : 'Réflexion & transmission'}</p><h2><Formula>{uniform ? `$s\\,|\\psi(${coordinate},t)|^2$` : String.raw`$s\,|\psi(x,t)|^2\quad\text{et}\quad V(x)$`}</Formula></h2></div>
+          <div><p className="eyebrow">{gravity ? 'Paquet dans un champ gravitationnel' : uniform ? 'Évolution libre' : 'Réflexion & transmission'}</p><h2><Formula>{uniform ? `$s\\,|\\Psi(${coordinate},t)|^2$` : String.raw`$s\,|\Psi(x,t)|^2\quad\text{et}\quad V(x)$`}</Formula></h2></div>
           <div className="plot-legend" aria-label="Légende">
             <span><i className="legend-swatch accent" aria-hidden="true" />densité de probabilité</span>
             {!gravity ? <span><i className="legend-swatch ink" aria-hidden="true" />potentiel</span> : null}
             <span><i className="legend-swatch teal dashed" aria-hidden="true" /><Formula>{uniform ? `$\\langle ${coordinate}\\rangle$` : String.raw`$\langle E\rangle$`}</Formula></span>
           </div>
         </div>
+        <ReducedUnits momentum />
         <div className="scattering-toolbar">
           {!uniform ? <div className="mode-switch scattering-shape-switch" role="group" aria-label="Forme du potentiel">
             {([false, true] as const).map(isGaussian => (
@@ -276,10 +295,14 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
           <span className={`simulation-status${timeline ? '' : ' is-computing'}`} role="status">{stateLabel}</span>
         </div>
         {error ? <p role="alert">Le calcul n’a pas abouti. <Button variant="outline" onClick={() => setRetry(value => value + 1)}>Réessayer</Button></p> : null}
+        <div className="display-switch" role="group" aria-label="Espaces de représentation du paquet">
+          <Button variant="outline" aria-pressed={!momentumVisible} className={!momentumVisible ? 'is-selected' : ''} onClick={() => setMomentumVisible(false)}>Position seule</Button>
+          <Button variant="outline" aria-pressed={momentumVisible} className={momentumVisible ? 'is-selected' : ''} onClick={() => setMomentumVisible(true)}>Position et impulsion</Button>
+        </div>
         <div className="plot-shell">
           <ScientificPlot ariaLabel={`Diffusion du paquet au temps ${time.toFixed(2)} : densité de probabilité et potentiel ${config.potential}`}
             xDomain={[-64, 64]} yDomain={[yMin, yMax]} xTicks={[-60, -40, -20, 0, 20, 40, 60]}
-            xLabel={`$${coordinate}$`} yLabel={uniform ? String.raw`$s\,|\psi|^2$` : String.raw`$s\,|\psi|^2,\;V$`}
+            xLabel={`$${coordinate}$`} yLabel={uniform ? String.raw`$s\,|\Psi|^2$` : String.raw`$s\,|\Psi|^2,\;V$`}
             series={gravity ? [{ values: densityValues, tone: 'accent', fillTo: 0, fillOpacity: .3, width: 2.6 }] : [
               { values: potentialValues, tone: 'ink', fillTo: 0, fillOpacity: 0.16, width: 2 },
               { values: densityValues, tone: 'accent', fillTo: 0, fillOpacity: 0.3, width: 2.6 },
@@ -300,6 +323,20 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
             horizontalLines={[{ value: energy, label: String.raw`$\langle E\rangle$`, tone: 'teal', labelOutside: true }]}
             verticalLines={[{ value: moments.position, tone: 'teal', dashed: true }]} />
           </div>
+        </section> : null}
+        {momentumVisible ? <section className="scattering-momentum" aria-label="Paquet dans l’espace des impulsions">
+          <h3>Impulsion <Formula>{gravity ? '$p_z$' : '$p$'}</Formula></h3>
+          <div className="plot-shell"><ScientificPlot ariaLabel={`Densité de probabilité en impulsion au temps ${time.toFixed(2)} ; droite tiretée : impulsion moyenne ${meanMomentum.toFixed(3)}`}
+            xDomain={momentumDomain} yDomain={[0, momentumMaximum]} xTicks={momentumTicks}
+            xLabel={gravity ? '$p_z$' : '$p$'} yLabel={gravity ? String.raw`$|\overbar{\Psi}(p_z,t)|^2$` : String.raw`$|\overbar{\Psi}(p,t)|^2$`}
+            series={[{ values: momentumValues, tone: 'accent', fillTo: 0, fillOpacity: .3, width: 2.6 }]}
+            verticalLines={[{ value: meanMomentum, label: gravity ? String.raw`$\langle p_z\rangle$` : String.raw`$\langle p\rangle$`, labelAbove: true, tone: 'teal', dashed: true }]} />
+          </div>
+          <p className="scale-note">Même instant que la vue en position. Densité normalisée, sans le facteur graphique <Formula>$s$</Formula>.
+            {gravity ? <> Le centre suit <Formula>{String.raw`$\langle p_z\rangle=k_0-gt$`}</Formula>.</>
+              : uniform ? ' En évolution libre, cette distribution reste inchangée.'
+                : <> Les impulsions négatives et positives correspondent aux deux sens de propagation. Après la collision, les pics distinguent les paquets réfléchi et transmis.</>}
+          </p>
         </section> : null}
         <div className="scattering-timeline">
           <div className="transport-controls">
@@ -341,7 +378,7 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
           <span className="probability-bar" aria-hidden="true"><span style={{ width: `${frame.left * 100}%` }} /><span style={{ width: `${frame.center * 100}%` }} /><span style={{ width: `${frame.right * 100}%` }} /></span>
         </p></>}
         <div className="insight-row">
-          <span className="insight-index"><Formula>{String.raw`$\psi$`}</Formula></span>
+          <span className="insight-index"><Formula>{String.raw`$\Psi$`}</Formula></span>
           <p>{gravity && g > 0 ? <>Le paquet est lancé vers les <Formula>{'$z$'}</Formula> croissants. La pesanteur le ralentit puis le fait redescendre, tout en conservant son énergie totale.</>
             : uniform || config.height === 0 ? 'Sans potentiel, le paquet avance et s’étale librement.'
             : attractive ? 'Même un puits attractif peut réfléchir une partie du paquet : la réflexion est un phénomène ondulatoire.'
@@ -350,22 +387,26 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
             {!uniform && time > collisionTime && frame.center > .03 ? ' L’interaction est encore en cours.' : ''}</p>
         </div>
         <details className="scattering-components" onToggle={event => setComponentsOpen(event.currentTarget.open)}>
-          <summary>Parties réelle et imaginaire de <Formula>{String.raw`$\psi$`}</Formula></summary>
+          <summary>Parties réelle et imaginaire de <Formula>{String.raw`$\Psi$`}</Formula></summary>
           {componentsOpen ? <>
-            <div className="plot-legend"><span><i className="legend-swatch accent" /><Formula>{String.raw`$\operatorname{Re}\psi$`}</Formula></span><span><i className="legend-swatch teal" /><Formula>{String.raw`$\operatorname{Im}\psi$`}</Formula></span></div>
+            <div className="plot-legend"><span><i className="legend-swatch accent" /><Formula>{String.raw`$\operatorname{Re}\Psi$`}</Formula></span><span><i className="legend-swatch teal" /><Formula>{String.raw`$\operatorname{Im}\Psi$`}</Formula></span></div>
             <div className="plot-shell"><ScientificPlot ariaLabel="Parties réelle et imaginaire du paquet d’ondes"
               xDomain={[-64, 64]} yDomain={[-(timeline?.maxAmplitude ?? .6) * 1.1, (timeline?.maxAmplitude ?? .6) * 1.1]}
-              xTicks={[-60, -40, -20, 0, 20, 40, 60]} xLabel={`$${coordinate}$`} yLabel={`$\\psi(${coordinate},t)$`}
+              xTicks={[-60, -40, -20, 0, 20, 40, 60]} xLabel={`$${coordinate}$`} yLabel={`$\\Psi(${coordinate},t)$`}
               series={[{ values: Array.from(SAMPLE_X, (x, i) => ({ x, y: frame.re[i] })), tone: 'accent', width: 1.6 }, { values: Array.from(SAMPLE_X, (x, i) => ({ x, y: frame.im[i] })), tone: 'teal', width: 1.6 }]}
               bands={uniform ? [] : [{ from: -edge, to: edge, tone: 'ink', opacity: .08 }]} />
             </div>
           </> : null}
         </details>
         <details className="theory-notes">
-          <summary>Repères théoriques</summary>
+          <summary>Repères théoriques · grandeurs physiques</summary>
+          <p>Dans les formules ci-dessous, les symboles minuscules désignent les fonctions physiques ; les coordonnées, énergies et temps retrouvent leurs unités physiques.</p>
           <div className="theory-grid">
             <div><span>Équation de Schrödinger</span><Formula display>{gravity ? String.raw`$i\hbar\frac{\partial\psi}{\partial t}=\left[-\frac{\hbar^2}{2m}\frac{\partial^2}{\partial z^2}+mgz\right]\psi$` : String.raw`$i\hbar\frac{\partial\psi}{\partial t}=\left[-\frac{\hbar^2}{2m}\frac{\partial^2}{\partial x^2}+V(x)\right]\psi$`}</Formula></div>
             <div><span>Paquet gaussien initial</span><Formula display>{`$\\psi(${coordinate},0)=\\frac{e^{-\\frac{(${coordinate}-${coordinate}_i)^2}{4\\sigma_${coordinate}^2}}e^{ik_0${coordinate}}}{(2\\pi\\sigma_${coordinate}^2)^{1/4}}$`}</Formula></div>
+            <div><span>Représentation en impulsion</span><Formula display>{gravity ? String.raw`$\overbar{\psi}(p_z,t)=\frac{1}{\sqrt{2\pi\hbar}}\int\psi(z,t)e^{-ip_zz/\hbar}\,dz$` : String.raw`$\overbar{\psi}(p,t)=\frac{1}{\sqrt{2\pi\hbar}}\int\psi(x,t)e^{-ipx/\hbar}\,dx$`}</Formula>
+              <p>Transformation de l’amplitude complexe sur tout le domaine de calcul, avant le cadrage de la figure. En unités réduites, <Formula>{String.raw`$\hbar=1$`}</Formula> et <Formula>$p=k$</Formula>.</p>
+            </div>
             <div><span>Énergie moyenne initiale</span><Formula display>{gravity ? String.raw`$\langle E\rangle=\frac{\hbar^2 k_0^2}{2m}+\frac{\hbar^2}{8m\sigma_z^2}+mgz_i$` : String.raw`$\langle E\rangle=\frac{\hbar^2 k_0^2}{2m}+\frac{\hbar^2}{8m\sigma_x^2}+\langle V\rangle_0$`}</Formula></div>
             {uniform ? <div><span>Centre et dispersion</span><Formula display>{gravity ? String.raw`$\begin{aligned}\langle z\rangle&=z_i+\frac{\hbar k_0}{m}t-\frac12gt^2,\\\langle p_z\rangle&=\hbar k_0-mgt,\\\Delta z(t)&=\sqrt{\sigma_z^2+\frac{\hbar^2t^2}{4m^2\sigma_z^2}}.\end{aligned}$` : String.raw`$\begin{aligned}\langle x\rangle&=x_i+\frac{\hbar k_0}{m}t,\\\langle p\rangle&=\hbar k_0,\\\Delta x(t)&=\sqrt{\sigma_x^2+\frac{\hbar^2t^2}{4m^2\sigma_x^2}}.\end{aligned}$`}</Formula></div> : null}
           </div>

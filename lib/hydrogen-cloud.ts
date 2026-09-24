@@ -73,3 +73,29 @@ export function projectCloudPoint(p: { x: number; y: number; z: number }, yaw: n
   const u = Math.cos(yaw) * p.x - Math.sin(yaw) * p.y, v = Math.sin(yaw) * p.x + Math.cos(yaw) * p.y;
   return { x: u, y: Math.sin(pitch) * v - Math.cos(pitch) * p.z, z: Math.cos(pitch) * v + Math.sin(pitch) * p.z };
 }
+
+/** Sparse Bohr-radius ticks, projected with exactly the same scale as the cloud. */
+export function cloudAxisGraduations(extent: number, zoom: number, yaw: number, pitch: number, width: number, height: number) {
+  const radius = Math.min(width, height) * .43, factor = radius * zoom / extent;
+  const halfRange = extent / zoom, target = halfRange * .35;
+  const power = 10 ** Math.floor(Math.log10(target));
+  const step = [1, 2, 5, 10].find(value => value * power >= target)! * power;
+  const labels: { x: number; y: number; width: number }[] = [{ x: width / 2 + 12, y: height / 2 + 14, width: 14 }];
+  return (['x', 'y', 'z'] as const).flatMap(axis => {
+    const direction = projectCloudPoint({ x: axis === 'x' ? 1 : 0, y: axis === 'y' ? 1 : 0, z: axis === 'z' ? 1 : 0 }, yaw, pitch);
+    const length = Math.hypot(direction.x, direction.y);
+    // An almost end-on axis has no room for meaningful graduations.
+    if (length * radius < 45) return [];
+    const nx = -direction.y / length, ny = direction.x / length;
+    return [-2, -1, 1, 2].filter(k => Math.abs(k * step) <= .85 * halfRange).map(k => {
+      const value = Number((k * step).toPrecision(10));
+      const x = width / 2 + direction.x * value * factor, y = height / 2 + direction.y * value * factor;
+      const label = value.toLocaleString('fr-FR', { useGrouping: false, maximumFractionDigits: 3 });
+      const labelWidth = label.length * 8;
+      const labelX = x + nx * (12 + labelWidth / 2), labelY = y + ny * 16;
+      const showLabel = !labels.some(other => Math.abs(other.x - labelX) < (other.width + labelWidth) / 2 + 4 && Math.abs(other.y - labelY) < 18);
+      if (showLabel) labels.push({ x: labelX, y: labelY, width: labelWidth });
+      return { axis, value, x, y, nx, ny, label, labelX, labelY, showLabel };
+    });
+  });
+}

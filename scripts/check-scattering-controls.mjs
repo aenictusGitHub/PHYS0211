@@ -21,6 +21,7 @@ function load(path, overrides = {}) {
   return module.exports;
 }
 const math = load('../components/math.tsx');
+const reducedUnits = load('../components/reduced-units.tsx', { '@/components/math': math });
 const slider = load('../components/ui/slider.tsx', { '@/lib/utils': { cn } });
 const input = load('../components/ui/input.tsx', { '@/lib/utils': { cn } });
 let plots = [];
@@ -46,7 +47,7 @@ const playbackControls = load('../components/playback-controls.tsx', {
 function ScientificPlot(props) {
   plots.push(props);
   for (const label of [props.xLabel, props.yLabel, ...(props.horizontalLines ?? []).map(line => line.label).filter(Boolean)]) {
-    katex.renderToString(label.slice(1, -1), { throwOnError: true, strict: 'ignore' });
+    katex.renderToString(label.slice(1, -1), { throwOnError: true, strict: 'ignore', macros: { '\\overbar': '\\overline{\\mkern1mu#1\\mkern1mu}' } });
   }
   assert.ok(props.yDomain.every(Number.isFinite) && props.yDomain[1] > props.yDomain[0]);
   return createElement('div', { role: 'img', 'aria-label': props.ariaLabel });
@@ -55,6 +56,7 @@ for (const potential of scattering.SCATTERING_POTENTIALS) {
   plots = [];
   const { ScatteringLab } = load('../components/scattering-lab.tsx', {
     '@/components/math': math,
+    '@/components/reduced-units': reducedUnits,
     '@/components/playback-controls': playbackControls,
     '@/components/scientific-plot': { ScientificPlot },
     '@/components/ui/button': { Button },

@@ -146,10 +146,11 @@ export function InfiniteWellLab({
     () =>
       plotGrid.map((point) =>
         spectralCoefficients.map((coefficient) =>
-          spectrum ? linearWellEigenfunction(spectrum.states[coefficient.n - 1], point.u, width) : wellEigenfunction(coefficient.n, point.u, width),
+          // sqrt(a) phi_n(a u): evaluate the normalized basis at unit width.
+          spectrum ? linearWellEigenfunction(spectrum.states[coefficient.n - 1], point.u) : wellEigenfunction(coefficient.n, point.u),
         ),
       ),
-    [spectralCoefficients, spectrum, plotGrid, width],
+    [spectralCoefficients, spectrum, plotGrid],
   );
   const evolvedCoefficients = useMemo(
     () => evolveWellState(spectralCoefficients, time, spectrum?.energies),
@@ -160,14 +161,14 @@ export function InfiniteWellLab({
       x: point.u,
       y:
         mode === 'stationary'
-          ? stationaryScale * (spectrum ? linearWellEigenfunction(spectrum.states[n - 1], point.u, width) : wellEigenfunction(n, point.u, width))
+          ? stationaryScale * (spectrum ? linearWellEigenfunction(spectrum.states[n - 1], point.u) : wellEigenfunction(n, point.u))
           : psiScale *
             probabilityFromBasis(evolutionBasis[index], evolvedCoefficients),
     }));
-  }, [evolutionBasis, evolvedCoefficients, mode, n, plotGrid, psiScale, width, spectrum, stationaryScale]);
+  }, [evolutionBasis, evolvedCoefficients, mode, n, plotGrid, psiScale, spectrum, stationaryScale]);
 
   const stationaryExtent = useMemo(() => Math.max(2.3, stationaryScale * (spectrum ? Math.max(...spectrum.states.slice(0, 8).map(state =>
-    Math.max(...plotGrid.map(point => Math.abs(linearWellEigenfunction(state, point.u, width)))))) : Math.sqrt(2 / width)) * 1.12), [spectrum, plotGrid, width, stationaryScale]);
+    Math.max(...plotGrid.map(point => Math.abs(linearWellEigenfunction(state, point.u)))))) : Math.sqrt(2)) * 1.12), [spectrum, plotGrid, stationaryScale]);
 
   const unscaledMaximumDensity = useMemo(() => {
     if (mode !== 'evolution') return 1;
@@ -258,12 +259,16 @@ export function InfiniteWellLab({
         </section>
 
         <div className="equation-card">
-          <span>{mode === 'stationary' ? 'Fonction propre normalisée' : 'État initial'}</span>
+          <span>{mode === 'stationary' ? 'Fonction propre sans dimension' : 'État initial'}</span>
           <Formula display>
             {mode === 'stationary'
-              ? perturbed ? String.raw`$\begin{aligned}H_\lambda\phi_n^{(\lambda)}&=E_n^{(\lambda)}\phi_n^{(\lambda)},\\\phi_n^{(\lambda)}(0)&=\phi_n^{(\lambda)}(a)=0.\end{aligned}$` : String.raw`$\phi_n(x)=\sqrt{\frac{2}{a}}\,\sin(n\pi x/a)$`
+              ? perturbed ? String.raw`$\begin{aligned}\frac{H_\lambda}{E_{\mathrm{ref}}}\widetilde\phi_n^{(\lambda)}&=\frac{E_n^{(\lambda)}}{E_{\mathrm{ref}}}\widetilde\phi_n^{(\lambda)},\\\widetilde\phi_n^{(\lambda)}(0)&=\widetilde\phi_n^{(\lambda)}(1)=0.\end{aligned}$` : String.raw`$\widetilde\phi_n(u)=\sqrt{2}\,\sin(n\pi u)$`
               : presetFormula(preset)}
           </Formula>
+          {mode === 'stationary' ? <div className="well-reduced-definition">
+            <Formula display>{String.raw`$u=\frac{x}{a},\qquad\widetilde\phi_n(u)=\sqrt a\,\phi_n(au)$`}</Formula>
+            <Formula display>{String.raw`$\int_0^1|\widetilde\phi_n(u)|^2\,du=1$`}</Formula>
+          </div> : null}
           {perturbed ? <p className="scale-note">{mode === 'stationary' ? `États calculés dans une base de ${WELL_BASIS_SIZE} sinus.` : <>Les <Formula>{String.raw`$\phi_n$`}</Formula> de l’état initial restent ceux du puits sans perturbation. L’évolution utilise le potentiel incliné dès <Formula>{'$t=0$'}</Formula>.</>}</p> : null}
         </div>
 
@@ -334,8 +339,8 @@ export function InfiniteWellLab({
             <h2>
               <Formula>
                 {mode === 'stationary'
-                  ? perturbed ? String.raw`$s\,\phi_${n}^{(\lambda)}(x)$` : String.raw`$s\,\phi_${n}(x)$`
-                  : String.raw`$s\,|\psi(x,\tau)|^2$`}
+                  ? perturbed ? String.raw`$s\,\widetilde\phi_${n}^{(\lambda)}(u)$` : String.raw`$s\,\widetilde\phi_${n}(u)$`
+                  : String.raw`$s\,|\widetilde\psi(u,\tau)|^2$`}
               </Formula>
             </h2>
           </div>
@@ -349,15 +354,15 @@ export function InfiniteWellLab({
           <ScientificPlot
             ariaLabel={
               mode === 'stationary'
-                ? `Fonction propre du puits infini pour n égal à ${n}, pente lambda ${strength.toFixed(1)}`
-                : `Densité de probabilité dans le puits infini au temps réduit ${time.toFixed(2)}, pente lambda ${strength.toFixed(1)}, facteur s égal à ${psiScale.toFixed(1)}`
+                ? `Fonction propre sans dimension du puits infini pour n égal à ${n}, pente lambda ${strength.toFixed(1)}`
+                : `Densité de probabilité sans dimension dans le puits infini au temps réduit ${time.toFixed(2)}, pente lambda ${strength.toFixed(1)}, facteur s égal à ${psiScale.toFixed(1)}`
             }
             xDomain={[-0.12, 1.12]}
             yDomain={mode === 'stationary' ? [-stationaryExtent, stationaryExtent] : [0, maximumDensity * 1.08]}
             xTicks={[0, 0.25, 0.5, 0.75, 1]}
             yTicks={mode === 'stationary' && stationaryExtent === 2.3 ? [-2, -1, 0, 1, 2] : undefined}
-            xLabel={String.raw`$x/a$`}
-            yLabel={mode === 'stationary' ? perturbed ? String.raw`$s\,\phi_n^{(\lambda)}(x)$` : String.raw`$s\,\phi_n(x)$` : String.raw`$s\,|\psi(x,\tau)|^2$`}
+            xLabel={String.raw`$u=x/a$`}
+            yLabel={mode === 'stationary' ? perturbed ? String.raw`$s\,\widetilde\phi_n^{(\lambda)}(u)$` : String.raw`$s\,\widetilde\phi_n(u)$` : String.raw`$s\,|\widetilde\psi(u,\tau)|^2$`}
             series={[
               {
                 values,
@@ -384,7 +389,7 @@ export function InfiniteWellLab({
         {mode === 'evolution' ? <PlaybackControls id="well" clock={clock} scale={psiScale} onScaleChange={setPsiScale}
           timeSymbol={String.raw`$\tau$`} finalSymbol={String.raw`$\tau_f$`}
           note={<><Formula>{String.raw`$\tau=${energyReference}t/\hbar$`}</Formula>. Le facteur <Formula>$s$</Formula> ne modifie pas la normalisation.</>} /> : null}
-        <p className="scale-note">La boîte s’étend de <Formula>{'$x/a=0$'}</Formula> à <Formula>{'$x/a=1$'}</Formula>. Seule l’abscisse est réduite ; la normalisation reste définie par <Formula>{String.raw`$\int_0^a |\psi(x,t)|^2\,dx=1$`}</Formula>.</p>
+        <p className="scale-note">Abscisse et ordonnée sont sans dimension : <Formula>{'$u=x/a$'}</Formula>, <Formula>{String.raw`$\widetilde\psi(u,\tau)=\sqrt a\,\psi(au,\hbar\tau/${energyReference})$`}</Formula> et <Formula>{String.raw`$\int_0^1|\widetilde\psi(u,\tau)|^2\,du=1$`}</Formula>. Le facteur <Formula>$s$</Formula> est uniquement graphique.</p>
         {mode === 'stationary' ? <EnergyLevels energies={energies} selected={n - 1} firstIndex={1} unit={`$E/${energyReference}$`} label="Niveaux d’énergie du puits infini, de n égal à 1 à 8" potentialBox boxTilt={strength} /> : null}
         {mode === 'evolution' && perturbed ? <section className="well-potential-profile" aria-label="Profil du potentiel incliné">
           <div className="well-moment-heading well-potential-heading">

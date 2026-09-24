@@ -5,6 +5,7 @@ import { PlaybackControls, DisplayControls } from '@/components/playback-control
 import { useLabPlayback } from '@/components/use-lab-playback';
 import { type ExperimentCommand } from '@/components/lab-types';
 import { Math as Formula } from '@/components/math';
+import { ReducedUnits } from '@/components/reduced-units';
 import { ScientificPlot } from '@/components/scientific-plot';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -50,6 +51,9 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
   const [playing, setPlaying] = useState(false);
   const clock = useLabPlayback({ active, enabled: mode === 'evolution', time: phase, setTime: setPhase, playing, setPlaying, defaultFinalTime: TAU_MAX, rate: TAU_MAX / 12, command: command?.lab === 'double-well' ? command : null });
   const spectrum = useMemo(() => solveDoubleWell(config), [config]);
+  // u=x/a: include the Jacobian so each plotted state is normalized in du.
+  const plottedStates = useMemo(() => spectrum.states.map(state =>
+    Float64Array.from(state, value => Math.sqrt(config.separation) * value)), [spectrum, config.separation]);
   const lower = mode === 'stationary' ? 0 : initial.lower;
   const gap = spectrum.energies[lower + 1] - spectrum.energies[lower];
   const period = TAU_MAX / gap;
@@ -88,27 +92,27 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
     { label: `État n = ${initial.lower + 1}`, quantumNumber: initial.lower + 1, weight: 1, phase: 0 },
   ];
   const baseline = mode === 'stationary' ? spectrum.energies[n] : meanEnergy;
-  const values = useMemo(() => Array.from(spectrum.x, (x, j) => ({ x, y: baseline + scale * (
-    mode === 'evolution' ? frame.density[j]
-      : display === 'wave' ? spectrum.states[n][j] : spectrum.states[n][j] ** 2
-  ) })), [spectrum, baseline, scale, mode, frame, display, n]);
-  const potentialValues = useMemo(() => Array.from(spectrum.x, (x, j) => ({ x, y: spectrum.potential[j] })), [spectrum]);
+  const values = useMemo(() => Array.from(spectrum.x, (x, j) => ({ x: x / config.separation, y: baseline + scale * (
+    mode === 'evolution' ? config.separation * frame.density[j]
+      : display === 'wave' ? plottedStates[n][j] : plottedStates[n][j] ** 2
+  ) })), [spectrum, baseline, scale, mode, frame, display, n, config.separation, plottedStates]);
+  const potentialValues = useMemo(() => Array.from(spectrum.x, (x, j) => ({ x: x / config.separation, y: spectrum.potential[j] })), [spectrum, config.separation]);
   const domain = useMemo(() => {
     let lower: number, upper: number;
     if (mode === 'stationary') {
-      [lower, upper] = eigenstateDomain(spectrum.energies, spectrum.states, scale, config.barrier * 1.3);
+      [lower, upper] = eigenstateDomain(spectrum.energies, plottedStates, scale, config.barrier * 1.3);
     } else {
       upper = Math.max(config.barrier * 1.3, meanEnergy + 1); lower = 0;
       for (let j = 0; j < spectrum.x.length; j++) {
         // A phase-independent bound keeps axes still during the animation.
-        const amplitude = (Math.sqrt(1 - initial.upperWeight) * Math.abs(spectrum.states[initial.lower][j]) + Math.sqrt(initial.upperWeight) * Math.abs(spectrum.states[initial.lower + 1][j])) ** 2;
+        const amplitude = (Math.sqrt(1 - initial.upperWeight) * Math.abs(plottedStates[initial.lower][j]) + Math.sqrt(initial.upperWeight) * Math.abs(plottedStates[initial.lower + 1][j])) ** 2;
         upper = Math.max(upper, meanEnergy + scale * amplitude + 0.35);
         lower = Math.min(lower, meanEnergy + scale * amplitude - 0.2);
       }
     }
     const extent = Math.min(DOUBLE_WELL_EXTENT, Math.max(2.4, config.separation * Math.sqrt(1 + Math.sqrt(upper / config.barrier)) * 1.06));
-    return { x: [-extent, extent] as [number, number], y: [lower, upper] as [number, number] };
-  }, [config, meanEnergy, mode, scale, spectrum, initial]);
+    return { x: [-extent / config.separation, extent / config.separation] as [number, number], y: [lower, upper] as [number, number] };
+  }, [config, meanEnergy, mode, scale, spectrum, initial, plottedStates]);
   const pct = (value: number) => `${(value * 100).toLocaleString('en-US', { useGrouping: false, minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
   const densityMode = mode === 'evolution' || display === 'density';
 
@@ -138,8 +142,8 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
         {mode === 'stationary' ? <>
           <Parameter id="double-well-n" label="Nombre quantique" symbol="$n$" value={n} min={0} max={DOUBLE_WELL_STATES - 1} step={1} onChange={setN} />
           <div className="display-switch" role="group" aria-label="Grandeur représentée dans le double puits">
-            <Button variant="outline" className={display === 'wave' ? 'is-selected' : ''} onClick={() => setDisplay('wave')} aria-pressed={display === 'wave'}><Formula>{String.raw`$\phi_n(x)$`}</Formula></Button>
-            <Button variant="outline" className={display === 'density' ? 'is-selected' : ''} onClick={() => setDisplay('density')} aria-pressed={display === 'density'}><Formula>{String.raw`$|\phi_n(x)|^2$`}</Formula></Button>
+            <Button variant="outline" className={display === 'wave' ? 'is-selected' : ''} onClick={() => setDisplay('wave')} aria-pressed={display === 'wave'} aria-label="Fonction propre réduite"><Formula>{String.raw`$\widetilde\Phi_n(u)$`}</Formula></Button>
+            <Button variant="outline" className={display === 'density' ? 'is-selected' : ''} onClick={() => setDisplay('density')} aria-pressed={display === 'density'} aria-label="Densité propre réduite"><Formula>{String.raw`$|\widetilde\Phi_n(u)|^2$`}</Formula></Button>
           </div>
         </> : <>
           <div className="control-block">
@@ -159,7 +163,7 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
             })}
           </div>
           <div className="equation-card"><span>Superposition initiale</span>
-            <Formula display>{String.raw`$\psi(x,0)=\sqrt{1-p}\,\phi_{${initial.lower}}(x)+e^{i\delta}\,\sqrt{p}\,\phi_{${initial.lower + 1}}(x)$`}</Formula>
+            <Formula display>{String.raw`$\widetilde\Psi(u,0)=\sqrt{1-p}\,\widetilde\Phi_{${initial.lower}}(u)+e^{i\delta}\,\sqrt{p}\,\widetilde\Phi_{${initial.lower + 1}}(u)$`}</Formula>
           </div>
           <Parameter id="double-well-population" label={`Population du niveau ${initial.lower + 1}`} symbol="$p$" value={initial.upperWeight}
             min={0} max={1} step={.05} onChange={upperWeight => prepare({ upperWeight })} />
@@ -175,25 +179,26 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
           <div><dt>Parité</dt><dd>{n % 2 === 0 ? 'paire' : 'impaire'}</dd></div>
         </> : <div><dt>Énergie moyenne</dt><dd><Formula>{String.raw`$\langle E\rangle=${numberTex(meanEnergy)}$`}</Formula></dd></div>}
         <div><dt>Écart du doublet</dt><dd><Formula>{String.raw`$\Delta E=${numberTex(gap)}$`}</Formula></dd></div>
-        <div><dt>Période</dt><dd><Formula>{`$T=${numberTex(period)}$`}</Formula></dd></div>
+        <div><dt>Période réduite</dt><dd><Formula>{`$T=${numberTex(period)}$`}</Formula></dd></div>
       </dl>
     </aside>
 
     <div className="figure-panel">
       <div className="figure-heading">
         <div><p className="eyebrow">{mode === 'stationary' ? 'États du double puits' : 'Oscillations entre les puits'}</p>
-          <h2><Formula>{mode === 'evolution' ? String.raw`$\langle E\rangle+s\,|\psi(x,t)|^2$`
-            : densityMode ? String.raw`$E_${n}+s\,|\phi_${n}(x)|^2$` : String.raw`$E_${n}+s\,\phi_${n}(x)$`}</Formula></h2>
+          <h2><Formula>{mode === 'evolution' ? String.raw`$\langle E\rangle+s\,|\widetilde\Psi(u,t)|^2$`
+            : densityMode ? String.raw`$E_${n}+s\,|\widetilde\Phi_${n}(u)|^2$` : String.raw`$E_${n}+s\,\widetilde\Phi_${n}(u)$`}</Formula></h2>
         </div>
         <div className="plot-legend" aria-label="Légende">
           <span><i className="legend-swatch accent" aria-hidden="true" />{densityMode ? 'densité de probabilité' : 'fonction propre'}</span>
           <span><i className="legend-swatch ink" aria-hidden="true" />potentiel</span>
         </div>
       </div>
+      <ReducedUnits potentialLength={config.separation} />
       <div className="plot-shell">
         <ScientificPlot ariaLabel={`Double puits : ${mode === 'stationary' ? `état propre n égal à ${n}` : `densité de probabilité à t sur T égal à ${(phase / TAU_MAX).toFixed(2)}`}`}
-          xDomain={domain.x} yDomain={domain.y} xTicks={[-config.separation, 0, config.separation]}
-          xLabel="$x$" yLabel={mode === 'evolution' ? String.raw`$E+s\,|\psi|^2$` : densityMode ? String.raw`$E+s\,|\phi_n|^2$` : String.raw`$E+s\,\phi_n$`}
+          xDomain={domain.x} yDomain={domain.y} xTicks={[-1, 0, 1]}
+          xLabel="$u=x/a$" yLabel={mode === 'evolution' ? String.raw`$E+s\,|\widetilde\Psi|^2$` : densityMode ? String.raw`$E+s\,|\widetilde\Phi_n|^2$` : String.raw`$E+s\,\widetilde\Phi_n$`}
           series={[
             { values: potentialValues, tone: 'ink', width: 2, fillTo: 0, fillOpacity: 0.1 },
             { values, tone: 'accent', width: 2.8, fillTo: baseline, fillOpacity: 0.27 },
@@ -206,7 +211,7 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
       {mode === 'evolution' ? <>
         <PlaybackControls id="double-well" clock={clock} scale={scale} onScaleChange={setScale}
           timeSymbol="$t/T$" finalSymbol="$t_f/T$" timeUnit={TAU_MAX}
-          note={<>À vitesse ×1, une période est parcourue en 12 secondes à l’écran. La période physique <Formula>$T$</Formula> est indiquée avec les paramètres.</>} />
+          note={<>À vitesse ×1, une période est parcourue en 12 secondes à l’écran. La période affichée avec les paramètres est exprimée en unités de <Formula>$t_0$</Formula>. Le rapport <Formula>$t/T$</Formula> est indépendant du choix d’unités.</>} />
 
         <dl className="probability-cards double-well-probabilities">
           <div className="probability-card"><dt>Puits gauche</dt><dd>{pct(frame.left)}</dd><small><Formula>{'$x<0$'}</Formula></small></div>
@@ -225,14 +230,15 @@ export function DoubleWellLab({ active, command }: { active: boolean; command: E
             : <>La barrière est basse devant l’énergie moyenne : les deux états s’étendent sur les deux puits et la localisation initiale est moins marquée.</>}
       </p></div>
       <details className="theory-notes">
-        <summary>Repères théoriques</summary>
+        <summary>Repères théoriques · grandeurs physiques</summary>
+          <p>Dans les formules ci-dessous, les symboles minuscules désignent les fonctions physiques ; les coordonnées, énergies et temps retrouvent leurs unités physiques.</p>
         <div className="theory-grid">
           <div><span>Équation stationnaire</span><Formula display>{String.raw`$\begin{aligned}H\phi_n&=E_n\phi_n,\\H&=-\frac{\hbar^2}{2m}\frac{d^2}{dx^2}+V(x).\end{aligned}$`}</Formula></div>
           <div><span>Doublet choisi</span><Formula display>{String.raw`$\begin{aligned}n_a&=2j,\quad n_b=2j+1,\\\Delta E&=E_{n_b}-E_{n_a},\\T&=\frac{2\pi\hbar}{\Delta E}.\end{aligned}$`}</Formula></div>
           <div><span>Évolution de la superposition</span><Formula display>{String.raw`$\begin{aligned}\psi(x,t)&=\sqrt{1-p}\,\phi_{n_a}(x)\,e^{-iE_{n_a}t/\hbar}+e^{i\delta}\,\sqrt{p}\,\phi_{n_b}(x)\,e^{-iE_{n_b}t/\hbar},\\\langle E\rangle&=(1-p)E_{n_a}+pE_{n_b}.\end{aligned}$`}</Formula></div>
         </div>
         <p>Le poids et la phase relative règlent les interférences. Après une demi-période, la densité devient son image miroir ; après une période, elle se reforme. « À gauche » et « À droite » maximisent la localisation dans le doublet choisi, sans garantir une localisation complète, en particulier au-dessus de la barrière. Les probabilités affichées sont les intégrales de la densité sur chaque demi-axe.</p>
-        <p>États propres calculés par différences finies sur <Formula>{`$[-${DOUBLE_WELL_EXTENT},${DOUBLE_WELL_EXTENT}]$`}</Formula> avec {DOUBLE_WELL_INTERVALS.toLocaleString('en-US', { useGrouping: false })} intervalles et des bords où la fonction s’annule. Le potentiel est quartique ; l’évolution utilise les deux états du doublet sélectionné.</p>
+        <p>États propres calculés par différences finies en coordonnée réduite sur <Formula>{`$[-${DOUBLE_WELL_EXTENT},${DOUBLE_WELL_EXTENT}]$`}</Formula> avec {DOUBLE_WELL_INTERVALS.toLocaleString('en-US', { useGrouping: false })} intervalles et des bords où la fonction s’annule. Le potentiel est quartique ; l’évolution utilise les deux états du doublet sélectionné.</p>
       </details>
     </div>
   </section>;

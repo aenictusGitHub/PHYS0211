@@ -55,6 +55,9 @@ export const PACKET_CENTER = -24;
 export const GRID_SIZE = 4096;
 export const DOMAIN_LENGTH = 256;
 export const DX = DOMAIN_LENGTH / GRID_SIZE;
+export const DP = 2 * Math.PI / DOMAIN_LENGTH;
+/** Ordered Fourier grid; p=k in the reduced units hbar=1. */
+export const SAMPLE_P = Float64Array.from({ length: GRID_SIZE }, (_, j) => (j - GRID_SIZE / 2) * DP);
 // Keeps the largest resolved kinetic phase below pi, avoiding spurious
 // high-frequency transmission channels at discontinuous potential edges.
 export const SCATTERING_DT = 0.0025;
@@ -177,6 +180,8 @@ export type ScatteringTimeline = {
   duration: number;
   maxDensity: number;
   maxAmplitude: number;
+  momentumDensities: Float32Array;
+  maxMomentumDensity: number;
   /** Uniform fields can be evaluated exactly at every animation time. */
   analyticalConfig?: ScatteringConfig;
   /** Selected after checking the full safe numerical trajectory. */
@@ -321,6 +326,20 @@ export class ScatteringSolver {
     }
     return { re, im, left, center, right, norm: left + center + right };
   }
+
+  /** Transform the full complex state, not the cropped display or |psi|².
+   * dx²/(2pi) ensures sum |psiBar(p)|² dp = sum |psi(x)|² dx.
+   * The grid-origin phase cancels in the density. Copies preserve the solver.
+   */
+  momentumDensity() {
+    const re = this.re.slice(), im = this.im.slice();
+    this.fft.apply(re, im);
+    const factor = DX * DX / (2 * Math.PI);
+    return Float32Array.from(SAMPLE_P, (_, j) => {
+      const k = (j + GRID_SIZE / 2) % GRID_SIZE;
+      return factor * (re[k] ** 2 + im[k] ** 2);
+    });
+  }
 }
 
 export function computeScatteringTimeline(
@@ -333,7 +352,8 @@ export function computeScatteringTimeline(
     const maxDensity = 1 / (Math.sqrt(2 * Math.PI) * config.sigma);
     onProgress?.(1);
     return { real: new Float32Array(0), imaginary: new Float32Array(0), probabilities: new Float64Array(0),
-      duration, maxDensity, maxAmplitude: Math.sqrt(maxDensity), analyticalConfig: { ...config } };
+      duration, maxDensity, maxAmplitude: Math.sqrt(maxDensity), analyticalConfig: { ...config },
+      momentumDensities: new Float32Array(0), maxMomentumDensity: Math.sqrt(2 / Math.PI) * config.sigma };
   }
   const frameDt = duration / (FRAME_COUNT - 1);
   const stepsPerFrame = Math.ceil(frameDt / SCATTERING_DT);
@@ -341,19 +361,56 @@ export function computeScatteringTimeline(
   const real = new Float32Array(FRAME_COUNT * SAMPLE_COUNT);
   const imaginary = new Float32Array(real.length);
   const probabilities = new Float64Array(FRAME_COUNT * 3);
+  const momentumDensities = new Float32Array(FRAME_COUNT * GRID_SIZE);
   let maxDensity = 0;
+  let maxMomentumDensity = 0;
   for (let frame = 0; frame < FRAME_COUNT; frame++) {
     if (frame > 0) solver.step(stepsPerFrame);
     const snapshot = solver.snapshot();
     real.set(snapshot.re, frame * SAMPLE_COUNT);
     imaginary.set(snapshot.im, frame * SAMPLE_COUNT);
     probabilities.set([snapshot.left, snapshot.center, snapshot.right], frame * 3);
+    const momentumDensity = solver.momentumDensity();
+    momentumDensities.set(momentumDensity, frame * GRID_SIZE);
+    for (const value of momentumDensity) maxMomentumDensity = Math.max(maxMomentumDensity, value);
     for (let j = 0; j < SAMPLE_COUNT; j++) {
       maxDensity = Math.max(maxDensity, snapshot.re[j] ** 2 + snapshot.im[j] ** 2);
     }
     if (frame % 30 === 0) onProgress?.(frame / (FRAME_COUNT - 1));
   }
-  return { real, imaginary, probabilities, duration, maxDensity, maxAmplitude: Math.sqrt(maxDensity) };
+  return { real, imaginary, probabilities, momentumDensities, maxMomentumDensity, duration, maxDensity, maxAmplitude: Math.sqrt(maxDensity) };
+}
+
+/** Exact momentum density for free propagation and uniform gravity, including
+ * packets outside the position frame or beyond the numerical Fourier grid.
+ */
+export function uniformFieldMomentumValues(config: ScatteringConfig, time: number) {
+  const mean = uniformFieldMoments(config, time).momentum;
+  const sigma = 1 / (2 * config.sigma);
+  return Array.from({ length: 241 }, (_, j) => {
+    const u = (j - 120) / 20;
+    return { x: mean + u * sigma, y: Math.exp(-u * u / 2) / (Math.sqrt(2 * Math.PI) * sigma) };
+  });
+}
+
+/** Interpolate probabilities, never sparsely saved complex phases. */
+export function sampleMomentumTimeline(timeline: ScatteringTimeline, time: number) {
+  const t = Math.max(0, Math.min(timeline.duration, time));
+  if (timeline.analyticalConfig) return uniformFieldMomentumValues(timeline.analyticalConfig, t);
+  const position = t / timeline.duration * (FRAME_COUNT - 1);
+  const a = Math.floor(position), b = Math.min(FRAME_COUNT - 1, a + 1), blend = position - a;
+  return Array.from(SAMPLE_P, (x, j) => ({ x,
+    y: (1 - blend) * timeline.momentumDensities[a * GRID_SIZE + j] + blend * timeline.momentumDensities[b * GRID_SIZE + j],
+  }));
+}
+
+/** Mean of the complete, uniformly sampled spectrum, before display cropping.
+ * The common grid spacing cancels between the first moment and the norm.
+ */
+export function momentumExpectation(values: readonly { x: number; y: number }[]) {
+  let norm = 0, firstMoment = 0;
+  for (const point of values) { norm += point.y; firstMoment += point.x * point.y; }
+  return norm > 0 ? firstMoment / norm : 0;
 }
 
 export const SCATTERING_RESIDUAL_TOLERANCE = .005;

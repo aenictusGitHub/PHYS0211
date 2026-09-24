@@ -9,7 +9,7 @@ self.onmessage = (event: MessageEvent<{ config: ScatteringConfig; finalTime?: nu
       ? computeAutomaticScatteringTimeline(event.data.config, reportProgress)
       : computeScatteringTimeline(event.data.config, reportProgress, event.data.finalTime);
     self.postMessage({ type: 'ready', timeline }, {
-      transfer: [timeline.real.buffer, timeline.imaginary.buffer, timeline.probabilities.buffer],
+      transfer: [timeline.real.buffer, timeline.imaginary.buffer, timeline.probabilities.buffer, timeline.momentumDensities.buffer],
     });
   } catch (error) {
     console.error('Wavepacket calculation failed', error);

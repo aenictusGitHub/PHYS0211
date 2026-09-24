@@ -19,6 +19,6 @@ export function SternGerlachScreen({ points, range, scale }: { points: readonly 
       <span className="sg-screen-x"><Formula>$x$</Formula></span>
       {!points.length ? <p className="sg-screen-empty">En attente du faisceau</p> : null}
     </div>
-    <p className="scale-note">Vue de face · même échelle sur les deux axes<br />de {(-range).toFixed(2)} à {range.toFixed(2)} mm</p>
+    <p className="scale-note">Vue de face · axes à même échelle<br />de {(-range).toFixed(2)} à {range.toFixed(2)} mm</p>
   </div>;
 }

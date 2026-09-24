@@ -282,7 +282,7 @@ h1 { max-width: 440px; margin-bottom: 12px; font-size: var(--text-title); font-w
 .equation-card > span:first-child { display: block; margin-bottom: 10px; color: var(--muted-foreground); font-size: var(--text-small); }
 .equation-card .katex-display { margin: 0; text-align: left; }
 .equation-card .katex-display > .katex { text-align: left; }
-.oscillator-reduced-definition { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.oscillator-reduced-definition, .well-reduced-definition { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 
 .mode-switch {
   display: grid;
@@ -622,6 +622,10 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .scattering-gravity-potential { margin: 0 0 22px; padding-top: 18px; border-top: 1px solid var(--line); }
 .scattering-gravity-potential .plot-shell { margin: 12px 0 0; }
 .scattering-gravity-potential .scientific-plot-frame { height: 260px; aspect-ratio: auto; }
+.scattering-momentum { margin: 0 0 24px; padding-top: 18px; border-top: 1px solid var(--line); }
+.scattering-momentum h3 { font-size: var(--text-emphasis); font-weight: 400; }
+.scattering-momentum .plot-shell { margin: 12px 0; }
+.scattering-momentum .scientific-plot-frame { height: 320px; aspect-ratio: auto; }
 .scattering-timeline { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 24px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); margin: 6px 0 20px; }
 .scattering-timeline .control-heading { margin-bottom: 10px; }
 .scattering-timeline .control-heading output { background: var(--card); }
@@ -667,6 +671,9 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .angular-surface canvas:focus-visible { outline: 2px solid var(--lab-tone); outline-offset: 3px; }
 .hydrogen-view-switch button:last-child { grid-column: 1 / -1; }
 .hydrogen-cloud { height: clamp(330px, 44vw, 520px); overflow: hidden; }
+.cloud-axis-ticks { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.cloud-axis-ticks line { stroke: var(--muted-foreground); stroke-width: 1; }
+.cloud-axis-ticks text { font-family: inherit; font-size: 14px; fill: var(--muted-foreground); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
 .hydrogen-workspace .scattering-display-controls:has(#hydrogen-point-count) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .compact-stepper-field:has(#hydrogen-point-count) { width: 6.5rem; }
 .surface-axis { position: absolute; transform: translate(-50%, -50%); color: var(--foreground); font-size: var(--text-body); pointer-events: none; }
@@ -769,6 +776,8 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
 .sg-workspace[aria-labelledby="sg-title"] .control-panel > .control-block > .control-caption,
 .sg-workspace[aria-labelledby="sg-title"] .control-panel > .sg-preparation > .control-caption { margin-bottom: 10px; }
 .sg-apparatus, .sg-apparatus-legend, .sg-screen-wrap { --accent: #b36c43; --teal: #285f88; }
+.sg-apparatus [data-plot-annotation="vertical-arrow"] { stroke: var(--rose); }
+.sg-apparatus .plot-arrow-label { color: var(--rose); }
 .sg-stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; gap: 8px; padding: 0; margin: 18px 0; counter-reset: sg-stage; }
 .sg-stages li { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-size: var(--text-small); line-height: 1.4; }
 .sg-stages li::before { counter-increment: sg-stage; content: counter(sg-stage) ". "; color: var(--lab-tone); }

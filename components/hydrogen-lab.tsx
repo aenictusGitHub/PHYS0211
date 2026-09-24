@@ -147,7 +147,7 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
     </aside>
     <div className="figure-panel">
       <div className="figure-heading"><div><p className="eyebrow">{view === 'cloud' ? 'Probabilité de présence · nuage 3D' : view === 'slice' ? 'Orbitale · coupe au noyau' : 'Distribution radiale'}</p>
-        <h2><Formula>{evolving ? view !== 'radial' ? String.raw`$\bigl\lvert\psi(\mathbf r,t)\bigr\rvert{}^2$` : '$P(r,t)$' : view !== 'radial' ? String.raw`$\bigl\lvert\psi_{${n},${l},${m}}\bigr\rvert{}^2$` : String.raw`$P_{${n},${l}}(r)=r^2|R_{${n},${l}}(r)|^2$`}</Formula></h2></div>
+        <h2><Formula>{evolving ? view !== 'radial' ? String.raw`$a_0^3\bigl\lvert\psi(\mathbf r,t)\bigr\rvert{}^2$` : '$a_0P(r,t)$' : view !== 'radial' ? String.raw`$a_0^3\bigl\lvert\psi_{${n},${l},${m}}\bigr\rvert{}^2$` : String.raw`$a_0P_{${n},${l}}(r)=a_0r^2|R_{${n},${l}}(r)|^2$`}</Formula></h2></div>
         <span className="figure-tag">{evolving ? preset.label : <Formula>{String.raw`$n=${n},\;\ell=${l},\;m=${m}$`}</Formula>}</span>
       </div>
       {view === 'cloud' ? <>
@@ -179,6 +179,15 @@ export function HydrogenLab({ active, command }: { active: boolean; command: Exp
           verticalLines={[{ value: mean, tone: 'teal', dashed: true, label: String.raw`$\langle r\rangle$` }]} /></div>
         <p className="probability-note">Probabilité intégrée dans le cadre radial : {(100 * capturedProbability).toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 2 })} %. Échelle verticale commune à la famille, à facteur <Formula>{'$s$'}</Formula> fixé. Le facteur agit seulement sur l’affichage.{!evolving ? <> La courbe ne dépend pas de <Formula>{'$m$'}</Formula> ni du choix d’une base réelle ou complexe.</> : null}</p>
       </>}
+      <details className="theory-notes">
+        <summary>Densités sans dimension</summary>
+        <p>Les coordonnées spatiales sont exprimées en rayons de Bohr. Avec <Formula>{String.raw`$\mathbf u=\mathbf r/a_0$`}</Formula>, la fonction réduite est</p>
+        <Formula display>{String.raw`$\widetilde\psi(\mathbf u,t)=a_0^{3/2}\psi(a_0\mathbf u,t)$`}</Formula>
+        <Formula display>{String.raw`$\int|\widetilde\psi(\mathbf u,t)|^2\,d^3u=1$`}</Formula>
+        <p>Le nuage échantillonne cette densité sans dimension ; la coupe en montre une couleur à contraste renforcé, pas une projection ni une densité renormalisée dans le plan.</p>
+        <Formula display>{String.raw`$u=r/a_0,\qquad\int_0^\infty a_0P(a_0u,t)\,du=1$`}</Formula>
+        <p>La vue radiale représente <Formula>{String.raw`$s\,a_0P(r,t)$`}</Formula>. Le facteur <Formula>$s$</Formula> est uniquement graphique ; les énergies restent exprimées en eV et les temps physiques en fs.</p>
+      </details>
       {evolving ? <AtomicClock id="hydrogen" clock={clock} {...displaySetting}
         period={String.raw`$T=2\pi\hbar/\Delta E=${periodFs.toFixed(3)}\,\mathrm{fs}$`} />
         : <DisplayControls id="hydrogen" stationary {...displaySetting} />}
