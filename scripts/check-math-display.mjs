@@ -120,6 +120,11 @@ for (const [l, m] of [[1, 0], [5, -5], [5, 5]]) {
   assert.equal((html.match(/<math\b/g) ?? []).length, 1);
 }
 const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
+const legendRule = css.match(/\.plot-legend\s*\{([^}]+)\}/)?.[1];
+assert.match(legendRule ?? '', /font-size:\s*var\(--text-small\)/,
+  'Plot legends use the same shared type scale as display choices, compact controls and simulation status');
+assert.match(css, /\.plot-legend \.katex\s*\{\s*font-size:\s*1em;/,
+  'Mathematical legend labels retain the surrounding text size');
 const choiceRule = css.match(/\.preset-grid button,\s*\.display-switch button\s*\{([^}]+)\}/)?.[1];
 assert.ok(choiceRule);
 assert.match(choiceRule, /height:\s*auto/);
