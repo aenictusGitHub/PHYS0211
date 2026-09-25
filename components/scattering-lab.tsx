@@ -272,7 +272,7 @@ export function ScatteringLab({ active, command }: { active: boolean; command: E
             <span><i className="legend-swatch teal dashed" aria-hidden="true" /><Formula>{uniform ? `$\\langle ${coordinate}\\rangle$` : String.raw`$\langle E\rangle$`}</Formula></span>
           </div>
         </div>
-        <ReducedUnits momentum />
+        <ReducedUnits momentum potentialWidth={uniform ? undefined : config.width} />
         <div className="scattering-toolbar">
           {!uniform ? <div className="mode-switch scattering-shape-switch" role="group" aria-label="Forme du potentiel">
             {([false, true] as const).map(isGaussian => (

@@ -808,6 +808,8 @@ const cloudView = harness('components/hydrogen-cloud.tsx', 'HydrogenCloud', 'hyd
 const cloudCanvas = () => cloudView.elements().find(el => el.type === 'canvas').props;
 const cloudCount = cloudCanvas()['data-cloud-points'];
 assert.equal(cloudCount, 20000);
+assert.equal(cloudView.elements().filter(el => el.type === 'text').length, 0, 'No numbers on the cloud axes, including the origin');
+assert.ok(cloudView.elements().some(el => el.props.className === 'cloud-scale-bar' && el.props['data-length'] > 0), 'A length scale remains visible');
 let cloudCapture = null;
 const cloudTarget = { setPointerCapture(id) { cloudCapture = id; }, releasePointerCapture() { cloudCapture = null; }, focus() {} };
 cloudCanvas().onPointerDown({ button: 0, pointerId: 1, clientX: 0, clientY: 0, currentTarget: cloudTarget });

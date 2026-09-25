@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { QuantumMark } from '@/components/quantum-mark';
+import { QuantumBannerWaves } from '@/components/quantum-banner-waves';
 import { Math as Formula } from '@/components/math';
 import { FourierLab } from '@/components/fourier-lab';
 import { parseFourier, FOURIER_SIGMA_MIN, FOURIER_SIGMA_MAX, FOURIER_CENTER_LIMIT, FOURIER_MOMENTUM_LIMIT } from '@/lib/fourier';
@@ -366,8 +366,13 @@ export function QuantumLab() {
       <a className="skip-link" href="#laboratory">Aller au laboratoire</a>
       <header className="site-header">
         <a className="brand" href="#laboratory" aria-label="Mécanique quantique, accueil">
-          <span className="brand-mark"><QuantumMark /></span>
-          <span><strong>Mécanique quantique</strong><small>PHYS0211-3 · 2026–2027</small></span>
+          <QuantumBannerWaves />
+          <span className="brand-formulas" aria-hidden="true">
+            <Formula compactHats className="brand-equation-schrodinger">{'$i\\hbar\\,\\partial_t\\mathopen{\\lvert}\\psi(t)\\mathclose{\\rangle}=\\hat H\\mathopen{\\lvert}\\psi(t)\\mathclose{\\rangle}$'}</Formula>
+            <Formula className="brand-equation-uncertainty">{'$\\Delta x\\,\\Delta p\\geq\\hbar/2$'}</Formula>
+            <Formula compactHats className="brand-equation-commutator">{'$[\\hat x,\\hat p]=i\\hbar$'}</Formula>
+          </span>
+          <span className="brand-copy"><strong>Mécanique quantique</strong><small>PHYS0211-3 · 2026–2027</small></span>
         </a>
 
         <nav aria-label="Choisir un laboratoire">

@@ -1,16 +1,19 @@
 import { Math as Formula } from '@/components/math';
 
 /** The solvers use a fixed reference length, not the adjustable potential width. */
-export function ReducedUnits({ momentum = false, potentialLength }: { momentum?: boolean; potentialLength?: number }) {
+export function ReducedUnits({ momentum = false, potentialLength, potentialWidth }: { momentum?: boolean; potentialLength?: number; potentialWidth?: number }) {
+  const referenceLength = potentialLength ?? potentialWidth;
   return <div className="reduced-units">
     <p className="scale-note">Axes, paramètres et amplitudes sont sans dimension. {potentialLength !== undefined ? <>La figure utilise <Formula>$u=x/a$</Formula> et des fonctions normalisées en <Formula>$du$</Formula></> : momentum ? <><Formula>{String.raw`$\Psi$`}</Formula> désigne le paquet réduit</> : <><Formula>{String.raw`$\Psi$`}</Formula> et <Formula>{String.raw`$\Phi_n$`}</Formula> désignent les fonctions réduites</>} ; <Formula>$s$</Formula> est uniquement un gain graphique.</p>
     <details className="theory-notes">
       <summary>Définition des unités réduites</summary>
-      <p>On choisit une longueur de référence fixe <Formula>$L$</Formula>, indépendante des réglages du potentiel. L’indice « phys » désigne une grandeur physique.</p>
-      {potentialLength !== undefined ? <>
-        <p>Le paramètre <Formula>$a$</Formula> du curseur est sans dimension ; <Formula>{String.raw`$a_{\mathrm{phys}}$`}</Formula> est la longueur physique correspondante :</p>
-        <Formula display>{String.raw`$a=\frac{a_{\mathrm{phys}}}{L},\qquad L=\frac{a_{\mathrm{phys}}}{a}$`}</Formula>
-        <p>Avec le réglage actuel, <Formula>{String.raw`$L=\frac{a_{\mathrm{phys}}}{${potentialLength}}$`}</Formula>. Changer <Formula>$a$</Formula> fait varier la longueur physique du potentiel à <Formula>$L$</Formula> fixé. Aucune valeur en mètres n’est imposée.</p>
+      <p><Formula>$L$</Formula> est l’unité de longueur fixe du modèle : une unité sur l’axe réduit <Formula>$x$</Formula> représente une distance physique <Formula>$L$</Formula>. L’application ne fixe pas sa valeur en mètres ; il faut choisir cette valeur pour convertir les résultats en unités physiques. L’indice « phys » désigne ces grandeurs physiques.</p>
+      {referenceLength !== undefined ? <>
+        <p>Le curseur <Formula>$a$</Formula> indique {potentialLength !== undefined ? 'le demi-écartement des puits' : 'le paramètre de largeur du potentiel'} en unités de <Formula>$L$</Formula>, et non une longueur en mètres :</p>
+        <Formula display>{String.raw`$a=\frac{a_{\mathrm{phys}}}{L},\qquad a_{\mathrm{phys}}=aL$`}</Formula>
+        <p>Ainsi, <Formula>$a=1$</Formula> signifie <Formula>{String.raw`$a_{\mathrm{phys}}=L$`}</Formula>, et <Formula>$a=2$</Formula> signifie <Formula>{String.raw`$a_{\mathrm{phys}}=2L$`}</Formula>. Déplacer le curseur change le potentiel, pas l’unité <Formula>$L$</Formula>.</p>
+        <p>Réglage actuel : <Formula>{String.raw`$a=${referenceLength}$`}</Formula>, donc <Formula>{String.raw`$a_{\mathrm{phys}}=${referenceLength}\,L$`}</Formula>, ou encore <Formula>{String.raw`$L=\frac{a_{\mathrm{phys}}}{${referenceLength}}$`}</Formula>.</p>
+        {momentum ? <p>Pour un potentiel carré, <Formula>{String.raw`$a_{\mathrm{phys}}$`}</Formula> est sa largeur totale. Pour un potentiel gaussien, c’est le paramètre de largeur dans l’exponentielle, pas la largeur à mi-hauteur.</p> : null}
       </> : null}
       <Formula display>{String.raw`$E_{\mathrm{ref}}=\frac{\hbar^2}{mL^2},\qquad t_0=\frac{mL^2}{\hbar}$`}</Formula>
       <Formula display>{String.raw`$x=\frac{x_{\mathrm{phys}}}{L},\quad t=\frac{t_{\mathrm{phys}}}{t_0},\quad E=\frac{E_{\mathrm{phys}}}{E_{\mathrm{ref}}},\quad V=\frac{V_{\mathrm{phys}}}{E_{\mathrm{ref}}}$`}</Formula>

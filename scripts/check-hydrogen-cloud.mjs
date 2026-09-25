@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 registerHooks({ resolve(specifier, context, nextResolve) { return nextResolve(['./atomic', './atomic-dynamics'].includes(specifier) ? `${specifier}.ts` : specifier, context); } });
-const { sampleHydrogenCloud, hydrogenCloudAtPhase, projectCloudPoint, cloudAxisGraduations } = await import('../lib/hydrogen-cloud.ts');
+const { sampleHydrogenCloud, hydrogenCloudAtPhase, projectCloudPoint, cloudAxisGraduations, cloudScaleBar } = await import('../lib/hydrogen-cloud.ts');
 const { HYDROGEN_PRESETS, circularRydbergPreset, radialSuperposition } = await import('../lib/atomic-dynamics.ts');
 const { radialMean, radialExtent } = await import('../lib/atomic.ts');
 const close = (a, b, tolerance, label) => assert.ok(Math.abs(a - b) < tolerance, `${label}: ${a} vs ${b}`);
@@ -58,8 +58,11 @@ for (const extent of [8, 50, 2000]) for (const zoom of [.6, 1, 2.4]) for (const 
     close(tick.y, height / 2 + factor * projected.y, 1e-9, 'Tick y matches cloud projection');
     assert.ok(Math.abs(tick.value) <= .85 * extent / zoom);
     assert.ok(ticks.some(other => other.axis === tick.axis && other.value === -tick.value), 'Symmetric signed values');
-    assert.ok(Number.isFinite(tick.labelX) && Number.isFinite(tick.labelY));
+    assert.ok(!('label' in tick), 'Axis ticks have no numeric labels');
   }
+  const ruler = cloudScaleBar(extent, zoom, width, height);
+  close(ruler.pixels, ruler.value * factor, 1e-9, 'Scale bar matches the cloud scale');
+  assert.ok(ruler.pixels > 30 && ruler.pixels <= 110);
 }
 assert.deepEqual([...new Set(cloudAxisGraduations(10, 1, .65, .35, 640, 440).map(t => t.value))], [-5, 5]);
 assert.deepEqual([...new Set(cloudAxisGraduations(10, 2, .65, .35, 640, 440).map(t => t.value))], [-4, -2, 2, 4]);

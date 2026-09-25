@@ -50,15 +50,37 @@ for (const expression of expressions) {
   }
 }
 const cases = renderToStaticMarkup(createElement(Formula, { display: true }, expressions[0]));
+const bannerSource = readFileSync(new URL('../components/quantum-lab.tsx', import.meta.url), 'utf8');
+const bannerEquation = JSON.parse(`"${bannerSource.match(/className="brand-equation-schrodinger">\{'([^']+)'\}/)[1]}"`);
+const bannerHtml = renderToStaticMarkup(createElement(Formula, { compactHats: true }, bannerEquation));
+assert.doesNotMatch(bannerHtml, /katex-error|<merror/);
+assert.equal((bannerHtml.match(/>⟩<\/mo>/g) ?? []).length, 2, 'Both states use ket notation');
+assert.equal((bannerHtml.match(/lspace="0em" rspace="0em">[∣⟩]<\/mo>/g) ?? []).length, 4,
+  'Ket delimiters have no extra operator spacing');
+assert.match(bannerHtml, /<mover accent="true"><mi>H<\/mi><mo stretchy="false" mathsize="70%">\^<\/mo><\/mover>/,
+  'The banner Hamiltonian has a smaller, non-stretching hat');
 // Check the actual reduced-unit definitions, including both Jacobians.
 const reducedSource = readFileSync(new URL('../components/reduced-units.tsx', import.meta.url), 'utf8');
 for (const match of reducedSource.matchAll(/String\.raw`([^`]*)`/g)) {
-  const html = renderToStaticMarkup(createElement(Formula, { display: true }, match[1].replace('${potentialLength}', '1.5')));
+  const html = renderToStaticMarkup(createElement(Formula, { display: true }, match[1].replaceAll('${referenceLength}', '1.5')));
   assert.doesNotMatch(html, /katex-error|<merror/);
 }
 for (const definition of [String.raw`\sqrt L\,\psi_{\mathrm{phys}}(Lx,t_0t)`,
   String.raw`\sqrt{\frac{\hbar}{L}}`, String.raw`E_{\mathrm{ref}}=\frac{\hbar^2}{mL^2}`,
   String.raw`t_0=\frac{mL^2}{\hbar}`]) assert.ok(reducedSource.includes(definition));
+const reducedModule = { exports: {} };
+new Function('exports', 'require', 'module', ts.transpileModule(reducedSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
+}).outputText)(reducedModule.exports, name => name === '@/components/math' ? { Math: Formula } : require(name), reducedModule);
+for (const width of [1, 2, 3.25]) {
+  const html = renderToStaticMarkup(createElement(reducedModule.exports.ReducedUnits, { momentum: true, potentialWidth: width }));
+  assert.ok(html.includes(String.raw`a_{\mathrm{phys}}=${width}\,L`), 'The explanation follows the current scattering width');
+  assert.match(html, /pas l’unité/);
+  assert.doesNotMatch(html, /katex-error|<merror|demi-écartement|u=\\frac/);
+}
+const doubleWellUnits = renderToStaticMarkup(createElement(reducedModule.exports.ReducedUnits, { potentialLength: 1.5 }));
+assert.match(doubleWellUnits, /demi-écartement/);
+assert.ok(doubleWellUnits.includes(String.raw`u=\frac{x}{a}`), 'The double-well display keeps its separate x/a coordinate');
 const hydrogenSource = readFileSync(new URL('../components/hydrogen-lab.tsx', import.meta.url), 'utf8');
 assert.ok(hydrogenSource.includes(String.raw`a_0^{3/2}\psi(a_0\mathbf u,t)`));
 assert.ok(hydrogenSource.includes(String.raw`\int_0^\infty a_0P(a_0u,t)\,du=1`));
@@ -121,7 +143,12 @@ for (const [index, tex] of rotorInitialStates.entries()) {
 for (const directory of ['components', 'lib', 'app']) {
   const root = new URL(`../${directory}/`, import.meta.url);
   for (const file of readdirSync(root, { recursive: true }).filter(name => /\.tsx?$/.test(name) && !name.startsWith('ui/'))) {
-    assert.doesNotMatch(readFileSync(new URL(file, root), 'utf8'), /\\(?:wide)?hat\b|\u0302/, `No operator hats anywhere in ${directory}/${file}`);
+    let contents = readFileSync(new URL(file, root), 'utf8');
+    // The decorative banner explicitly uses compact operator hats; lab notation stays unchanged.
+    if (directory === 'components' && file === 'quantum-lab.tsx') {
+      contents = contents.replace(/<Formula compactHats className="brand-equation-[^"]+">[\s\S]*?<\/Formula>/g, '');
+    }
+    assert.doesNotMatch(contents, /\\(?:wide)?hat\b|\u0302/, `No operator hats outside the banner in ${directory}/${file}`);
   }
 }
 const angularTemplate = labFormula('rotor-lab', tex => tex.includes('{Y\\,}_{${'));

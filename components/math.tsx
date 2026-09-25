@@ -5,6 +5,7 @@ type MathProps = {
   children: string;
   display?: boolean;
   className?: string;
+  compactHats?: boolean;
 };
 
 function unwrapMathDelimiters(source: string) {
@@ -25,6 +26,7 @@ export const Math = memo(function Math({
   children,
   display = false,
   className = '',
+  compactHats = false,
 }: MathProps) {
   const html = useMemo(() => {
     let mathml = katex.renderToString(unwrapMathDelimiters(children), {
@@ -45,10 +47,13 @@ export const Math = memo(function Math({
     if (children.includes('\\overbar')) {
       mathml = mathml.replace(/<mo stretchy="true">‾<\/mo>/g, '<mo stretchy="false" mathsize="70%">⎯</mo>');
     }
+    if (compactHats) {
+      mathml = mathml.replace(/<mo>\^<\/mo>/g, '<mo stretchy="false" mathsize="70%">^</mo>');
+    }
     // MathML-only output omits KaTeX's display wrapper. Retain it explicitly
     // so the existing card, theory and responsive typography still applies.
     return display ? `<span class="katex-display">${mathml}</span>` : mathml;
-  }, [children, display]);
+  }, [children, display, compactHats]);
 
   return (
     <span

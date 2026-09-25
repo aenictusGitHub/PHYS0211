@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Math as Formula } from '@/components/math';
 import { phaseRgb } from '@/lib/atomic';
 import type { AtomicTerm } from '@/lib/atomic-dynamics';
-import { sampleHydrogenCloud, hydrogenCloudAtPhase, projectCloudPoint, cloudAxisGraduations } from '@/lib/hydrogen-cloud';
+import { sampleHydrogenCloud, hydrogenCloudAtPhase, projectCloudPoint, cloudAxisGraduations, cloudScaleBar } from '@/lib/hydrogen-cloud';
 
 const INITIAL_VIEW = { yaw: .65, pitch: .35 };
 export function HydrogenCloud({ terms, phase, active, phaseColors, pointSize, pointCount = 20000 }: {
@@ -21,6 +21,7 @@ export function HydrogenCloud({ terms, phase, active, phaseColors, pointSize, po
   const extent = samples?.extent ?? 1;
   const radius = Math.min(size.width, size.height) * .43;
   const ticks = useMemo(() => cloudAxisGraduations(extent, zoom, view.yaw, view.pitch, size.width, size.height), [extent, zoom, view, size]);
+  const ruler = cloudScaleBar(extent, zoom, size.width, size.height);
   useEffect(() => {
     if (!frame.current) return;
     const observer = new ResizeObserver(([entry]) => {
@@ -55,7 +56,7 @@ export function HydrogenCloud({ terms, phase, active, phaseColors, pointSize, po
   return <>
     <div className="angular-surface hydrogen-cloud" ref={frame}>
       <canvas ref={canvas} role="img" tabIndex={0} data-cloud-points={points.length} data-yaw={view.yaw} data-pitch={view.pitch}
-        aria-label={`Nuage 3D de probabilité de présence : ${points.length} positions échantillonnées. Axes gradués en rayons de Bohr : ${[...new Set(ticks.map(tick => tick.value))].sort((a, b) => a - b).join(', ')} ; origine 0. Glissez ou utilisez les flèches pour tourner la vue.`}
+        aria-label={`Nuage 3D de probabilité de présence : ${points.length} positions échantillonnées. Axes gradués sans nombres. Étalon de longueur : ${ruler.value} rayons de Bohr. Glissez ou utilisez les flèches pour tourner la vue.`}
         onPointerDown={event => { if (event.button !== 0 || drag.current) return; drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY }; event.currentTarget.setPointerCapture(event.pointerId); event.currentTarget.focus(); }}
         onPointerMove={event => { const start = drag.current; if (!start || start.id !== event.pointerId) return; turn((event.clientX - start.x) * .009, (event.clientY - start.y) * .009); drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY }; }}
         onPointerUp={event => { if (drag.current?.id !== event.pointerId) return; drag.current = null; event.currentTarget.releasePointerCapture(event.pointerId); }}
@@ -64,11 +65,13 @@ export function HydrogenCloud({ terms, phase, active, phaseColors, pointSize, po
       <svg className="cloud-axis-ticks" width={size.width} height={size.height} aria-hidden="true">
         {ticks.map(tick => <g key={`${tick.axis}:${tick.value}`} data-axis={tick.axis} data-value={tick.value}>
           <line x1={tick.x - 4 * tick.nx} y1={tick.y - 4 * tick.ny} x2={tick.x + 4 * tick.nx} y2={tick.y + 4 * tick.ny} />
-          {tick.showLabel ? <text x={tick.labelX} y={tick.labelY}>{tick.label}</text> : null}
         </g>)}
-        <text x={size.width / 2 + 12} y={size.height / 2 + 14}>0</text>
       </svg>
       {['x', 'y', 'z'].map((axis, i) => { const p = projectCloudPoint({ x: i === 0 ? 1 : 0, y: i === 1 ? 1 : 0, z: i === 2 ? 1 : 0 }, view.yaw, view.pitch); return <span className="surface-axis" key={axis} aria-hidden="true" style={{ left: size.width / 2 + radius * p.x, top: size.height / 2 + radius * p.y }}><Formula>{`$${axis}/a_0$`}</Formula></span>; })}
+      <div className="cloud-scale-bar" aria-hidden="true" data-length={ruler.value} style={{ width: ruler.pixels }}>
+        <span className="cloud-scale-line" />
+        <Formula>{`$${ruler.value}\\,a_0$`}</Formula>
+      </div>
     </div>
     <div className="surface-toolbar">
       <p className="scale-note">Glissez pour tourner · flèches au clavier.</p>

@@ -80,7 +80,6 @@ export function cloudAxisGraduations(extent: number, zoom: number, yaw: number, 
   const halfRange = extent / zoom, target = halfRange * .35;
   const power = 10 ** Math.floor(Math.log10(target));
   const step = [1, 2, 5, 10].find(value => value * power >= target)! * power;
-  const labels: { x: number; y: number; width: number }[] = [{ x: width / 2 + 12, y: height / 2 + 14, width: 14 }];
   return (['x', 'y', 'z'] as const).flatMap(axis => {
     const direction = projectCloudPoint({ x: axis === 'x' ? 1 : 0, y: axis === 'y' ? 1 : 0, z: axis === 'z' ? 1 : 0 }, yaw, pitch);
     const length = Math.hypot(direction.x, direction.y);
@@ -90,12 +89,16 @@ export function cloudAxisGraduations(extent: number, zoom: number, yaw: number, 
     return [-2, -1, 1, 2].filter(k => Math.abs(k * step) <= .85 * halfRange).map(k => {
       const value = Number((k * step).toPrecision(10));
       const x = width / 2 + direction.x * value * factor, y = height / 2 + direction.y * value * factor;
-      const label = value.toLocaleString('fr-FR', { useGrouping: false, maximumFractionDigits: 3 });
-      const labelWidth = label.length * 8;
-      const labelX = x + nx * (12 + labelWidth / 2), labelY = y + ny * 16;
-      const showLabel = !labels.some(other => Math.abs(other.x - labelX) < (other.width + labelWidth) / 2 + 4 && Math.abs(other.y - labelY) < 18);
-      if (showLabel) labels.push({ x: labelX, y: labelY, width: labelWidth });
-      return { axis, value, x, y, nx, ny, label, labelX, labelY, showLabel };
+      return { axis, value, x, y, nx, ny };
     });
   });
+}
+
+/** A screen-plane ruler in Bohr radii, independent of the viewing angle. */
+export function cloudScaleBar(extent: number, zoom: number, width: number, height: number) {
+  const factor = Math.min(width, height) * .43 * zoom / extent;
+  const target = Math.min(110, width * .22) / factor;
+  const power = 10 ** Math.floor(Math.log10(target));
+  const value = Number(([5, 2, 1].find(n => n * power <= target)! * power).toPrecision(10));
+  return { value, pixels: value * factor };
 }
